@@ -12,7 +12,7 @@ describe("<Card>", () => {
     expect(screen.getByText(card.body)).toBeInTheDocument();
   });
 
-  test("renders cost/weight when present", () => {
+  test("renders footer tags when present", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
     expect(screen.getByText(card.footerTags.join(" · "))).toBeInTheDocument();
