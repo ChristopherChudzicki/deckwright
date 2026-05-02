@@ -1,26 +1,13 @@
 import { supabase } from "../api/supabase";
+import { TEST_USER_ID } from "./constants";
+import { makeFakeJwt } from "./fakeJwt";
 
 export type TestUser = { id: string; email: string };
 
 const DEFAULT_USER: TestUser = {
-  id: "11111111-1111-1111-1111-111111111111",
+  id: TEST_USER_ID,
   email: "alice@test.invalid",
 };
-
-function base64UrlEncode(input: string): string {
-  return btoa(input).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
-}
-
-// Mints a JWT-shaped string with the supplied claims. Signature isn't validated
-// by supabase-js — the SDK only decodes the payload — so a literal "fake" suffix
-// is fine. The `exp` claim must be in the future, otherwise `setSession` routes
-// through `_callRefreshToken` which would hit /auth/v1/token (we'd need another
-// MSW handler).
-function makeFakeJWT(claims: Record<string, unknown>): string {
-  const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = base64UrlEncode(JSON.stringify(claims));
-  return `${header}.${payload}.fake-signature`;
-}
 
 /**
  * Installs a fake authenticated session into the supabase-js client so
@@ -36,7 +23,7 @@ function makeFakeJWT(claims: Record<string, unknown>): string {
  */
 export async function signInTestUser(user: TestUser = DEFAULT_USER): Promise<TestUser> {
   const now = Math.floor(Date.now() / 1000);
-  const accessToken = makeFakeJWT({
+  const accessToken = makeFakeJwt({
     sub: user.id,
     exp: now + 3600,
     iat: now,

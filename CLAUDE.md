@@ -14,10 +14,10 @@ Project-specific guidance for AI coding sessions on this repo. Read alongside `R
 See README's "Design system" section for the full picture. Short version:
 
 - **Screen tokens** live in `src/index.css` (`--color-*`, `--space-*`, `--radius-*`, etc.). All screen UI references them; no inline hexes/rems in scope.
-- **Print-scoped tokens** are namespaced `--print-*` and used only by printable card components (`Card`, `AutoFitCard`, `PrintView`). They never apply to screen UI.
+- **Print-scoped tokens** are namespaced `--print-*` and used only by printable card components (`Card`, `PrintView`). They never apply to screen UI.
 - Use `react-aria-components` for new interactive primitives. **No** emotion / styled-components / MUI / Tailwind / shadcn.
 - Shared UI primitives live in `src/lib/ui/`. Before hand-rolling any input, button, dialog, switch, or toggle, check `src/lib/ui/README.md` — there's almost certainly an existing primitive.
-- The card preview shown in the editor renders the same `<Card>` (or `<AutoFitCard>`) component as `PrintView`, so screen preview matches print output exactly.
+- The card preview shown in the editor renders the same `<Card>` component as `PrintView`, so screen preview matches print output exactly.
 
 ## Tests
 
@@ -41,5 +41,5 @@ See README's "Design system" section for the full picture. Short version:
 
 ## Sensitive — proceed carefully
 
-- **Print output**: `src/cards/Card.tsx`, `src/cards/AutoFitCard.tsx`, the printed sheet preview half of `src/views/PrintView.module.css`, and `@page` / `@media print` rules. These target physical paper dimensions in absolute units; visual changes can break 4-per-sheet output. The screen toolbar inside `PrintView.tsx` is ordinary screen UI — that's fine to refactor.
+- **Print output**: `src/cards/Card.tsx`, the printed sheet preview half of `src/views/PrintView.module.css`, and `@page` / `@media print` rules. These target physical paper dimensions in absolute units; visual changes can break 4-per-sheet output. The screen toolbar inside `PrintView.tsx` is ordinary screen UI — that's fine to refactor.
 - **Database schema and RLS policies**: changes go through `supabase/migrations`. Don't edit live tables or bypass migrations.

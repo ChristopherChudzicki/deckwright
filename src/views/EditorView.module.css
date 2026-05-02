@@ -46,3 +46,25 @@
     grid-template-columns: 1fr;
   }
 }
+
+.paginator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.paginatorPage {
+  min-width: 6em;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.counts {
+  margin-top: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+}

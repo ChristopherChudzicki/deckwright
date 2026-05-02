@@ -1,14 +1,12 @@
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import type { MagicItemDetail, MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
+import { SB_URL, TEST_USER_ID } from "./constants";
 
-// Single source of truth for the local Supabase URL — also used by setup.ts
-// to stub VITE_SUPABASE_URL so the supabase client uses the same origin
-// MSW intercepts on.
-export const SB_URL = "http://localhost:54321";
+export { SB_URL };
 
 const TEST_USER_DEFAULT = {
-  id: "11111111-1111-1111-1111-111111111111",
+  id: TEST_USER_ID,
   email: "alice@test.invalid",
 };
 

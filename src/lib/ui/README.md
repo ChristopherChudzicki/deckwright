@@ -53,7 +53,7 @@ Primitive CSS uses tokens for color, space, radius, shadow, and font. Component-
 Two scopes for tokens:
 
 - **Screen tokens** (`--color-*`, `--space-*`, `--radius-*`, `--shadow-*`, `--fs-*`, etc.) — used by everything in `src/lib/ui/` and most of `src/views/`.
-- **Print tokens** (`--print-*`) — used only by `src/cards/Card.tsx`, `src/cards/AutoFitCard.tsx`, and `src/views/PrintView.tsx` (sheet preview half). Never reference these in screen UI.
+- **Print tokens** (`--print-*`) — used only by `src/cards/Card.tsx` and `src/views/PrintView.tsx` (sheet preview half). Never reference these in screen UI.
 
 ## Testing
 

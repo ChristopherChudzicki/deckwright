@@ -1,8 +1,7 @@
 .card {
-  --scale: 1;
   --card-base: 17px;
 
-  font-size: calc(var(--card-base) * var(--scale));
+  font-size: var(--card-base);
   width: var(--card-width);
   height: var(--card-height);
   padding: 1.15em;
@@ -18,13 +17,13 @@
   box-shadow: var(--print-shadow-card);
 }
 
-.four-up {
+.perPage4 {
   --card-base: 17px;
   --card-width: 3.75in;
   --card-height: 5in;
 }
 
-.two-up {
+.perPage2 {
   --card-base: 24px;
   --card-width: 7.5in;
   --card-height: 5in;
@@ -63,11 +62,11 @@
 
 .header {
   flex-shrink: 0;
-  padding-right: 4.5em;
 }
 
 .title {
   margin: 0 0 0.2em;
+  padding-right: 4.5em;
   font-size: 1.2em;
   font-weight: 700;
   line-height: 1.15;
@@ -109,4 +108,11 @@
   font-size: 0.85em;
   color: var(--print-color-ink-faint);
   flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 1em;
+}
+
+.footerRight {
+  margin-left: auto;
 }

@@ -4,11 +4,15 @@ import { pickIconKey } from "./iconRules";
 import { ResolvedIcon } from "./resolveIcon";
 import type { ItemCard } from "./types";
 
-export type CardLayout = "4-up" | "2-up";
+export type CardsPerPage = 2 | 4;
+
+export type CardPagination = { page: number; total: number };
 
 type Props = {
   card: ItemCard;
-  layout: CardLayout;
+  cardsPerPage: CardsPerPage;
+  pagination?: CardPagination;
+  bodyOverride?: string;
 };
 
 const splitParagraphs = (text: string): string[] =>
@@ -17,8 +21,8 @@ const splitParagraphs = (text: string): string[] =>
     .map((p) => p.trim())
     .filter(Boolean);
 
-export function Card({ card, layout }: Props) {
-  const layoutClass = layout === "4-up" ? styles["four-up"] : styles["two-up"];
+export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
+  const layoutClass = cardsPerPage === 4 ? styles.perPage4 : styles.perPage2;
   const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
 
   // Treat empty string the same as undefined: rendering <img src=""> makes the
@@ -26,6 +30,10 @@ export function Card({ card, layout }: Props) {
   // leaves the styled-but-empty image element visible instead of falling back.
   const showImage = !!card.imageUrl && brokenUrl !== card.imageUrl;
   const iconKey = card.iconKey ?? pickIconKey(card);
+
+  const isFirstPage = !pagination || pagination.page === 1;
+  const bodyText = bodyOverride ?? card.body;
+  const showFooter = card.costWeight !== undefined || pagination !== undefined;
 
   return (
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
@@ -44,17 +52,22 @@ export function Card({ card, layout }: Props) {
       )}
       <div className={styles.header}>
         <h3 className={styles.title}>{card.name}</h3>
-        <div className={styles.typeLine}>{card.typeLine}</div>
+        {isFirstPage && <div className={styles.typeLine}>{card.typeLine}</div>}
       </div>
       <hr className={styles.divider} />
       <div className={styles.body} data-role="card-body">
-        {splitParagraphs(card.body).map((p) => (
+        {splitParagraphs(bodyText).map((p) => (
           <p key={p}>{p}</p>
         ))}
       </div>
-      {card.costWeight && (
+      {showFooter && (
         <div className={styles.footer} data-testid="card-footer">
-          {card.costWeight}
+          {card.costWeight && <span>{card.costWeight}</span>}
+          {pagination && (
+            <span className={styles.footerRight} data-testid="card-pagination">
+              Card {pagination.page} of {pagination.total}
+            </span>
+          )}
         </div>
       )}
     </div>

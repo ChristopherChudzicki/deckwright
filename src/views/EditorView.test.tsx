@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as paginateModule from "../cards/paginate";
 import { makeCardRow, makeItemPayload } from "../test/factories";
 import { SB_URL as SB, server } from "../test/msw";
 import { EditorView } from "./EditorView";
@@ -78,5 +79,38 @@ describe("EditorView", () => {
     render(wrap(<EditorView deckId="d1" cardId="c1" />));
     await screen.findByRole("button", { name: /save/i }); // wait for render
     expect(screen.queryByTestId("template-notice")).not.toBeInTheDocument();
+  });
+
+  it("shows '1 card' counts label when body fits", async () => {
+    const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
+    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
+    render(wrap(<EditorView deckId="d1" cardId="c1" />));
+    expect(await screen.findByText("1 card")).toBeInTheDocument();
+  });
+
+  it("shows multi-card counts label and paginator when body overflows at 4 per page", async () => {
+    const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
+    vi.spyOn(paginateModule, "paginateBody").mockImplementation(({ body }) =>
+      body === "" ? [""] : ["chunk-a", "chunk-b", "chunk-c"],
+    );
+    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
+    render(wrap(<EditorView deckId="d1" cardId="c1" />));
+    expect(await screen.findByRole("button", { name: /next preview page/i })).toBeInTheDocument();
+    expect(screen.getByText("3 cards")).toBeInTheDocument();
+  });
+
+  it("shows per-bucket label when 4-per-page and 2-per-page counts differ", async () => {
+    const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
+    let callCount = 0;
+    vi.spyOn(paginateModule, "paginateBody").mockImplementation(({ body }) => {
+      if (body === "") return [""];
+      callCount += 1;
+      return callCount === 1 ? ["chunk-a", "chunk-b", "chunk-c"] : ["chunk-x", "chunk-y"];
+    });
+    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
+    render(wrap(<EditorView deckId="d1" cardId="c1" />));
+    expect(
+      await screen.findByText("3 cards (4 per page) · 2 cards (2 per page)"),
+    ).toBeInTheDocument();
   });
 });
