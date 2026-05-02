@@ -118,4 +118,18 @@ describe("<ItemEditor>", () => {
     render(<Harness initial={card} />);
     expect(screen.queryByText(/auto-picking/i)).not.toBeInTheDocument();
   });
+
+  test("typing a tag and pressing Enter adds it to footerTags; clicking remove drops it", async () => {
+    const card = itemCardFactory.build({ footerTags: [] });
+    const seen: ItemCard[] = [];
+    render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
+
+    const input = screen.getByRole("textbox", { name: /cost.*weight/i });
+    await userEvent.type(input, "500 gp{Enter}10 lb{Enter}");
+
+    expect(seen[seen.length - 1]?.footerTags).toEqual(["500 gp", "10 lb"]);
+
+    await userEvent.click(screen.getByRole("button", { name: /remove 500 gp/i }));
+    expect(seen[seen.length - 1]?.footerTags).toEqual(["10 lb"]);
+  });
 });
