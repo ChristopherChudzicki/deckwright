@@ -45,8 +45,7 @@ export function TagInput({
   return (
     <div className={[styles.wrapper, className].filter(Boolean).join(" ")}>
       <TagGroup
-        aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? "tags")}
-        aria-labelledby={ariaLabelledBy}
+        aria-label="Tags"
         onRemove={(keys) => {
           const next = value.filter((_, i) => !keys.has(`${i}-${value[i]}`));
           onChange(next);
