@@ -62,6 +62,7 @@
           "type": "string"
         },
         "footerTags": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "string"
