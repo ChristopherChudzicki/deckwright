@@ -84,4 +84,17 @@ describe("<TagInput>", () => {
     await userEvent.click(screen.getByRole("button", { name: "elsewhere" }));
     expect(screen.getByText("draft")).toBeInTheDocument();
   });
+
+  test("comma-then-blur does not double-commit the same chip", async () => {
+    render(
+      <>
+        <Harness />
+        <button type="button">elsewhere</button>
+      </>,
+    );
+    const input = screen.getByRole("textbox", { name: /footer tags/i });
+    await userEvent.type(input, "foo,");
+    await userEvent.click(screen.getByRole("button", { name: "elsewhere" }));
+    expect(screen.getAllByText("foo")).toHaveLength(1);
+  });
 });
