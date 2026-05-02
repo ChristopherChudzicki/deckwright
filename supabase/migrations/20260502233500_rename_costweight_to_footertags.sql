@@ -1,3 +1,47 @@
+-- 20260502233500_rename_costweight_to_footertags.sql
+-- Drop legacy item-card costWeight (string) in favor of footerTags (string[]).
+-- Splits any existing costWeight values on `,` and `·` (with surrounding
+-- whitespace), trims, drops empties, and writes the result as footerTags.
+-- Also re-issues cards_payload_valid with the regenerated JSON Schema.
+--
+-- The embedded JSON Schema below is generated from src/decks/schema.ts via
+-- `npm run gen:schema`. To update it, regenerate the JSON file and write a
+-- NEW migration that follows the same drop-then-add pattern below — never
+-- edit this file in place.
+
+create extension if not exists pg_jsonschema;
+
+alter table public.cards drop constraint if exists cards_payload_valid;
+
+-- Data migration: rewrite item-card payloads.
+-- 1) Items with a costWeight: split on `,` or `·`, trim, drop empties,
+--    write as footerTags, then drop the old key.
+update public.cards
+set payload = (payload - 'costWeight') || jsonb_build_object(
+  'footerTags',
+  coalesce(
+    (
+      select jsonb_agg(trimmed)
+      from (
+        select trim(t) as trimmed
+        from regexp_split_to_table(payload->>'costWeight', '\s*[,·]\s*') as t
+      ) s
+      where s.trimmed <> ''
+    ),
+    '[]'::jsonb
+  )
+)
+where payload->>'kind' = 'item' and payload ? 'costWeight';
+
+-- 2) Items without costWeight: just add an empty footerTags array.
+update public.cards
+set payload = payload || jsonb_build_object('footerTags', '[]'::jsonb)
+where payload->>'kind' = 'item' and not (payload ? 'footerTags');
+
+alter table public.cards
+  add constraint cards_payload_valid
+  check (jsonb_matches_schema(
+    $cardpayload$
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "oneOf": [
@@ -218,3 +262,9 @@
     }
   ]
 }
+    $cardpayload$::json,
+    payload
+  ));
+
+comment on constraint cards_payload_valid on public.cards is
+  'JSON Schema validation generated from src/decks/schema.ts via npm run gen:schema. Regen requires a new migration that drops + re-adds this constraint.';
