@@ -10,7 +10,7 @@ export type SeedItem = {
   name: string;
   typeLine?: string;
   body: string;
-  costWeight?: string;
+  footerTags?: string[];
 };
 
 export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
@@ -69,7 +69,7 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
       name: it.name,
       typeLine: it.typeLine ?? "Wondrous item",
       body: it.body,
-      ...(it.costWeight ? { costWeight: it.costWeight } : {}),
+      footerTags: it.footerTags ?? [],
       source: "custom",
       createdAt: now,
       updatedAt: now,
@@ -131,5 +131,5 @@ export const longItem: SeedItem = {
   name: "Wand of Wonder",
   typeLine: "Wand, rare (requires attunement by a spellcaster)",
   body: LONG_BODY,
-  costWeight: "5,000 gp · 1 lb",
+  footerTags: ["5,000 gp", "1 lb"],
 };
