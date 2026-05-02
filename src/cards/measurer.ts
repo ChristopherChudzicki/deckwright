@@ -81,11 +81,11 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     );
   };
 
-  const setFooter = (el: HTMLElement, costWeight: string | undefined, pagination: string) => {
+  const setFooter = (el: HTMLElement, footerTags: string[], pagination: string) => {
     el.replaceChildren();
-    if (costWeight) {
+    if (footerTags.length > 0) {
       const left = document.createElement("span");
-      left.textContent = costWeight;
+      left.textContent = footerTags.join(" · ");
       el.appendChild(left);
     }
     const right = document.createElement("span");
@@ -98,13 +98,13 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     measureFirst: (card, chunk) => {
       firstTitle.textContent = card.name;
       firstTypeLine.textContent = card.typeLine;
-      setFooter(firstFooter, card.costWeight, SENTINEL_PAGINATION);
+      setFooter(firstFooter, card.footerTags, SENTINEL_PAGINATION);
       setBodyContent(firstBody, chunk);
       return firstBody.scrollHeight <= firstBody.clientHeight;
     },
     measureContinuation: (card, chunk) => {
       contTitle.textContent = card.name;
-      setFooter(contFooter, card.costWeight, SENTINEL_PAGINATION);
+      setFooter(contFooter, card.footerTags, SENTINEL_PAGINATION);
       setBodyContent(contBody, chunk);
       return contBody.scrollHeight <= contBody.clientHeight;
     },

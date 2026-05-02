@@ -51,7 +51,7 @@ describe("measurer", () => {
 
   test("footer always renders pagination sentinel during measurement", () => {
     const measurer = getMeasurer(4);
-    const card = itemCardFactory.build({ costWeight: undefined });
+    const card = itemCardFactory.build({ footerTags: [] });
     measurer.measureFirst(card, "body chunk");
 
     const footerEl = document.querySelector<HTMLElement>(
@@ -60,7 +60,7 @@ describe("measurer", () => {
     expect(footerEl?.textContent).toContain("Card 9 of 9");
   });
 
-  test("footer renders both costWeight and pagination sentinel when costWeight is set", () => {
+  test("footer renders both footerTags and pagination sentinel when tags are set", () => {
     const measurer = getMeasurer(4);
     const card = itemCardFactory.build();
     measurer.measureFirst(card, "body chunk");
@@ -68,7 +68,7 @@ describe("measurer", () => {
     const footerEl = document.querySelector<HTMLElement>(
       '[data-shape="first"] [data-slot="footer"]',
     );
-    expect(footerEl?.textContent).toContain(card.costWeight!);
+    expect(footerEl?.textContent).toContain(card.footerTags.join(" · "));
     expect(footerEl?.textContent).toContain("Card 9 of 9");
   });
 
