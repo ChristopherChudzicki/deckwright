@@ -15,11 +15,11 @@ describe("<Card>", () => {
   test("renders cost/weight when present", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
-    expect(screen.getByText(card.costWeight!)).toBeInTheDocument();
+    expect(screen.getByText(card.footerTags.join(" · "))).toBeInTheDocument();
   });
 
-  test("omits footer when cost/weight is absent", () => {
-    const card = itemCardFactory.build({ costWeight: undefined });
+  test("omits footer when footerTags is empty", () => {
+    const card = itemCardFactory.build({ footerTags: [] });
     render(<Card card={card} cardsPerPage={4} />);
     expect(screen.queryByTestId("card-footer")).not.toBeInTheDocument();
   });
@@ -129,15 +129,15 @@ describe("<Card> with pagination", () => {
     expect(screen.queryByText(card.body)).not.toBeInTheDocument();
   });
 
-  test("retains costWeight on continuation pages alongside pagination", () => {
+  test("retains footerTags on continuation pages alongside pagination", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 2, total: 2 }} />);
-    expect(screen.getByText(card.costWeight!)).toBeInTheDocument();
+    expect(screen.getByText(card.footerTags.join(" · "))).toBeInTheDocument();
     expect(screen.getByTestId("card-pagination")).toBeInTheDocument();
   });
 
-  test("renders footer with pagination only when card has no costWeight", () => {
-    const card = itemCardFactory.build({ costWeight: undefined });
+  test("renders footer with pagination only when card has no footerTags", () => {
+    const card = itemCardFactory.build({ footerTags: [] });
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
     expect(screen.getByTestId("card-footer")).toBeInTheDocument();
     expect(screen.getByTestId("card-pagination")).toHaveTextContent(/^Card 1 of 3$/);
