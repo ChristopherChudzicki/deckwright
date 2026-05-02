@@ -21,7 +21,7 @@ beforeEach(() => {
 describe("useExpandedCards", () => {
   test("returns one PhysicalCard per item when bodies fit", () => {
     const items = itemCardFactory.buildList(3);
-    const { result } = renderHook(() => useExpandedCards(items, "4-up"));
+    const { result } = renderHook(() => useExpandedCards(items, 4));
     expect(result.current.physicalCards).toHaveLength(3);
     expect(result.current.physicalCards.every((p) => p.pagination === undefined)).toBe(true);
   });
@@ -29,11 +29,11 @@ describe("useExpandedCards", () => {
   test("layout change re-runs measurement", () => {
     const items = itemCardFactory.buildList(2);
     const { result, rerender } = renderHook(
-      ({ layout }: { layout: "4-up" | "2-up" }) => useExpandedCards(items, layout),
-      { initialProps: { layout: "4-up" } },
+      ({ cardsPerPage }: { cardsPerPage: 4 | 2 }) => useExpandedCards(items, cardsPerPage),
+      { initialProps: { cardsPerPage: 4 as 4 | 2 } },
     );
     const before = result.current.physicalCards;
-    rerender({ layout: "2-up" });
+    rerender({ cardsPerPage: 2 });
     expect(result.current.physicalCards).toHaveLength(before.length);
   });
 });

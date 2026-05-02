@@ -1,4 +1,4 @@
-import type { CardLayout } from "./Card";
+import type { CardsPerPage } from "./Card";
 import cardStyles from "./Card.module.css";
 import type { ItemCard } from "./types";
 
@@ -8,25 +8,25 @@ export type CardMeasurer = {
 };
 
 const SENTINEL_PAGINATION = "Card 9 of 9";
-const cache = new Map<CardLayout, CardMeasurer>();
+const cache = new Map<CardsPerPage, CardMeasurer>();
 
-export function getMeasurer(layout: CardLayout): CardMeasurer {
-  let m = cache.get(layout);
+export function getMeasurer(cardsPerPage: CardsPerPage): CardMeasurer {
+  let m = cache.get(cardsPerPage);
   if (!m) {
-    m = build(layout);
-    cache.set(layout, m);
+    m = build(cardsPerPage);
+    cache.set(cardsPerPage, m);
   }
   return m;
 }
 
-function build(layout: CardLayout): CardMeasurer {
+function build(cardsPerPage: CardsPerPage): CardMeasurer {
   const container = document.createElement("div");
-  container.setAttribute("data-measurer", layout);
+  container.setAttribute("data-measurer", String(cardsPerPage));
   container.setAttribute("aria-hidden", "true");
   container.style.cssText =
     "position:absolute;left:-99999px;top:0;visibility:hidden;pointer-events:none;";
 
-  const layoutClass = layout === "4-up" ? cardStyles["four-up"] : cardStyles["two-up"];
+  const layoutClass = cardsPerPage === 4 ? cardStyles.perPage4 : cardStyles.perPage2;
   const cardClass = `${cardStyles.card} ${layoutClass}`;
 
   container.innerHTML = `

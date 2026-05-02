@@ -17,13 +17,13 @@
   box-shadow: var(--print-shadow-card);
 }
 
-.four-up {
+.perPage4 {
   --card-base: 17px;
   --card-width: 3.75in;
   --card-height: 5in;
 }
 
-.two-up {
+.perPage2 {
   --card-base: 24px;
   --card-width: 7.5in;
   --card-height: 5in;
@@ -62,11 +62,11 @@
 
 .header {
   flex-shrink: 0;
-  padding-right: 4.5em;
 }
 
 .title {
   margin: 0 0 0.2em;
+  padding-right: 4.5em;
   font-size: 1.2em;
   font-weight: 700;
   line-height: 1.15;

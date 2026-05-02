@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card } from "../cards/Card";
+import { Card, type CardsPerPage } from "../cards/Card";
 import type { ItemCard } from "../cards/types";
 import { useExpandedCards } from "../cards/useExpandedCards";
 import { useDeckCards } from "../decks/queries";
@@ -7,7 +7,6 @@ import { Button } from "../lib/ui/Button";
 import { LoadingState } from "../lib/ui/LoadingState";
 import styles from "./PrintView.module.css";
 
-type PerPage = 2 | 4;
 type Props = { deckId: string };
 
 const chunk = <T,>(arr: T[], size: number): T[][] => {
@@ -18,12 +17,11 @@ const chunk = <T,>(arr: T[], size: number): T[][] => {
 
 export function PrintView({ deckId }: Props) {
   const cardsQuery = useDeckCards(deckId);
-  const [perPage, setPerPage] = useState<PerPage>(4);
+  const [perPage, setPerPage] = useState<CardsPerPage>(4);
 
   const cards = cardsQuery.data ?? [];
   const items = cards.filter((c): c is ItemCard => c.kind === "item");
-  const layout = perPage === 4 ? "4-up" : "2-up";
-  const { physicalCards } = useExpandedCards(items, layout);
+  const { physicalCards } = useExpandedCards(items, perPage);
 
   if (cardsQuery.isLoading) return <LoadingState />;
 
@@ -34,7 +32,10 @@ export function PrintView({ deckId }: Props) {
       <div className={styles.controls}>
         <label>
           Cards per page{" "}
-          <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value) as PerPage)}>
+          <select
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value) as CardsPerPage)}
+          >
             <option value={4}>4</option>
             <option value={2}>2</option>
           </select>
@@ -55,13 +56,13 @@ export function PrintView({ deckId }: Props) {
           <div
             key={`page-${pageCards[0]?.card.id ?? "empty"}-${pageCards[0]?.pagination?.page ?? 0}`}
             data-testid="page"
-            className={`${styles.page} ${perPage === 4 ? styles.fourUp : styles.twoUp}`}
+            className={`${styles.page} ${perPage === 4 ? styles.perPage4 : styles.perPage2}`}
           >
             {pageCards.map((entry) => (
               <div key={`${entry.card.id}-${entry.pagination?.page ?? 0}`} className={styles.slot}>
                 <Card
                   card={entry.card}
-                  layout={layout}
+                  cardsPerPage={perPage}
                   bodyOverride={entry.bodyChunk}
                   pagination={entry.pagination}
                 />

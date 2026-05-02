@@ -4,13 +4,13 @@ import { pickIconKey } from "./iconRules";
 import { ResolvedIcon } from "./resolveIcon";
 import type { ItemCard } from "./types";
 
-export type CardLayout = "4-up" | "2-up";
+export type CardsPerPage = 2 | 4;
 
 export type CardPagination = { page: number; total: number };
 
 type Props = {
   card: ItemCard;
-  layout: CardLayout;
+  cardsPerPage: CardsPerPage;
   pagination?: CardPagination;
   bodyOverride?: string;
 };
@@ -21,8 +21,8 @@ const splitParagraphs = (text: string): string[] =>
     .map((p) => p.trim())
     .filter(Boolean);
 
-export function Card({ card, layout, pagination, bodyOverride }: Props) {
-  const layoutClass = layout === "4-up" ? styles["four-up"] : styles["two-up"];
+export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
+  const layoutClass = cardsPerPage === 4 ? styles.perPage4 : styles.perPage2;
   const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
 
   // Treat empty string the same as undefined: rendering <img src=""> makes the

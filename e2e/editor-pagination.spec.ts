@@ -6,7 +6,7 @@ test("editor preview shows counts label and paginator for an oversized body", as
   await page.goto(`/deck/${TEST_DECK_ID}/edit/${longItem.id}`);
 
   const counts = page.getByTestId("preview-counts");
-  await expect(counts).toContainText(/cards \(4-up\) · /);
+  await expect(counts).toContainText(/cards \(4 per page\) · /);
 
   const paginator = page.getByTestId("preview-paginator");
   await expect(paginator).toBeVisible();

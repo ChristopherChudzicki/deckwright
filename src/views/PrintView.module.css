@@ -49,7 +49,7 @@
   break-after: page;
 }
 
-.fourUp {
+.perPage4 {
   grid-template-columns: 3.75in 3.75in;
   grid-template-rows: 5in 5in;
   gap: 1px; /* blade kerf for cutting */
@@ -57,7 +57,7 @@
   align-content: center;
 }
 
-.twoUp {
+.perPage2 {
   grid-template-columns: 7.5in;
   grid-template-rows: 5in 5in;
   gap: 1px; /* blade kerf for cutting */

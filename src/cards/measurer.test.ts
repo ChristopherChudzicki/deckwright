@@ -10,7 +10,7 @@ import { getMeasurer } from "./measurer";
 //
 // What this can't verify (because JSDOM has no real layout): real CSS produces
 // the expected body height, the sentinel suffix shrinks the body budget by the
-// right amount, or per-layout (4-up vs 2-up) sizes match print dimensions.
+// right amount, or per-page (4 vs 2) sizes match print dimensions.
 // Those invariants live in the Playwright e2e specs.
 
 beforeEach(() => {
@@ -30,7 +30,7 @@ beforeEach(() => {
 
 describe("measurer", () => {
   test("measureFirst writes title (no suffix) and the type line", () => {
-    const measurer = getMeasurer("4-up");
+    const measurer = getMeasurer(4);
     const card = itemCardFactory.build();
     measurer.measureFirst(card, "body chunk");
 
@@ -44,13 +44,13 @@ describe("measurer", () => {
   });
 
   test("continuation scaffold has no type line slot", () => {
-    getMeasurer("4-up");
+    getMeasurer(4);
     const typeLineEl = document.querySelector('[data-shape="continuation"] [data-slot="typeLine"]');
     expect(typeLineEl).toBeNull();
   });
 
   test("footer always renders pagination sentinel during measurement", () => {
-    const measurer = getMeasurer("4-up");
+    const measurer = getMeasurer(4);
     const card = itemCardFactory.build({ costWeight: undefined });
     measurer.measureFirst(card, "body chunk");
 
@@ -61,7 +61,7 @@ describe("measurer", () => {
   });
 
   test("footer renders both costWeight and pagination sentinel when costWeight is set", () => {
-    const measurer = getMeasurer("4-up");
+    const measurer = getMeasurer(4);
     const card = itemCardFactory.build();
     measurer.measureFirst(card, "body chunk");
 
@@ -73,7 +73,7 @@ describe("measurer", () => {
   });
 
   test("body chunk splits into <p> elements on blank-line paragraph breaks", () => {
-    const measurer = getMeasurer("4-up");
+    const measurer = getMeasurer(4);
     const card = itemCardFactory.build();
     measurer.measureFirst(card, "para one\n\npara two");
 
@@ -84,7 +84,7 @@ describe("measurer", () => {
   });
 
   test("returns true when scrollHeight <= clientHeight (fits)", () => {
-    const measurer = getMeasurer("4-up");
+    const measurer = getMeasurer(4);
     const card = itemCardFactory.build();
     expect(measurer.measureFirst(card, "any body")).toBe(true);
   });
@@ -96,14 +96,14 @@ describe("measurer", () => {
         return 500;
       },
     });
-    const measurer = getMeasurer("4-up");
+    const measurer = getMeasurer(4);
     const card = itemCardFactory.build();
     expect(measurer.measureFirst(card, "any body")).toBe(false);
   });
 
   test("getMeasurer returns the same instance across calls (idempotent)", () => {
-    const a = getMeasurer("4-up");
-    const b = getMeasurer("4-up");
+    const a = getMeasurer(4);
+    const b = getMeasurer(4);
     expect(a).toBe(b);
   });
 });

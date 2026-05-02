@@ -24,8 +24,19 @@ const isPristineNewCard = (card: ItemCard): boolean =>
 const isTemplateItem = (card: ItemCard): boolean =>
   card.source === "api" && /\(any /i.test(card.body);
 
-const cardCountLabel = (count: number, layout: string) =>
-  `${count} card${count === 1 ? "" : "s"} (${layout})`;
+type Bucket = { perPage: number; count: number };
+
+function countsLabel(buckets: Bucket[]): string {
+  if (buckets.length === 0) return "0 cards";
+  const first = buckets[0]!.count;
+  const allEqual = buckets.every((b) => b.count === first);
+  if (allEqual) {
+    return `${first} card${first === 1 ? "" : "s"}`;
+  }
+  return buckets
+    .map((b) => `${b.count} card${b.count === 1 ? "" : "s"} (${b.perPage} per page)`)
+    .join(" · ");
+}
 
 type Props = { deckId: string; cardId: string };
 
@@ -72,12 +83,11 @@ export function EditorView({ deckId, cardId }: Props) {
     () => (measurementCard ? [measurementCard] : []),
     [measurementCard],
   );
-  const { physicalCards: chunks4Up } = useExpandedCards(measurementItems, "4-up");
-  const { physicalCards: chunks2Up } = useExpandedCards(measurementItems, "2-up");
+  const { physicalCards: chunks4Up } = useExpandedCards(measurementItems, 4);
+  const { physicalCards: chunks2Up } = useExpandedCards(measurementItems, 2);
 
   const [previewPage, setPreviewPage] = useState(0);
   const totalPages4 = Math.max(chunks4Up.length, 1);
-  const totalPages2 = Math.max(chunks2Up.length, 1);
   const clampedPage = Math.min(previewPage, totalPages4 - 1);
   const visibleChunk = chunks4Up[clampedPage];
 
@@ -98,10 +108,10 @@ export function EditorView({ deckId, cardId }: Props) {
     navigate({ to: "/deck/$deckId", params: { deckId } });
   };
 
-  const countsLabel =
-    totalPages4 === 1 && totalPages2 === 1
-      ? "1 card"
-      : `${cardCountLabel(totalPages4, "4-up")} · ${cardCountLabel(totalPages2, "2-up")}`;
+  const label = countsLabel([
+    { perPage: 4, count: chunks4Up.length },
+    { perPage: 2, count: chunks2Up.length },
+  ]);
 
   const showPaginator = totalPages4 > 1;
 
@@ -126,10 +136,10 @@ export function EditorView({ deckId, cardId }: Props) {
         </div>
       </div>
       <div className={styles.preview}>
-        <div className={styles.previewLabel}>Preview (4-up size)</div>
+        <div className={styles.previewLabel}>Preview (4 per page)</div>
         <Card
           card={draft}
-          layout="4-up"
+          cardsPerPage={4}
           bodyOverride={visibleChunk?.bodyChunk}
           pagination={visibleChunk?.pagination}
         />
@@ -157,7 +167,7 @@ export function EditorView({ deckId, cardId }: Props) {
           </div>
         )}
         <div className={styles.counts} data-testid="preview-counts">
-          {countsLabel}
+          {label}
         </div>
       </div>
     </section>
