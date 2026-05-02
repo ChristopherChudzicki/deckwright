@@ -70,6 +70,22 @@ describe("itemCardSchema", () => {
     expect(itemCardSchema.safeParse(card).success).toBe(true);
   });
 
+  test("accepts an item card without footerTags (legacy JSON export) and defaults to []", () => {
+    const card = {
+      id: "abc",
+      kind: "item" as const,
+      name: "Bag of Holding",
+      typeLine: "Wondrous item, uncommon",
+      body: "Big bag.",
+      source: "custom" as const,
+      createdAt: "2026-04-19T00:00:00.000Z",
+      updatedAt: "2026-04-19T00:00:00.000Z",
+    };
+    const result = itemCardSchema.safeParse(card);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.footerTags).toEqual([]);
+  });
+
   test("rejects an apiRef without a ruleset", () => {
     const card = {
       id: "abc",
