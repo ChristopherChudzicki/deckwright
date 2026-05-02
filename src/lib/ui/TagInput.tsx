@@ -31,7 +31,7 @@ export function TagInput({
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
+    if (e.key === "Enter") {
       e.preventDefault();
       commit();
     } else if (e.key === "Backspace" && draft === "" && value.length > 0) {

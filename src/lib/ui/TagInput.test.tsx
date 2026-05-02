@@ -24,11 +24,14 @@ describe("<TagInput>", () => {
     expect(input).toHaveValue("");
   });
 
-  test("typing a comma commits a chip", async () => {
+  test("typing a comma does NOT commit a chip; the comma is preserved as text", async () => {
     render(<Harness />);
     const input = screen.getByRole("textbox", { name: /footer tags/i });
-    await userEvent.type(input, "uncommon,");
-    expect(screen.getByText("uncommon")).toBeInTheDocument();
+    await userEvent.type(input, "5,000 gp");
+    expect(input).toHaveValue("5,000 gp");
+    expect(screen.queryByText("5,000 gp")).not.toBeInTheDocument();
+    await userEvent.type(input, "{Enter}");
+    expect(screen.getByText("5,000 gp")).toBeInTheDocument();
     expect(input).toHaveValue("");
   });
 
@@ -85,7 +88,7 @@ describe("<TagInput>", () => {
     expect(screen.getByText("draft")).toBeInTheDocument();
   });
 
-  test("comma-then-blur does not double-commit the same chip", async () => {
+  test("blur commits pending text including any commas in the value", async () => {
     render(
       <>
         <Harness />
@@ -95,6 +98,6 @@ describe("<TagInput>", () => {
     const input = screen.getByRole("textbox", { name: /footer tags/i });
     await userEvent.type(input, "foo,");
     await userEvent.click(screen.getByRole("button", { name: "elsewhere" }));
-    expect(screen.getAllByText("foo")).toHaveLength(1);
+    expect(screen.getByText("foo,")).toBeInTheDocument();
   });
 });

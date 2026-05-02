@@ -1,7 +1,7 @@
 -- 20260502233500_rename_costweight_to_footertags.sql
 -- Drop legacy item-card costWeight (string) in favor of footerTags (string[]).
--- Splits any existing costWeight values on `,` and `·` (with surrounding
--- whitespace), trims, drops empties, and writes the result as footerTags.
+-- Splits any existing costWeight values on `·` (with surrounding whitespace),
+-- trims, drops empties, and writes the result as footerTags.
 -- Also re-issues cards_payload_valid with the regenerated JSON Schema.
 --
 -- The embedded JSON Schema below is generated from src/decks/schema.ts via
@@ -14,7 +14,7 @@ create extension if not exists pg_jsonschema;
 alter table public.cards drop constraint if exists cards_payload_valid;
 
 -- Data migration: rewrite item-card payloads.
--- 1) Items with a costWeight: split on `,` or `·`, trim, drop empties,
+-- 1) Items with a costWeight: split on `·`, trim, drop empties,
 --    write as footerTags, then drop the old key.
 update public.cards
 set payload = (payload - 'costWeight') || jsonb_build_object(
@@ -24,7 +24,7 @@ set payload = (payload - 'costWeight') || jsonb_build_object(
       select jsonb_agg(trimmed)
       from (
         select trim(t) as trimmed
-        from regexp_split_to_table(payload->>'costWeight', '\s*[,·]\s*') as t
+        from regexp_split_to_table(payload->>'costWeight', '\s*·\s*') as t
       ) s
       where s.trimmed <> ''
     ),
