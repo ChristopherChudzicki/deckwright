@@ -17,7 +17,7 @@ const isPristineNewCard = (card: ItemCard): boolean =>
   card.name === "Untitled item" &&
   card.typeLine === "" &&
   card.body === "" &&
-  card.costWeight === undefined &&
+  card.footerTags.length === 0 &&
   card.imageUrl === undefined &&
   card.createdAt === card.updatedAt;
 
@@ -57,6 +57,7 @@ export function EditorView({ deckId, cardId }: Props) {
       name: "Untitled item",
       typeLine: "",
       body: "",
+      footerTags: [],
       source: "custom",
       createdAt: now,
       updatedAt: now,
