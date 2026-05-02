@@ -28,5 +28,4 @@ jobs:
           version: latest
       - run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
       - run: supabase migration list --linked
-      # Remove --dry-run after the first manual workflow_dispatch verifies link + secrets work.
-      - run: supabase db push --linked --dry-run
+      - run: supabase db push --linked
