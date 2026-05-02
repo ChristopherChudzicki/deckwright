@@ -39,6 +39,7 @@ export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
         detail.attunement,
       ),
       body: detail.desc,
+      footerTags: [],
     };
   }
 
@@ -50,5 +51,6 @@ export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
       detectAttunement2014(detail.desc[0]),
     ),
     body: detail.desc.join("\n\n"),
+    footerTags: [],
   };
 };

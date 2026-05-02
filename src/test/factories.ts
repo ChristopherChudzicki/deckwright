@@ -25,6 +25,7 @@ export const makeItemPayload = Factory.define<Omit<ItemCard, "id">>(() => {
     typeLine: "Weapon",
     body: faker.lorem.paragraph(),
     source: "custom",
+    footerTags: [],
     createdAt: now,
     updatedAt: now,
   };
