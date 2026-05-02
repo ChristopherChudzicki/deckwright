@@ -12,7 +12,10 @@ export const itemCardFactory = Factory.define<ItemCard>(() => {
     name: faker.commerce.productName(),
     typeLine: `Wondrous item, ${faker.helpers.arrayElement(rarities)}`,
     body: faker.lorem.paragraph(),
-    costWeight: `${faker.number.int({ min: 10, max: 5000 })} gp · ${faker.number.int({ min: 1, max: 30 })} lb`,
+    footerTags: [
+      `${faker.number.int({ min: 10, max: 5000 })} gp`,
+      `${faker.number.int({ min: 1, max: 30 })} lb`,
+    ],
     source: "custom",
     createdAt: now,
     updatedAt: now,
