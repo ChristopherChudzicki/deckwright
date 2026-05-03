@@ -162,6 +162,7 @@ describe("<Card> with pagination", () => {
 describe("<Card> with title autofit", () => {
   const LINE_HEIGHT_PX = 20;
   let titleHeights: Record<string, number> = {};
+  let measuredScales: string[] = [];
   let originalOffsetHeight: PropertyDescriptor | undefined;
   let originalGetComputedStyle: typeof window.getComputedStyle;
 
@@ -175,6 +176,7 @@ describe("<Card> with title autofit", () => {
       get(this: HTMLHeadingElement) {
         const fontSize = this.style.fontSize;
         const key = fontSize === "" ? "1" : fontSize.replace("em", "");
+        measuredScales.push(key);
         return titleHeights[key] ?? 0;
       },
     });
@@ -203,6 +205,7 @@ describe("<Card> with title autofit", () => {
     }
     window.getComputedStyle = originalGetComputedStyle;
     titleHeights = {};
+    measuredScales = [];
   });
 
   test("title that fits on one line gets no inline font-size", async () => {
@@ -225,7 +228,7 @@ describe("<Card> with title autofit", () => {
     });
   });
 
-  test("title that wraps at every scale ends up unstyled (gave-up state)", async () => {
+  test("title that wraps at every scale walks through 0.9 and 0.8 then gives up", async () => {
     titleHeights = {
       "1": LINE_HEIGHT_PX * 2,
       "0.9": LINE_HEIGHT_PX * 2,
@@ -235,7 +238,9 @@ describe("<Card> with title autofit", () => {
     render(<Card card={card} cardsPerPage={4} />);
     const heading = screen.getByRole("heading", { name: card.name });
     await waitFor(() => {
-      expect(heading.style.fontSize).toBe("");
+      expect(measuredScales).toContain("0.8");
     });
+    expect(measuredScales).toEqual(expect.arrayContaining(["1", "0.9", "0.8"]));
+    expect(heading.style.fontSize).toBe("");
   });
 });
