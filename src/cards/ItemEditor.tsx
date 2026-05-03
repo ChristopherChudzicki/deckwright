@@ -73,7 +73,7 @@ export function ItemEditor({ card, onChange }: Props) {
       </label>
       <div className={styles.field}>
         <span className={styles.label} id={ids.footerTagsLabel}>
-          Cost / weight (optional)
+          Footer tags (cost, weight, …)
         </span>
         <TagInput
           id={ids.footerTags}

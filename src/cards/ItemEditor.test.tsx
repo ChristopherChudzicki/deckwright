@@ -124,7 +124,7 @@ describe("<ItemEditor>", () => {
     const seen: ItemCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
-    const input = screen.getByRole("textbox", { name: /cost.*weight/i });
+    const input = screen.getByRole("textbox", { name: /footer tags/i });
     await userEvent.type(input, "500 gp{Enter}10 lb{Enter}");
 
     expect(seen[seen.length - 1]?.footerTags).toEqual(["500 gp", "10 lb"]);
