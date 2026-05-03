@@ -8,7 +8,6 @@ export type TagInputProps = {
   value: string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
-  followUpPlaceholder?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
 };
@@ -19,7 +18,6 @@ export function TagInput({
   value,
   onChange,
   placeholder,
-  followUpPlaceholder,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
 }: TagInputProps) {
@@ -75,9 +73,7 @@ export function TagInput({
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={onKeyDown}
         onBlur={commit}
-        placeholder={
-          value.length === 0 ? placeholder : value.length === 1 ? followUpPlaceholder : undefined
-        }
+        placeholder={value.length === 0 ? placeholder : undefined}
       />
     </div>
   );
