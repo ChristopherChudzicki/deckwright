@@ -44,10 +44,10 @@ describe("DeckBreadcrumb", () => {
     mockPathname = "/";
     render(wrap(<DeckBreadcrumb />));
     const nav = screen.getByRole("navigation", { name: /breadcrumb/i });
-    const links = screen.getAllByRole("link", { name: /decks/i });
-    expect(nav).toContainElement(links[0]);
-    expect(links).toHaveLength(1);
-    expect(links[0]).toHaveAttribute("href", "/");
+    const link = screen.getByRole("link", { name: /decks/i });
+    expect(nav).toContainElement(link);
+    expect(link).toHaveAttribute("href", "/");
+    expect(screen.queryByText("›")).not.toBeInTheDocument();
   });
 
   it("renders the deck name as current page on /deck/$id", async () => {
