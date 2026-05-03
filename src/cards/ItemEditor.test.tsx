@@ -35,6 +35,13 @@ describe("<ItemEditor>", () => {
     expect(nameInput.value).toBe("Vorpal");
   });
 
+  test("name field shows 'Untitled item' as placeholder", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+
+    expect(screen.getByPlaceholderText("Untitled item")).toBe(screen.getByLabelText(/name/i));
+  });
+
   test("onChange is called with the updated card on body edits", async () => {
     const card = itemCardFactory.build({ body: "" });
     const seen: ItemCard[] = [];

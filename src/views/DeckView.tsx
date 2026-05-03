@@ -56,7 +56,7 @@ export function DeckView({ deckId }: Props) {
           {isOwner && (
             <>
               <Button variant="secondary" onPress={() => setBrowseOpen(true)}>
-                Browse from API
+                Browse Items
               </Button>
               <Link
                 to="/deck/$deckId/edit/$cardId"

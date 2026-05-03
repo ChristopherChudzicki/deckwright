@@ -34,6 +34,10 @@ body,
   --color-danger-bg-hover: #fff0f0;
   --color-warning-bg: #fff8e1;
   --color-warning-fg: #4a3c10;
+  --color-warning-border: #d6c794;
+  --color-info-bg: #e3e7ef;
+  --color-info-fg: #3a4a6b;
+  --color-info-border: #b8c0d0;
   --color-focus-ring: #7a3530;
   --color-overlay: rgba(26, 20, 16, 0.4);
 

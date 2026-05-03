@@ -19,12 +19,27 @@
 
 .templateNotice {
   background: var(--color-warning-bg);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-warning-border);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-4);
   font-size: var(--fs-sm);
   color: var(--color-warning-fg);
+  line-height: var(--lh-body);
+}
+
+.importHint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  font-size: var(--fs-sm);
+  color: var(--color-info-fg);
   line-height: var(--lh-body);
 }
 

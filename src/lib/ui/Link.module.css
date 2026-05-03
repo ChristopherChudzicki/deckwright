@@ -1,0 +1,12 @@
+.link {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.link:hover {
+  color: var(--color-accent-hover);
+}
+
+.link:visited {
+  color: var(--color-accent);
+}
