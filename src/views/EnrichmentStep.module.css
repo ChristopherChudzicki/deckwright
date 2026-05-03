@@ -57,14 +57,13 @@
   outline-offset: -2px;
 }
 
-.row[aria-pressed="true"] {
-  background: var(--color-surface-2);
-  border-left: 3px solid var(--color-accent);
-  padding-left: calc(var(--space-4) - 3px);
-}
-
 .rowName {
   font-weight: 600;
+}
+
+.rowMeta {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
 }
 
 .state {

@@ -153,7 +153,7 @@ describe("<BrowseApiModal>", () => {
     expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
   });
 
-  test("specific weapon advances to enrichment with auto-select", async () => {
+  test("specific weapon advances to enrichment", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Sun Blade" });
     const detail = magicItemDetail2024Factory.build({
       index: entry.index,
@@ -174,8 +174,7 @@ describe("<BrowseApiModal>", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Sun Blade" }));
 
-    const longswordRow = await screen.findByRole("button", { name: /longsword/i });
-    await waitFor(() => expect(longswordRow).toHaveAttribute("aria-pressed", "true"));
+    expect(await screen.findByRole("button", { name: /longsword/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /skip/i })).toBeInTheDocument();
   });
 
@@ -204,7 +203,7 @@ describe("<BrowseApiModal>", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Flame Tongue" }));
 
     await screen.findByRole("button", { name: /skip/i });
-    expect(screen.getByRole("button", { name: /confirm/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /back/i })).toBeInTheDocument();
   });
 
   test("Skip from enrichment saves the card without enrichment", async () => {

@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 describe("EnrichmentStep", () => {
-  it("auto-selects the single match for a specific hint", async () => {
+  it("clicking a row saves with that equipment as enrichment", async () => {
     server.use(
       equipmentDetailHandler("2014", "longsword", {
         index: "longsword",
@@ -42,14 +42,12 @@ describe("EnrichmentStep", () => {
         onCancel={vi.fn()}
       />,
     );
-    const longswordButton = await screen.findByRole("button", { name: /longsword/i });
-    await waitFor(() => expect(longswordButton).toHaveAttribute("aria-pressed", "true"));
-    await userEvent.click(screen.getByRole("button", { name: /confirm/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /longsword/i }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
     expect(onConfirm.mock.calls[0]![0]).toMatchObject({ index: "longsword" });
   });
 
-  it("does not auto-select for an 'any X' template; allows skip", async () => {
+  it("clicking Skip saves without enrichment", async () => {
     const onConfirm = vi.fn();
     renderWithClient(
       <EnrichmentStep
@@ -59,37 +57,8 @@ describe("EnrichmentStep", () => {
         onCancel={vi.fn()}
       />,
     );
-    await screen.findByRole("button", { name: /skip/i });
-    expect(screen.getByRole("button", { name: /confirm/i })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: /skip/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /skip/i }));
     expect(onConfirm).toHaveBeenCalledWith(null);
-  });
-
-  it("lets the user override the auto-selection", async () => {
-    server.use(
-      equipmentDetailHandler("2014", "plate-armor", {
-        index: "plate-armor",
-        name: "Plate Armor",
-        armor_class: { base: 18 },
-        weight: 65,
-      }),
-    );
-    const onConfirm = vi.fn();
-    renderWithClient(
-      <EnrichmentStep
-        ruleset="2014"
-        hint={{ kind: "specific", hint: "longsword", source: "Weapon (longsword)" }}
-        onConfirm={onConfirm}
-        onCancel={vi.fn()}
-      />,
-    );
-    await screen.findByRole("button", { name: /longsword/i });
-    await userEvent.clear(screen.getByRole("searchbox"));
-    await screen.findByRole("button", { name: /plate armor/i });
-    await userEvent.click(screen.getByRole("button", { name: /plate armor/i }));
-    await userEvent.click(screen.getByRole("button", { name: /confirm/i }));
-    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
-    expect(onConfirm.mock.calls[0]![0]).toMatchObject({ index: "plate-armor" });
   });
 
   it("calls onCancel when Back is pressed", async () => {

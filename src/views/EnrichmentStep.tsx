@@ -24,8 +24,8 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const initRef = useRef(false);
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
-  const [resolving, setResolving] = useState(false);
+  const [pickingSlug, setPickingSlug] = useState<string | null>(null);
+  const [skipping, setSkipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
@@ -44,40 +44,32 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
     if (wouldMatch) setQuery(hint.hint);
   }, [index.data, hint.hint]);
 
-  useEffect(() => {
-    if (selectedSlug !== null) return;
-    if (hint.kind !== "specific") return;
-    if (filtered.length !== 1) return;
-    setSelectedSlug(filtered[0]!.index);
-  }, [filtered, hint.kind, selectedSlug]);
-
-  const handleConfirm = async () => {
-    if (selectedSlug === null) return;
-    setResolving(true);
+  const handlePick = async (slug: string) => {
+    if (pickingSlug !== null) return;
+    setPickingSlug(slug);
     setError(null);
     try {
       const detail = await queryClient.fetchQuery({
-        queryKey: ["equipment", ruleset, "detail", selectedSlug],
-        queryFn: () => fetchEquipmentDetail(ruleset, selectedSlug),
+        queryKey: ["equipment", ruleset, "detail", slug],
+        queryFn: () => fetchEquipmentDetail(ruleset, slug),
         staleTime: DAY_MS,
       });
       await onConfirm(detail);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't load this item.");
-    } finally {
-      setResolving(false);
+      setPickingSlug(null);
     }
   };
 
   const handleSkip = async () => {
-    setResolving(true);
+    if (pickingSlug !== null || skipping) return;
+    setSkipping(true);
     setError(null);
     try {
       await onConfirm(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save this card.");
-    } finally {
-      setResolving(false);
+      setSkipping(false);
     }
   };
 
@@ -116,23 +108,29 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
               key={entry.index}
               type="button"
               className={styles.row}
-              aria-pressed={selectedSlug === entry.index}
-              onClick={() => setSelectedSlug(entry.index)}
+              onClick={() => handlePick(entry.index)}
+              disabled={pickingSlug !== null || skipping}
             >
               <span className={styles.rowName}>{entry.name}</span>
+              {pickingSlug === entry.index && <span className={styles.rowMeta}>Loading…</span>}
             </button>
           ))}
       </div>
 
       <div className={styles.actions}>
-        <Button variant="secondary" onPress={onCancel}>
+        <Button
+          variant="secondary"
+          onPress={onCancel}
+          isDisabled={pickingSlug !== null || skipping}
+        >
           Back
         </Button>
-        <Button variant="secondary" onPress={handleSkip} isDisabled={resolving}>
+        <Button
+          variant="secondary"
+          onPress={handleSkip}
+          isDisabled={pickingSlug !== null || skipping}
+        >
           Skip
-        </Button>
-        <Button onPress={handleConfirm} isDisabled={selectedSlug === null || resolving}>
-          {resolving ? "Loading…" : "Confirm"}
         </Button>
       </div>
     </>
