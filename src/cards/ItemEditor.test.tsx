@@ -96,7 +96,7 @@ describe("<ItemEditor>", () => {
   test("Auto-pick hint shows the heuristic key when iconKey is unset and rule matches", () => {
     const card = itemCardFactory.build({
       name: "Trident of Fish Command",
-      typeLine: "Weapon, rare",
+      headerTags: ["Weapon", "rare"],
       iconKey: undefined,
     });
     render(<Harness initial={card} />);
@@ -112,11 +112,39 @@ describe("<ItemEditor>", () => {
   test("Auto-pick hint hides when the heuristic falls back (no meaningful match)", () => {
     const card = itemCardFactory.build({
       name: "Mystery Object",
-      typeLine: "Wondrous Items, uncommon",
+      headerTags: ["Wondrous Items", "uncommon"],
       iconKey: undefined,
     });
     render(<Harness initial={card} />);
     expect(screen.queryByText(/auto-picking/i)).not.toBeInTheDocument();
+  });
+
+  test("typing a tag and pressing Enter adds it to headerTags; clicking remove drops it", async () => {
+    const card = itemCardFactory.build({ headerTags: [] });
+    const seen: ItemCard[] = [];
+    render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
+
+    const input = screen.getByRole("textbox", { name: /header tags/i });
+    await userEvent.type(input, "Wondrous item{Enter}rare{Enter}");
+
+    expect(seen[seen.length - 1]?.headerTags).toEqual(["Wondrous item", "rare"]);
+
+    await userEvent.click(screen.getByRole("button", { name: /remove wondrous item/i }));
+    expect(seen[seen.length - 1]?.headerTags).toEqual(["rare"]);
+  });
+
+  test("typing a tag and pressing Enter adds it to footerTags; clicking remove drops it", async () => {
+    const card = itemCardFactory.build({ footerTags: [] });
+    const seen: ItemCard[] = [];
+    render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
+
+    const input = screen.getByRole("textbox", { name: /footer tags/i });
+    await userEvent.type(input, "500 gp{Enter}10 lb{Enter}");
+
+    expect(seen[seen.length - 1]?.footerTags).toEqual(["500 gp", "10 lb"]);
+
+    await userEvent.click(screen.getByRole("button", { name: /remove 500 gp/i }));
+    expect(seen[seen.length - 1]?.footerTags).toEqual(["10 lb"]);
   });
 
   test("Name and Icon controls share a row container", () => {

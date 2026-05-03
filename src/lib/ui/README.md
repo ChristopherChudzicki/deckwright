@@ -11,6 +11,7 @@ Thin wrappers around `react-aria-components` (and a couple of native elements) t
 | `OAuthButton` | A sign-in button branded for an OAuth provider. |
 | `Input` | A single-line text field. |
 | `Textarea` | A multi-line text field. |
+| `TagInput` | A controlled chip-input field. Users type freeform text + Enter to commit chips; `×` per chip removes them. |
 | `Switch` | An on/off toggle with a track + thumb. Children are the label. |
 | `ToggleButton` | A toggleable button (alone or inside a `ToggleButtonGroup`). |
 | `ToggleButtonGroup` | A segmented selector — wraps `ToggleButton` children. |

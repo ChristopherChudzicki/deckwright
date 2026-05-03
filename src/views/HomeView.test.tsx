@@ -111,7 +111,7 @@ describe("HomeView", () => {
               id: "x",
               kind: "item",
               name: "Sword",
-              typeLine: "Weapon",
+              headerTags: ["Weapon"],
               body: "",
               source: "custom",
               createdAt: "2026-04-26T00:00:00Z",

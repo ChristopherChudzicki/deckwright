@@ -3,6 +3,7 @@ import { nowIso } from "../lib/time";
 import { IconPickerDialog } from "../lib/ui/IconPickerDialog";
 import { IconPreview } from "../lib/ui/IconPreview";
 import { Input } from "../lib/ui/Input";
+import { TagInput } from "../lib/ui/TagInput";
 import { Textarea } from "../lib/ui/Textarea";
 import styles from "./ItemEditor.module.css";
 import { FALLBACK_ICON_KEY, pickIconKey } from "./iconRules";
@@ -13,7 +14,7 @@ type Props = {
   onChange: (next: ItemCard) => void;
 };
 
-type EditableField = "name" | "typeLine" | "body" | "costWeight" | "imageUrl";
+type EditableField = "name" | "body" | "imageUrl";
 
 export function ItemEditor({ card, onChange }: Props) {
   const handle =
@@ -25,16 +26,26 @@ export function ItemEditor({ card, onChange }: Props) {
     onChange({ ...card, iconKey: next, updatedAt: nowIso() });
   };
 
+  const handleHeaderTagsChange = (next: string[]) => {
+    onChange({ ...card, headerTags: next, updatedAt: nowIso() });
+  };
+
+  const handleFooterTagsChange = (next: string[]) => {
+    onChange({ ...card, footerTags: next, updatedAt: nowIso() });
+  };
+
   const resolvedKey = card.iconKey ?? pickIconKey(card);
   const showHint = card.iconKey === undefined && resolvedKey !== FALLBACK_ICON_KEY;
 
   const idBase = useId();
   const ids = {
     name: `${idBase}-name`,
-    typeLine: `${idBase}-typeLine`,
+    headerTags: `${idBase}-headerTags`,
+    headerTagsLabel: `${idBase}-headerTagsLabel`,
     icon: `${idBase}-icon`,
     body: `${idBase}-body`,
-    costWeight: `${idBase}-costWeight`,
+    footerTags: `${idBase}-footerTags`,
+    footerTagsLabel: `${idBase}-footerTagsLabel`,
     imageUrl: `${idBase}-imageUrl`,
   };
 
@@ -54,28 +65,34 @@ export function ItemEditor({ card, onChange }: Props) {
           {showHint && <div className={styles.iconHint}>Currently auto-picking: {resolvedKey}</div>}
         </label>
       </div>
-      <label className={styles.field} htmlFor={ids.typeLine}>
-        <span className={styles.label}>Type line</span>
-        <Input
-          id={ids.typeLine}
-          value={card.typeLine}
-          onChange={handle("typeLine")}
-          placeholder="Wondrous item, uncommon"
+      <div className={styles.field}>
+        <span className={styles.label} id={ids.headerTagsLabel}>
+          Header tags (type, rarity, …)
+        </span>
+        <TagInput
+          id={ids.headerTags}
+          aria-labelledby={ids.headerTagsLabel}
+          value={card.headerTags}
+          onChange={handleHeaderTagsChange}
+          placeholder="Type and press Enter — e.g. Wondrous item, uncommon, requires attunement"
         />
-      </label>
+      </div>
       <label className={styles.field} htmlFor={ids.body}>
         <span className={styles.label}>Body</span>
         <Textarea id={ids.body} value={card.body} onChange={handle("body")} rows={8} />
       </label>
-      <label className={styles.field} htmlFor={ids.costWeight}>
-        <span className={styles.label}>Cost / weight (optional)</span>
-        <Input
-          id={ids.costWeight}
-          value={card.costWeight ?? ""}
-          onChange={handle("costWeight")}
-          placeholder="500 gp · 15 lb"
+      <div className={styles.field}>
+        <span className={styles.label} id={ids.footerTagsLabel}>
+          Footer tags (cost, weight, …)
+        </span>
+        <TagInput
+          id={ids.footerTags}
+          aria-labelledby={ids.footerTagsLabel}
+          value={card.footerTags}
+          onChange={handleFooterTagsChange}
+          placeholder="Type and press Enter — e.g. 500 gp, 10 lb, rare"
         />
-      </label>
+      </div>
       <label className={styles.field} htmlFor={ids.imageUrl}>
         <span className={styles.label}>Image URL (optional)</span>
         <Input

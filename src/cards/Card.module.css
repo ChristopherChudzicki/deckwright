@@ -30,9 +30,8 @@
 }
 
 .image {
-  position: absolute;
-  top: 0.95em;
-  right: 0.95em;
+  float: right;
+  margin: 0 0 0.2em 0.4em;
   width: 3.5em;
   height: 3.5em;
   background: var(--print-color-image-bg);
@@ -42,10 +41,9 @@
   display: block;
 }
 
-.fallbackIcon {
-  position: absolute;
-  top: 0.95em;
-  right: 0.95em;
+.icon {
+  float: right;
+  margin: 0 0 0.2em 0.4em;
   width: 3.5em;
   height: 3.5em;
   display: flex;
@@ -55,28 +53,33 @@
   color: var(--print-color-ink);
 }
 
-.fallbackIcon svg {
+.icon svg {
   width: 85%;
   height: 85%;
 }
 
 .header {
   flex-shrink: 0;
+  display: flow-root;
 }
 
 .title {
   margin: 0 0 0.2em;
-  padding-right: 4.5em;
   font-size: 1.2em;
   font-weight: 700;
   line-height: 1.15;
 }
 
-.typeLine {
+.headerTags {
   font-size: 0.9em;
   font-style: italic;
   color: var(--print-color-ink-muted);
   line-height: 1.3;
+}
+
+.headerTag + .headerTag::before {
+  content: " · ";
+  white-space: pre;
 }
 
 .divider {
@@ -115,4 +118,13 @@
 
 .footerRight {
   margin-left: auto;
+}
+
+.footerTags {
+  /* Wrapper span — groups tags as a single flex item alongside .footerRight. */
+}
+
+.footerTag + .footerTag::before {
+  content: " · ";
+  white-space: pre;
 }

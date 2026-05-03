@@ -32,8 +32,9 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
   container.innerHTML = `
     <div class="${cardClass}" data-shape="first" data-role="card-root">
       <div class="${cardStyles.header}">
+        <div class="${cardStyles.icon}"></div>
         <h3 class="${cardStyles.title}" data-slot="title"></h3>
-        <div class="${cardStyles.typeLine}" data-slot="typeLine"></div>
+        <span class="${cardStyles.headerTags}" data-slot="headerTags"></span>
       </div>
       <hr class="${cardStyles.divider}" />
       <div class="${cardStyles.body}" data-slot="body" data-role="card-body"></div>
@@ -41,6 +42,7 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     </div>
     <div class="${cardClass}" data-shape="continuation" data-role="card-root">
       <div class="${cardStyles.header}">
+        <div class="${cardStyles.icon}"></div>
         <h3 class="${cardStyles.title}" data-slot="title"></h3>
       </div>
       <hr class="${cardStyles.divider}" />
@@ -60,7 +62,7 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
   };
 
   const firstTitle = find("first", "title");
-  const firstTypeLine = find("first", "typeLine");
+  const firstHeaderTags = find("first", "headerTags");
   const firstBody = find("first", "body");
   const firstFooter = find("first", "footer");
   const contTitle = find("continuation", "title");
@@ -81,11 +83,27 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     );
   };
 
-  const setFooter = (el: HTMLElement, costWeight: string | undefined, pagination: string) => {
+  const setHeaderTags = (el: HTMLElement, headerTags: string[]) => {
     el.replaceChildren();
-    if (costWeight) {
+    for (const tag of headerTags) {
+      const t = document.createElement("span");
+      t.className = cardStyles.headerTag ?? "";
+      t.textContent = tag;
+      el.appendChild(t);
+    }
+  };
+
+  const setFooter = (el: HTMLElement, footerTags: string[], pagination: string) => {
+    el.replaceChildren();
+    if (footerTags.length > 0) {
       const left = document.createElement("span");
-      left.textContent = costWeight;
+      left.className = cardStyles.footerTags ?? "";
+      for (const tag of footerTags) {
+        const t = document.createElement("span");
+        t.className = cardStyles.footerTag ?? "";
+        t.textContent = tag;
+        left.appendChild(t);
+      }
       el.appendChild(left);
     }
     const right = document.createElement("span");
@@ -97,14 +115,14 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
   return {
     measureFirst: (card, chunk) => {
       firstTitle.textContent = card.name;
-      firstTypeLine.textContent = card.typeLine;
-      setFooter(firstFooter, card.costWeight, SENTINEL_PAGINATION);
+      setHeaderTags(firstHeaderTags, card.headerTags);
+      setFooter(firstFooter, card.footerTags, SENTINEL_PAGINATION);
       setBodyContent(firstBody, chunk);
       return firstBody.scrollHeight <= firstBody.clientHeight;
     },
     measureContinuation: (card, chunk) => {
       contTitle.textContent = card.name;
-      setFooter(contFooter, card.costWeight, SENTINEL_PAGINATION);
+      setFooter(contFooter, [], SENTINEL_PAGINATION);
       setBodyContent(contBody, chunk);
       return contBody.scrollHeight <= contBody.clientHeight;
     },

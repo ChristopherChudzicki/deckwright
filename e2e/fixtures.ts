@@ -1,16 +1,23 @@
 import type { Page } from "@playwright/test";
-import { SB_URL, TEST_USER_ID } from "../src/test/constants";
+import { TEST_USER_ID } from "../src/test/constants";
 import { makeFakeJwt } from "../src/test/fakeJwt";
 
 const TEST_DECK_ID = "00000000-0000-0000-0000-000000000001";
-const AUTH_STORAGE_KEY = "sb-localhost-auth-token";
+
+// supabase-js derives the storage key from VITE_SUPABASE_URL's first hostname
+// label: `sb-${hostname.split('.')[0]}-auth-token`. CI runs the dev server
+// with `localhost`, but a developer's shell may export
+// VITE_SUPABASE_URL=http://127.0.0.1:54321 — in which case supabase-js looks
+// under `sb-127-auth-token`. Write the session under both so the fixture
+// works regardless of which form the dev server is using.
+const AUTH_STORAGE_KEYS = ["sb-localhost-auth-token", "sb-127-auth-token"];
 
 export type SeedItem = {
   id?: string;
   name: string;
-  typeLine?: string;
+  headerTags?: string[];
   body: string;
-  costWeight?: string;
+  footerTags?: string[];
 };
 
 export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
@@ -46,10 +53,12 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
   };
 
   await page.addInitScript(
-    ({ key, value }) => {
-      window.localStorage.setItem(key, JSON.stringify(value));
+    ({ keys, value }) => {
+      for (const key of keys) {
+        window.localStorage.setItem(key, JSON.stringify(value));
+      }
     },
-    { key: AUTH_STORAGE_KEY, value: session },
+    { keys: AUTH_STORAGE_KEYS, value: session },
   );
 
   const deckRow = {
@@ -67,9 +76,9 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
     payload: {
       kind: "item",
       name: it.name,
-      typeLine: it.typeLine ?? "Wondrous item",
+      headerTags: it.headerTags ?? ["Wondrous item"],
       body: it.body,
-      ...(it.costWeight ? { costWeight: it.costWeight } : {}),
+      footerTags: it.footerTags ?? [],
       source: "custom",
       createdAt: now,
       updatedAt: now,
@@ -78,7 +87,12 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
     updated_at: now,
   }));
 
-  await page.route(`${SB_URL}/rest/v1/decks*`, async (route) => {
+  // Match by path only (`**/...`) so the mock works regardless of which
+  // hostname the dev server was started with — CI passes
+  // `VITE_SUPABASE_URL=http://localhost:54321`, but a developer's shell may
+  // have `VITE_SUPABASE_URL=http://127.0.0.1:54321`. Pinning the host caused
+  // requests to silently fall through to a real local Supabase.
+  await page.route("**/rest/v1/decks*", async (route) => {
     const method = route.request().method();
     if (method === "GET") {
       await route.fulfill({ json: [deckRow] });
@@ -91,7 +105,7 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
     );
   });
 
-  await page.route(`${SB_URL}/rest/v1/cards*`, async (route) => {
+  await page.route("**/rest/v1/cards*", async (route) => {
     const method = route.request().method();
     if (method === "GET") {
       await route.fulfill({ json: cardRows });
@@ -104,7 +118,7 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
     );
   });
 
-  await page.route(`${SB_URL}/auth/v1/**`, async (route) => {
+  await page.route("**/auth/v1/**", async (route) => {
     const url = route.request().url();
     if (url.includes("/auth/v1/user")) {
       await route.fulfill({ status: 200, json: user });
@@ -119,17 +133,21 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
 
 export { TEST_DECK_ID };
 
+// Numbered sentences so each chunk is byte-distinct: with the floated icon
+// the header is the same height on first and continuation pages, so chunks
+// fit equal counts of text. Identical text would make page-N and page-N+1
+// indistinguishable to assertions like `page2Body !== page1Body`.
 const LONG_BODY = Array.from(
   { length: 60 },
-  () =>
-    "The wand vibrates briefly before unleashing an unpredictable wave of magic. " +
+  (_, i) =>
+    `(${i + 1}) The wand vibrates briefly before unleashing an unpredictable wave of magic. ` +
     "Roll on the wild magic table.",
 ).join(" ");
 
 export const longItem: SeedItem = {
   id: "00000000-0000-4000-8000-100000000001",
   name: "Wand of Wonder",
-  typeLine: "Wand, rare (requires attunement by a spellcaster)",
+  headerTags: ["Wand", "rare", "requires attunement by a spellcaster"],
   body: LONG_BODY,
-  costWeight: "5,000 gp · 1 lb",
+  footerTags: ["5,000 gp", "1 lb"],
 };

@@ -4,22 +4,26 @@ import { Card } from "./Card";
 import { itemCardFactory } from "./factories";
 
 describe("<Card>", () => {
-  test("shows name, type line, and body", () => {
+  test("shows name, header tags, and body", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
     expect(screen.getByRole("heading", { name: card.name })).toBeInTheDocument();
-    expect(screen.getByText(card.typeLine)).toBeInTheDocument();
+    for (const tag of card.headerTags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
     expect(screen.getByText(card.body)).toBeInTheDocument();
   });
 
-  test("renders cost/weight when present", () => {
+  test("renders footer tags when present", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
-    expect(screen.getByText(card.costWeight!)).toBeInTheDocument();
+    for (const tag of card.footerTags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
   });
 
-  test("omits footer when cost/weight is absent", () => {
-    const card = itemCardFactory.build({ costWeight: undefined });
+  test("omits footer when footerTags is empty", () => {
+    const card = itemCardFactory.build({ footerTags: [] });
     render(<Card card={card} cardsPerPage={4} />);
     expect(screen.queryByTestId("card-footer")).not.toBeInTheDocument();
   });
@@ -45,51 +49,48 @@ describe("<Card>", () => {
     expect(img).toHaveAttribute("src", card.imageUrl!);
     fireEvent.error(img);
     expect(screen.queryByTestId("card-image")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-fallback-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("card-icon")).toBeInTheDocument();
   });
 
   test("treats an empty-string imageUrl as no image and shows the fallback icon", () => {
     const card = itemCardFactory.build({ imageUrl: "" });
     render(<Card card={card} cardsPerPage={4} />);
     expect(screen.queryByTestId("card-image")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-fallback-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("card-icon")).toBeInTheDocument();
   });
 
   test("shows a fallback icon when the card has no imageUrl", () => {
     const card = itemCardFactory.build({ imageUrl: undefined });
     render(<Card card={card} cardsPerPage={4} />);
     expect(screen.queryByTestId("card-image")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-fallback-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("card-icon")).toBeInTheDocument();
   });
 
   test("renders the heuristic-picked icon when iconKey is unset", () => {
     const card = itemCardFactory.build({
       name: "Flame Tongue Trident",
-      typeLine: "Weapon, rare",
       imageUrl: undefined,
       iconKey: undefined,
     });
     render(<Card card={card} cardsPerPage={4} />);
-    const slot = screen.getByTestId("card-fallback-icon");
+    const slot = screen.getByTestId("card-icon");
     expect(slot.querySelector("svg")).not.toBeNull();
   });
 
   test("renders the explicit override icon when iconKey is set", () => {
     const card = itemCardFactory.build({
       name: "Anything",
-      typeLine: "",
       imageUrl: undefined,
       iconKey: "trident",
     });
     render(<Card card={card} cardsPerPage={4} />);
-    const slot = screen.getByTestId("card-fallback-icon");
+    const slot = screen.getByTestId("card-icon");
     expect(slot.querySelector("svg")).not.toBeNull();
   });
 
   test("does not crash for a stale or unknown iconKey", () => {
     const card = itemCardFactory.build({
       name: "X",
-      typeLine: "",
       imageUrl: undefined,
       iconKey: "definitely-removed-icon",
     });
@@ -110,16 +111,20 @@ describe("<Card> with pagination", () => {
     expect(screen.getByTestId("card-pagination")).toHaveTextContent(/^Card 2 of 4$/);
   });
 
-  test("hides type line on continuation pages", () => {
+  test("hides header tags on continuation pages", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 2, total: 3 }} />);
-    expect(screen.queryByText(card.typeLine)).not.toBeInTheDocument();
+    for (const tag of card.headerTags) {
+      expect(screen.queryByText(tag)).not.toBeInTheDocument();
+    }
   });
 
-  test("shows type line on the first page when paginated", () => {
+  test("shows header tags on the first page when paginated", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
-    expect(screen.getByText(card.typeLine)).toBeInTheDocument();
+    for (const tag of card.headerTags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
   });
 
   test("renders bodyOverride instead of card.body", () => {
@@ -129,15 +134,25 @@ describe("<Card> with pagination", () => {
     expect(screen.queryByText(card.body)).not.toBeInTheDocument();
   });
 
-  test("retains costWeight on continuation pages alongside pagination", () => {
+  test("hides footer tags on continuation pages but keeps pagination", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 2, total: 2 }} />);
-    expect(screen.getByText(card.costWeight!)).toBeInTheDocument();
+    for (const tag of card.footerTags) {
+      expect(screen.queryByText(tag)).not.toBeInTheDocument();
+    }
     expect(screen.getByTestId("card-pagination")).toBeInTheDocument();
   });
 
-  test("renders footer with pagination only when card has no costWeight", () => {
-    const card = itemCardFactory.build({ costWeight: undefined });
+  test("shows footer tags on the first page when paginated", () => {
+    const card = itemCardFactory.build();
+    render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
+    for (const tag of card.footerTags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
+  });
+
+  test("renders footer with pagination only when card has no footerTags", () => {
+    const card = itemCardFactory.build({ footerTags: [] });
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
     expect(screen.getByTestId("card-footer")).toBeInTheDocument();
     expect(screen.getByTestId("card-pagination")).toHaveTextContent(/^Card 1 of 3$/);

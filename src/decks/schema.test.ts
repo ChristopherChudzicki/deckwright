@@ -7,8 +7,9 @@ describe("itemCardSchema", () => {
       id: "abc",
       kind: "item" as const,
       name: "Bag of Holding",
-      typeLine: "Wondrous item, uncommon",
+      headerTags: ["Wondrous item", "uncommon"],
       body: "Big bag.",
+      footerTags: [],
       source: "custom" as const,
       createdAt: "2026-04-19T00:00:00.000Z",
       updatedAt: "2026-04-19T00:00:00.000Z",
@@ -26,8 +27,9 @@ describe("itemCardSchema", () => {
       id: "abc",
       kind: "item" as const,
       name: "Bag of Holding",
-      typeLine: "Wondrous item, uncommon",
+      headerTags: ["Wondrous item", "uncommon"],
       body: "Big bag.",
+      footerTags: [],
       source: "api" as const,
       apiRef: { system: "dnd5eapi" as const, slug: "bag-of-holding", ruleset: "2024" as const },
       createdAt: "2026-04-19T00:00:00.000Z",
@@ -41,8 +43,9 @@ describe("itemCardSchema", () => {
       id: "abc",
       kind: "item" as const,
       name: "Bag of Holding",
-      typeLine: "Wondrous item, uncommon",
+      headerTags: ["Wondrous item", "uncommon"],
       body: "Big bag.",
+      footerTags: [],
       source: "api" as const,
       apiRef: { system: "dnd5eapi" as const, slug: "bag-of-holding", ruleset: "2014" as const },
       createdAt: "2026-04-19T00:00:00.000Z",
@@ -56,8 +59,9 @@ describe("itemCardSchema", () => {
       id: "abc",
       kind: "item" as const,
       name: "Bag of Holding",
-      typeLine: "Wondrous item, uncommon",
+      headerTags: ["Wondrous item", "uncommon"],
       body: "Big bag.",
+      footerTags: [],
       source: "custom" as const,
       iconKey: "trident",
       createdAt: "2026-04-19T00:00:00.000Z",
@@ -66,12 +70,44 @@ describe("itemCardSchema", () => {
     expect(itemCardSchema.safeParse(card).success).toBe(true);
   });
 
+  test("accepts an item card without footerTags (legacy JSON export) and defaults to []", () => {
+    const card = {
+      id: "abc",
+      kind: "item" as const,
+      name: "Bag of Holding",
+      headerTags: ["Wondrous item", "uncommon"],
+      body: "Big bag.",
+      source: "custom" as const,
+      createdAt: "2026-04-19T00:00:00.000Z",
+      updatedAt: "2026-04-19T00:00:00.000Z",
+    };
+    const result = itemCardSchema.safeParse(card);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.footerTags).toEqual([]);
+  });
+
+  test("accepts an item card without headerTags (legacy JSON export) and defaults to []", () => {
+    const card = {
+      id: "abc",
+      kind: "item" as const,
+      name: "Bag of Holding",
+      body: "Big bag.",
+      source: "custom" as const,
+      footerTags: [],
+      createdAt: "2026-04-19T00:00:00.000Z",
+      updatedAt: "2026-04-19T00:00:00.000Z",
+    };
+    const result = itemCardSchema.safeParse(card);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.headerTags).toEqual([]);
+  });
+
   test("rejects an apiRef without a ruleset", () => {
     const card = {
       id: "abc",
       kind: "item" as const,
       name: "X",
-      typeLine: "",
+      headerTags: [],
       body: "",
       source: "api" as const,
       apiRef: { system: "dnd5eapi" as const, slug: "x" },

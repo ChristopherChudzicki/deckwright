@@ -33,26 +33,35 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
 
   const isFirstPage = !pagination || pagination.page === 1;
   const bodyText = bodyOverride ?? card.body;
-  const showFooter = card.costWeight !== undefined || pagination !== undefined;
+  const showFooterTags = isFirstPage && card.footerTags.length > 0;
+  const showFooter = showFooterTags || pagination !== undefined;
 
   return (
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
-      {showImage ? (
-        <img
-          className={styles.image}
-          src={card.imageUrl}
-          alt=""
-          data-testid="card-image"
-          onError={() => setBrokenUrl(card.imageUrl ?? null)}
-        />
-      ) : (
-        <div className={styles.fallbackIcon} data-testid="card-fallback-icon" aria-hidden="true">
-          <ResolvedIcon iconKey={iconKey} />
-        </div>
-      )}
       <div className={styles.header}>
+        {showImage ? (
+          <img
+            className={styles.image}
+            src={card.imageUrl}
+            alt=""
+            data-testid="card-image"
+            onError={() => setBrokenUrl(card.imageUrl ?? null)}
+          />
+        ) : (
+          <div className={styles.icon} data-testid="card-icon" aria-hidden="true">
+            <ResolvedIcon iconKey={iconKey} />
+          </div>
+        )}
         <h3 className={styles.title}>{card.name}</h3>
-        {isFirstPage && <div className={styles.typeLine}>{card.typeLine}</div>}
+        {isFirstPage && card.headerTags.length > 0 && (
+          <span className={styles.headerTags}>
+            {card.headerTags.map((tag) => (
+              <span key={tag} className={styles.headerTag}>
+                {tag}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
       <hr className={styles.divider} />
       <div className={styles.body} data-role="card-body">
@@ -62,7 +71,15 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
       </div>
       {showFooter && (
         <div className={styles.footer} data-testid="card-footer">
-          {card.costWeight && <span>{card.costWeight}</span>}
+          {showFooterTags && (
+            <span className={styles.footerTags}>
+              {card.footerTags.map((tag) => (
+                <span key={tag} className={styles.footerTag}>
+                  {tag}
+                </span>
+              ))}
+            </span>
+          )}
           {pagination && (
             <span className={styles.footerRight} data-testid="card-pagination">
               Card {pagination.page} of {pagination.total}

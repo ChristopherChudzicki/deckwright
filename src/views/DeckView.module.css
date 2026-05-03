@@ -77,7 +77,7 @@
   text-decoration: underline;
 }
 
-.typeLine {
+.headerTags {
   font-size: var(--fs-sm);
   color: var(--color-text-muted);
   font-style: italic;
