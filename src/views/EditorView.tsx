@@ -132,7 +132,17 @@ export function EditorView({ deckId, cardId }: Props) {
         )}
         {showImportHint && (
           <div className={styles.importHint} data-testid="import-hint">
-            <span>Importing from the SRD? Browse the catalog instead.</span>
+            <span>
+              Importing from the{" "}
+              <a
+                href="https://en.wikipedia.org/wiki/System_Reference_Document"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                SRD
+              </a>
+              ? Browse the catalog instead.
+            </span>
             <Button variant="secondary" size="sm" onPress={() => setBrowseOpen(true)}>
               Browse from API
             </Button>
