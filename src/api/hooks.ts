@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchMagicItemDetail, fetchMagicItemIndex, type Ruleset } from "./endpoints/magicItems";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { DAY_MS } from "./timing";
 
 export const useMagicItemIndex = (ruleset: Ruleset) =>
   useQuery({
