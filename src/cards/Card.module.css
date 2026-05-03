@@ -116,3 +116,8 @@
 .footerRight {
   margin-left: auto;
 }
+
+.footerTag + .footerTag::before {
+  content: " · ";
+  white-space: pre;
+}

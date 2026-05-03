@@ -85,7 +85,13 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     el.replaceChildren();
     if (footerTags.length > 0) {
       const left = document.createElement("span");
-      left.textContent = footerTags.join(" · ");
+      left.className = cardStyles.footerTags ?? "";
+      for (const tag of footerTags) {
+        const t = document.createElement("span");
+        t.className = cardStyles.footerTag ?? "";
+        t.textContent = tag;
+        left.appendChild(t);
+      }
       el.appendChild(left);
     }
     const right = document.createElement("span");

@@ -19,7 +19,8 @@ test("print view paginates an oversized item across multiple physical cards at 4
   const occurrences = await sheet.getByText(longItem.typeLine!, { exact: true }).count();
   expect(occurrences).toBe(1);
 
-  const expectedFooter = longItem.footerTags!.join(" · ");
-  const footers = await sheet.getByText(expectedFooter, { exact: true }).count();
-  expect(footers).toBe(total);
+  for (const tag of longItem.footerTags!) {
+    const footers = await sheet.getByText(tag, { exact: true }).count();
+    expect(footers).toBe(total);
+  }
 });

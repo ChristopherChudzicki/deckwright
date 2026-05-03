@@ -15,7 +15,9 @@ describe("<Card>", () => {
   test("renders footer tags when present", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
-    expect(screen.getByText(card.footerTags.join(" · "))).toBeInTheDocument();
+    for (const tag of card.footerTags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
   });
 
   test("omits footer when footerTags is empty", () => {
@@ -132,7 +134,9 @@ describe("<Card> with pagination", () => {
   test("retains footerTags on continuation pages alongside pagination", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 2, total: 2 }} />);
-    expect(screen.getByText(card.footerTags.join(" · "))).toBeInTheDocument();
+    for (const tag of card.footerTags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
     expect(screen.getByTestId("card-pagination")).toBeInTheDocument();
   });
 

@@ -62,7 +62,15 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
       </div>
       {showFooter && (
         <div className={styles.footer} data-testid="card-footer">
-          {card.footerTags.length > 0 && <span>{card.footerTags.join(" · ")}</span>}
+          {card.footerTags.length > 0 && (
+            <span className={styles.footerTags}>
+              {card.footerTags.map((tag) => (
+                <span key={tag} className={styles.footerTag}>
+                  {tag}
+                </span>
+              ))}
+            </span>
+          )}
           {pagination && (
             <span className={styles.footerRight} data-testid="card-pagination">
               Card {pagination.page} of {pagination.total}

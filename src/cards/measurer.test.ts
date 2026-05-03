@@ -68,7 +68,9 @@ describe("measurer", () => {
     const footerEl = document.querySelector<HTMLElement>(
       '[data-shape="first"] [data-slot="footer"]',
     );
-    expect(footerEl?.textContent).toContain(card.footerTags.join(" · "));
+    for (const tag of card.footerTags) {
+      expect(footerEl?.textContent).toContain(tag);
+    }
     expect(footerEl?.textContent).toContain("Card 9 of 9");
   });
 
