@@ -1,22 +1,38 @@
 import type { ItemCard } from "../../cards/types";
 import { newId } from "../../lib/id";
 import { nowIso } from "../../lib/time";
+import type { EquipmentDetail } from "../endpoints/equipment";
 import type { MagicItemDetail } from "../endpoints/magicItems";
+import { equipmentToFooterInsert, equipmentToHeaderInsert } from "./equipment";
 
 const IMAGE_BASE = "https://www.dnd5eapi.co";
 
-const composeHeaderTags = (category: string, attunement: boolean): string[] => {
+const composeHeaderTags = (
+  category: string,
+  attunement: boolean,
+  enrichment: EquipmentDetail | undefined,
+): string[] => {
   const tags = [category];
+  const insert = enrichment ? equipmentToHeaderInsert(enrichment) : null;
+  if (insert) tags.push(insert);
   if (attunement) tags.push("requires attunement");
   return tags;
 };
 
-const composeFooterTags = (rarity: string): string[] => [rarity.toLowerCase()];
+const composeFooterTags = (rarity: string, enrichment: EquipmentDetail | undefined): string[] => {
+  const tags = [rarity.toLowerCase()];
+  const insert = enrichment ? equipmentToFooterInsert(enrichment) : null;
+  if (insert) tags.push(insert);
+  return tags;
+};
 
 const detectAttunement2014 = (firstLine: string | undefined): boolean =>
   firstLine !== undefined && /requires attunement/i.test(firstLine);
 
-export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
+export const magicItemDetailToCard = (
+  detail: MagicItemDetail,
+  enrichment?: EquipmentDetail,
+): ItemCard => {
   const now = nowIso();
   const common = {
     id: newId(),
@@ -36,9 +52,9 @@ export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
   if (detail.ruleset === "2024") {
     return {
       ...common,
-      headerTags: composeHeaderTags(detail.equipment_category.name, detail.attunement),
+      headerTags: composeHeaderTags(detail.equipment_category.name, detail.attunement, enrichment),
       body: detail.desc,
-      footerTags: composeFooterTags(detail.rarity.name),
+      footerTags: composeFooterTags(detail.rarity.name, enrichment),
     };
   }
 
@@ -47,8 +63,9 @@ export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
     headerTags: composeHeaderTags(
       detail.equipment_category.name,
       detectAttunement2014(detail.desc[0]),
+      enrichment,
     ),
     body: detail.desc.join("\n\n"),
-    footerTags: composeFooterTags(detail.rarity.name),
+    footerTags: composeFooterTags(detail.rarity.name, enrichment),
   };
 };
