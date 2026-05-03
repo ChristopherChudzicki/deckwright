@@ -40,8 +40,8 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
   useEffect(() => {
     if (initRef.current) return;
     if (!index.data) return;
-    if (query !== "") return;
     initRef.current = true;
+    if (query !== "") return;
     if (hint.hint === "") return;
     const wouldMatch = index.data.results.some((e) => e.name.toLowerCase().includes(hint.hint));
     if (wouldMatch) setQuery(hint.hint);
