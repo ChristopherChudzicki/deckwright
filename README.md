@@ -23,7 +23,7 @@ Then open http://localhost:5173. On the login page, use the **dev** sign-in butt
 
 ## Database
 
-`just start` brings up a local Supabase stack and applies all migrations (`supabase start` + `supabase migration up`). The Vite dev server's [`scripts/vite-supabase-env.ts`](scripts/vite-supabase-env.ts) plugin injects the local Supabase URL and anon key at boot, so a `.env.local` file is only needed when pointing local dev at a non-local Supabase.
+`just start` brings up a local Supabase stack (`supabase start`) and applies all migrations (`supabase migration up`). The Vite dev server's [`scripts/vite-supabase-env.ts`](scripts/vite-supabase-env.ts) plugin injects the local Supabase URL and anon key at boot, so a `.env.local` file is only needed when pointing local dev at a non-local Supabase.
 
 - **Add a migration:** `npx supabase migration new <name>`
 - **Reset the local database:** `npx supabase db reset`
