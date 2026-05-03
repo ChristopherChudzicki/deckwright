@@ -59,4 +59,25 @@ describe("fetchEquipmentDetail", () => {
     expect(result.damage?.damage_dice).toBe("1d8");
     expect(result.weight).toBe(3);
   });
+
+  test("parses an armor detail with armor_class", async () => {
+    const raw = {
+      index: "plate-armor",
+      name: "Plate Armor",
+      armor_class: { base: 18, dex_bonus: false },
+      weight: 65,
+      cost: { quantity: 1500, unit: "gp" },
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(raw), { status: 200 }));
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await fetchEquipmentDetail("2014", "plate-armor");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://www.dnd5eapi.co/api/2014/equipment/plate-armor",
+      expect.anything(),
+    );
+    expect(result.armor_class?.base).toBe(18);
+    expect(result.damage).toBeUndefined();
+  });
 });
