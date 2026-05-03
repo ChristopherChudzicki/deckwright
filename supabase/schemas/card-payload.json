@@ -58,8 +58,12 @@
           "type": "string",
           "const": "item"
         },
-        "typeLine": {
-          "type": "string"
+        "headerTags": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "footerTags": {
           "default": [],
@@ -76,7 +80,7 @@
         "createdAt",
         "updatedAt",
         "kind",
-        "typeLine",
+        "headerTags",
         "footerTags"
       ],
       "additionalProperties": false
