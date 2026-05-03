@@ -57,7 +57,7 @@ export function ItemEditor({ card, onChange }: Props) {
           <Input id={ids.name} value={card.name} onChange={handle("name")} />
         </label>
         <label className={styles.field} htmlFor={ids.icon}>
-          <span className={styles.label}>Icon (optional)</span>
+          <span className={styles.label}>Icon</span>
           <div className={styles.iconRow}>
             <IconPreview iconKey={resolvedKey} label={resolvedKey} size="md" />
             <IconPickerDialog id={ids.icon} value={card.iconKey} onChange={handleIconChange} />
