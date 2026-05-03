@@ -47,7 +47,7 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
             onError={() => setBrokenUrl(card.imageUrl ?? null)}
           />
         ) : (
-          <div className={styles.fallbackIcon} data-testid="card-fallback-icon" aria-hidden="true">
+          <div className={styles.icon} data-testid="card-icon" aria-hidden="true">
             <ResolvedIcon iconKey={iconKey} />
           </div>
         )}

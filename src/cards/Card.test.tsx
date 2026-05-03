@@ -49,21 +49,21 @@ describe("<Card>", () => {
     expect(img).toHaveAttribute("src", card.imageUrl!);
     fireEvent.error(img);
     expect(screen.queryByTestId("card-image")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-fallback-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("card-icon")).toBeInTheDocument();
   });
 
   test("treats an empty-string imageUrl as no image and shows the fallback icon", () => {
     const card = itemCardFactory.build({ imageUrl: "" });
     render(<Card card={card} cardsPerPage={4} />);
     expect(screen.queryByTestId("card-image")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-fallback-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("card-icon")).toBeInTheDocument();
   });
 
   test("shows a fallback icon when the card has no imageUrl", () => {
     const card = itemCardFactory.build({ imageUrl: undefined });
     render(<Card card={card} cardsPerPage={4} />);
     expect(screen.queryByTestId("card-image")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-fallback-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("card-icon")).toBeInTheDocument();
   });
 
   test("renders the heuristic-picked icon when iconKey is unset", () => {
@@ -73,7 +73,7 @@ describe("<Card>", () => {
       iconKey: undefined,
     });
     render(<Card card={card} cardsPerPage={4} />);
-    const slot = screen.getByTestId("card-fallback-icon");
+    const slot = screen.getByTestId("card-icon");
     expect(slot.querySelector("svg")).not.toBeNull();
   });
 
@@ -84,7 +84,7 @@ describe("<Card>", () => {
       iconKey: "trident",
     });
     render(<Card card={card} cardsPerPage={4} />);
-    const slot = screen.getByTestId("card-fallback-icon");
+    const slot = screen.getByTestId("card-icon");
     expect(slot.querySelector("svg")).not.toBeNull();
   });
 

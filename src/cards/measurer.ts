@@ -32,7 +32,7 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
   container.innerHTML = `
     <div class="${cardClass}" data-shape="first" data-role="card-root">
       <div class="${cardStyles.header}">
-        <div class="${cardStyles.fallbackIcon}"></div>
+        <div class="${cardStyles.icon}"></div>
         <h3 class="${cardStyles.title}" data-slot="title"></h3>
         <span class="${cardStyles.headerTags}" data-slot="headerTags"></span>
       </div>
@@ -42,7 +42,7 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     </div>
     <div class="${cardClass}" data-shape="continuation" data-role="card-root">
       <div class="${cardStyles.header}">
-        <div class="${cardStyles.fallbackIcon}"></div>
+        <div class="${cardStyles.icon}"></div>
         <h3 class="${cardStyles.title}" data-slot="title"></h3>
       </div>
       <hr class="${cardStyles.divider}" />
