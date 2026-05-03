@@ -22,7 +22,7 @@ test("print view paginates an oversized item across multiple physical cards at 4
   }
 
   for (const tag of longItem.footerTags!) {
-    const footers = await sheet.getByText(tag, { exact: true }).count();
-    expect(footers).toBe(total);
+    const occurrences = await sheet.getByText(tag, { exact: true }).count();
+    expect(occurrences).toBe(1);
   }
 });

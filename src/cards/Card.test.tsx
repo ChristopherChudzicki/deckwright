@@ -134,13 +134,21 @@ describe("<Card> with pagination", () => {
     expect(screen.queryByText(card.body)).not.toBeInTheDocument();
   });
 
-  test("retains footerTags on continuation pages alongside pagination", () => {
+  test("hides footer tags on continuation pages but keeps pagination", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 2, total: 2 }} />);
     for (const tag of card.footerTags) {
-      expect(screen.getByText(tag)).toBeInTheDocument();
+      expect(screen.queryByText(tag)).not.toBeInTheDocument();
     }
     expect(screen.getByTestId("card-pagination")).toBeInTheDocument();
+  });
+
+  test("shows footer tags on the first page when paginated", () => {
+    const card = itemCardFactory.build();
+    render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
+    for (const tag of card.footerTags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
   });
 
   test("renders footer with pagination only when card has no footerTags", () => {

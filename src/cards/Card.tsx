@@ -33,7 +33,8 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
 
   const isFirstPage = !pagination || pagination.page === 1;
   const bodyText = bodyOverride ?? card.body;
-  const showFooter = card.footerTags.length > 0 || pagination !== undefined;
+  const showFooterTags = isFirstPage && card.footerTags.length > 0;
+  const showFooter = showFooterTags || pagination !== undefined;
 
   return (
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
@@ -70,7 +71,7 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
       </div>
       {showFooter && (
         <div className={styles.footer} data-testid="card-footer">
-          {card.footerTags.length > 0 && (
+          {showFooterTags && (
             <span className={styles.footerTags}>
               {card.footerTags.map((tag) => (
                 <span key={tag} className={styles.footerTag}>

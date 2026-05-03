@@ -122,7 +122,7 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     },
     measureContinuation: (card, chunk) => {
       contTitle.textContent = card.name;
-      setFooter(contFooter, card.footerTags, SENTINEL_PAGINATION);
+      setFooter(contFooter, [], SENTINEL_PAGINATION);
       setBodyContent(contBody, chunk);
       return contBody.scrollHeight <= contBody.clientHeight;
     },
