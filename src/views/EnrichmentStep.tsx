@@ -59,6 +59,18 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
     }
   };
 
+  const handleSkip = async () => {
+    setResolving(true);
+    setError(null);
+    try {
+      await onConfirm(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save this card.");
+    } finally {
+      setResolving(false);
+    }
+  };
+
   return (
     <>
       <div className={styles.searchRow}>
@@ -102,7 +114,7 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
         <Button variant="secondary" onPress={onCancel}>
           Back
         </Button>
-        <Button variant="secondary" onPress={() => onConfirm(null)}>
+        <Button variant="secondary" onPress={handleSkip} isDisabled={resolving}>
           Skip
         </Button>
         <Button onPress={handleConfirm} isDisabled={selectedSlug === null || resolving}>
