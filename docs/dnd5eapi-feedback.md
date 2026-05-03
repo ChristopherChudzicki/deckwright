@@ -8,7 +8,7 @@ Endpoints involved: `/api/2014/magic-items/{index}` and `/api/2024/magic-items/{
 
 ## 1. Structured base-item reference on weapon/armor magic items
 
-**Pain:** Determining whether a magic weapon/armor applies to a specific base item or any item matching a category requires parsing `desc[0]` (2014) or the first line of `desc` (2024) with a regex — and even then, distinguishing "specific" (`Sun Blade` is always a longsword) from "any" (`Flame Tongue` works on any melee weapon) from "options" (`Dwarven Plate 2024` lists `"Half Plate Armor or Plate Armor"`) requires further heuristics.
+**Pain:** Determining whether a magic weapon/armor applies to a specific base item or any item matching a category requires parsing `desc[0]` (2014) or the first line of `desc` (2024) with a regex — and even then, distinguishing "specific" (`Sun Blade` is always a longsword) from "any" (`Flame Tongue` works on any melee weapon) requires heuristics.
 
 **What we currently parse:**
 
@@ -25,12 +25,12 @@ Endpoints involved: `/api/2014/magic-items/{index}` and `/api/2024/magic-items/{
 {
   // null when the item works on any matching base (Flame Tongue, Holy Avenger)
   "base_equipment": { "index": "longsword", "url": "/api/equipment/longsword" },
-  // "any" | "specific" | "options"
+  // "any" | "specific"
   "template_kind": "specific"
 }
 ```
 
-A `base_equipment: null` + `template_kind: "any"` pair would let consumers build pickers ("which weapon do you want to apply this to?") without parsing prose. `"options"` would cover multi-choice cases like Dwarven Plate 2024.
+A `base_equipment: null` + `template_kind: "any"` pair would let consumers build pickers ("which weapon do you want to apply this to?") without parsing prose.
 
 ---
 
@@ -44,16 +44,23 @@ const needsAttunement = /requires attunement/i.test(desc[0]);
 
 This is fragile: phrasing variants like "requires attunement by a paladin" work, but any future wording change in the content repo would silently break detection.
 
-**Suggested addition to 2014 records:**
+Additionally, the 2024 API already exposes a `limited-to` string field for class-restricted attunement (e.g. `holy-avenger` has `"limited-to": "Paladin"`; `staff-of-power` has `"limited-to": "Sorcerer, Warlock, or Wizard"`). This is currently a prose string, which prevents machine-readable filtering.
+
+**Suggested additions:**
 
 ```jsonc
 {
   "attunement": true,
+  // structured array replacing the prose "limited-to" string in 2024;
+  // backfilled from desc[0] prose for 2014 records
   "attunement_classes": ["paladin"]   // empty array when no class restriction
 }
 ```
 
-`attunement_classes` would also be useful for 2024 records where prose currently says "requires attunement by a paladin or cleric" — that restriction is currently only in the body text.
+This would:
+1. Backfill `attunement: boolean` on 2014 records (currently absent).
+2. Structure the existing 2024 `limited-to` prose string as a typed array for machine-readability.
+3. Backfill the same `attunement_classes` field to 2014 records, where attunement constraints currently live only in `desc[0]` prose.
 
 ---
 
@@ -64,36 +71,13 @@ This is fragile: phrasing variants like "requires attunement by a paladin" work,
 **Current shapes:**
 
 - 2014: `desc[0]` is always `"<Type>[ (<base>)], <rarity>[, requires attunement[ by ...]]"`. Body starts at `desc[1]`.
-- 2024: the first line of the `desc` string is `"<Type>[ (<base>)]"` followed by two trailing spaces (Markdown hard-break) and `\n`. Body follows.
+- 2024: the first line of the `desc` string is `"<Type>[ (<base>)]"` followed by a newline. Body follows. Consumers strip through the first `\n` and trim.
 
 **What we wish:** Either a separate `body` field containing only the prose description, or simply omitting the metadata line from `desc` / `desc[0]`. The metadata is already in `equipment_category`, `rarity`, and `attunement` — duplicating it in `desc` forces every consumer to strip it or display it twice.
 
 ---
 
-## 4. Subtype field on non-weapon/armor magic items
-
-**Pain:** `equipment_category.name` is coarse for wondrous items and similar — it says `"Wondrous Items"` regardless of whether the item is a Wand, Rod, Staff, Ring, Potion, or Scroll. The narrower subtype only appears inside `desc[0]` (e.g. `"Wand, very rare"` or `"Ring, rare (requires attunement)"`).
-
-**Examples:**
-
-```
-// All of these share equipment_category = "Wondrous Items" in 2014:
-desc[0]: "Wand of Fireballs — Wand, rare (requires attunement by a spellcaster)"
-desc[0]: "Ring of Feather Falling — Ring, rare (requires attunement)"
-desc[0]: "Bag of Holding — Wondrous item, uncommon"
-```
-
-**Suggested addition:**
-
-```jsonc
-{ "subtype": "wand" }   // "wand" | "rod" | "staff" | "ring" | "potion" | "scroll" | null
-```
-
-This would allow icon selection, category filtering, and display grouping without prose parsing.
-
----
-
-## 5. Shape parity between rulesets
+## 4. Shape parity between rulesets
 
 **Pain:** Several fields differ in type or presence between the 2014 and 2024 APIs, requiring branched consumer code:
 
@@ -102,6 +86,7 @@ This would allow icon selection, category filtering, and display grouping withou
 | `desc` | `string[]` (array) | `string` (single string) |
 | `equipment_category` | singular object | singular object (consistent here) |
 | `attunement` | absent | `boolean` |
+| `limited-to` | absent | `string` (prose) |
 
 The `desc` type flip is the most disruptive — it forces separate parsing paths for every string operation (join, slice, search).
 
@@ -109,7 +94,7 @@ The `desc` type flip is the most disruptive — it forces separate parsing paths
 
 ---
 
-## 6. Cost guidance for magic items
+## 5. Cost guidance for magic items
 
 **Pain:** Magic items have no cost field. This is canonically correct — the DMG uses rarity bands rather than fixed prices — but it creates a gap for consumers who want to display approximate value. More importantly, the absence isn't documented in the schema, so consumers must infer it from trial and error.
 
