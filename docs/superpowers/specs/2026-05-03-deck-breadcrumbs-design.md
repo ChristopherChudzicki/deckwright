@@ -31,11 +31,11 @@ Out of scope:
 | Route | Breadcrumb |
 |---|---|
 | `/` (home), `/login`, `/auth/callback`, `/debug/icons` | `Decks` (link to `/`, current behavior) |
-| `/deck/$deckId` | `Decks` › `<deckName>` — `Decks` is a link, `<deckName>` is plain text with `aria-current="page"` |
-| `/deck/$deckId/edit/$cardId` | `Decks` › `<deckName>` — both clickable links |
-| `/deck/$deckId/print` | `Decks` › `<deckName>` — both clickable links |
+| `/deck/$deckId` | `Decks` (link only — deck name is shown by `DeckView`'s page H2; chrome doesn't repeat it) |
+| `/deck/$deckId/edit/$cardId` | `Decks` › `<deckName>` — both clickable, deck name links back to the deck |
+| `/deck/$deckId/print` | `Decks` › `<deckName>` — both clickable, deck name links back to the deck |
 
-The "current page" crumb is the deck name *only* on the deck-root route. On editor/print, neither crumb is `aria-current` because the leaf (the card or the print sheet) isn't represented in the trail.
+This is an **ancestors-only** breadcrumb: the current page is never represented in the trail. We chose this over the canonical "current-page-as-leaf" pattern because (a) the editor's leaf would be a card name that can be long or empty (new card), and (b) `DeckView` already prominently shows the deck name as an H2 — so on `/deck/$id` the breadcrumb stays minimal and the page content carries the orientation.
 
 ### Loading state
 

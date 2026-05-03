@@ -60,11 +60,7 @@
   color: var(--color-text-muted);
 }
 
-.crumbCurrent {
-  font-weight: 600;
-}
-
-.crumbList :is(.crumbCurrent, .link) {
+.crumbList .link {
   max-width: 24ch;
   overflow: hidden;
   text-overflow: ellipsis;

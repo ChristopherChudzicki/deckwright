@@ -4,7 +4,7 @@ import styles from "./root.module.css";
 
 export function DeckBreadcrumb() {
   const { pathname } = useLocation();
-  const { deckId, isAtDeckRoot } = parsePathname(pathname);
+  const deckId = parseSubdeckRoute(pathname);
   const deckQuery = useDeck(deckId);
 
   return (
@@ -20,7 +20,7 @@ export function DeckBreadcrumb() {
             <li aria-hidden="true" className={styles.separator}>
               ›
             </li>
-            <li>{renderDeckCrumb(deckQuery.data?.name, isAtDeckRoot, deckId)}</li>
+            <li>{renderDeckLink(deckQuery.data?.name, deckId)}</li>
           </>
         )}
       </ol>
@@ -28,15 +28,8 @@ export function DeckBreadcrumb() {
   );
 }
 
-function renderDeckCrumb(name: string | undefined, isAtDeckRoot: boolean, deckId: string) {
+function renderDeckLink(name: string | undefined, deckId: string) {
   if (!name) return "…";
-  if (isAtDeckRoot) {
-    return (
-      <span aria-current="page" className={styles.crumbCurrent} title={name}>
-        {name}
-      </span>
-    );
-  }
   return (
     <Link to="/deck/$deckId" params={{ deckId }} className={styles.link} title={name}>
       {name}
@@ -44,8 +37,10 @@ function renderDeckCrumb(name: string | undefined, isAtDeckRoot: boolean, deckId
   );
 }
 
-function parsePathname(pathname: string): { deckId: string | undefined; isAtDeckRoot: boolean } {
-  const m = pathname.match(/^\/deck\/([^/]+)(\/.*)?$/);
-  if (!m) return { deckId: undefined, isAtDeckRoot: false };
-  return { deckId: m[1], isAtDeckRoot: !m[2] };
+// Matches /deck/$deckId/<something>. Returns undefined on the deck root itself,
+// so the breadcrumb collapses to just "Decks" there (the deck name is already
+// shown as the page H2; chrome doesn't repeat it).
+function parseSubdeckRoute(pathname: string): string | undefined {
+  const m = pathname.match(/^\/deck\/([^/]+)\/.+$/);
+  return m?.[1];
 }

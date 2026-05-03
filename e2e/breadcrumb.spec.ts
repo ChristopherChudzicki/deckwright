@@ -8,13 +8,13 @@ const card = {
 };
 
 test.describe("deck breadcrumb", () => {
-  test("shows deck name on the deck route, with Decks linking home", async ({ page }) => {
+  test("shows only the Decks link on the deck root route", async ({ page }) => {
     await seedDeck(page, [card]);
     await page.goto(`/deck/${TEST_DECK_ID}`);
 
     const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
     await expect(breadcrumb.getByRole("link", { name: "Decks" })).toHaveAttribute("href", "/");
-    await expect(breadcrumb.getByText("E2E Test Deck")).toHaveAttribute("aria-current", "page");
+    await expect(breadcrumb.getByText("E2E Test Deck")).toHaveCount(0);
   });
 
   test("shows deck name as a back-link on the editor route", async ({ page }) => {
