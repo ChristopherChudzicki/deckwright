@@ -50,16 +50,15 @@ describe("DeckBreadcrumb", () => {
     expect(screen.queryByText("›")).not.toBeInTheDocument();
   });
 
-  it("renders the deck name as current page on /deck/$id", async () => {
+  it("renders just a Decks link on the deck root route", () => {
     const deck = makeDeckRow.build();
     mockPathname = `/deck/${deck.id}`;
     server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
     render(wrap(<DeckBreadcrumb />));
 
     expect(screen.getByRole("link", { name: "Decks" })).toHaveAttribute("href", "/");
-    const current = await screen.findByText(deck.name);
-    expect(current).toHaveAttribute("aria-current", "page");
-    expect(current.tagName).not.toBe("A");
+    expect(screen.queryByText("›")).not.toBeInTheDocument();
+    expect(screen.queryByText(deck.name)).not.toBeInTheDocument();
   });
 
   it("renders the deck name as a link on the editor route", async () => {
@@ -85,7 +84,7 @@ describe("DeckBreadcrumb", () => {
 
   it("shows an ellipsis while the deck query is pending", async () => {
     const deck = makeDeckRow.build();
-    mockPathname = `/deck/${deck.id}`;
+    mockPathname = `/deck/${deck.id}/edit/new`;
     let resolve: ((res: Response) => void) | undefined;
     server.use(
       http.get(
@@ -106,7 +105,7 @@ describe("DeckBreadcrumb", () => {
   });
 
   it("collapses to just Decks when the deck is not found", async () => {
-    mockPathname = "/deck/missing";
+    mockPathname = "/deck/missing/edit/new";
     server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])));
     render(wrap(<DeckBreadcrumb />));
 
