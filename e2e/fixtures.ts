@@ -8,7 +8,7 @@ const AUTH_STORAGE_KEY = "sb-localhost-auth-token";
 export type SeedItem = {
   id?: string;
   name: string;
-  typeLine?: string;
+  headerTags?: string[];
   body: string;
   footerTags?: string[];
 };
@@ -67,7 +67,7 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
     payload: {
       kind: "item",
       name: it.name,
-      typeLine: it.typeLine ?? "Wondrous item",
+      headerTags: it.headerTags ?? ["Wondrous item"],
       body: it.body,
       footerTags: it.footerTags ?? [],
       source: "custom",
@@ -129,7 +129,7 @@ const LONG_BODY = Array.from(
 export const longItem: SeedItem = {
   id: "00000000-0000-4000-8000-100000000001",
   name: "Wand of Wonder",
-  typeLine: "Wand, rare (requires attunement by a spellcaster)",
+  headerTags: ["Wand", "rare", "requires attunement by a spellcaster"],
   body: LONG_BODY,
   footerTags: ["5,000 gp", "1 lb"],
 };
