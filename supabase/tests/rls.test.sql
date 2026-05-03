@@ -17,7 +17,7 @@ insert into public.decks (id, owner_id, name)
 select lives_ok(
   $$insert into public.cards (deck_id, position, payload) values (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 0,
-    '{"kind":"item","name":"x","body":"","typeLine":"","source":"custom","createdAt":"2026-04-26T00:00:00Z","updatedAt":"2026-04-26T00:00:00Z"}'::jsonb
+    '{"kind":"item","name":"x","body":"","headerTags":[],"footerTags":[],"source":"custom","createdAt":"2026-04-26T00:00:00Z","updatedAt":"2026-04-26T00:00:00Z"}'::jsonb
   )$$,
   'owner can insert card into own deck'
 );
