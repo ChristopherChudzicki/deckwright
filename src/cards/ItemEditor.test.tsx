@@ -118,4 +118,17 @@ describe("<ItemEditor>", () => {
     render(<Harness initial={card} />);
     expect(screen.queryByText(/auto-picking/i)).not.toBeInTheDocument();
   });
+
+  test("Name and Icon controls share a row container", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+
+    const nameField = screen.getByLabelText(/name/i).closest("label");
+    const iconField = screen.getByRole("button", { name: /pick icon/i }).closest("label");
+
+    expect(nameField).not.toBeNull();
+    expect(iconField).not.toBeNull();
+    expect(nameField?.parentElement).toBe(iconField?.parentElement);
+    expect(nameField?.parentElement?.tagName).toBe("DIV");
+  });
 });

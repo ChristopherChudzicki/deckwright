@@ -27,3 +27,14 @@
   color: var(--color-text-muted);
   margin-top: var(--space-1);
 }
+
+.row {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.row > .field:first-child {
+  flex: 1;
+  min-width: 0;
+}

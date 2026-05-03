@@ -40,10 +40,20 @@ export function ItemEditor({ card, onChange }: Props) {
 
   return (
     <form className={styles.form} onSubmit={(e) => e.preventDefault()}>
-      <label className={styles.field} htmlFor={ids.name}>
-        <span className={styles.label}>Name</span>
-        <Input id={ids.name} value={card.name} onChange={handle("name")} />
-      </label>
+      <div className={styles.row}>
+        <label className={styles.field} htmlFor={ids.name}>
+          <span className={styles.label}>Name</span>
+          <Input id={ids.name} value={card.name} onChange={handle("name")} />
+        </label>
+        <label className={styles.field} htmlFor={ids.icon}>
+          <span className={styles.label}>Icon (optional)</span>
+          <div className={styles.iconRow}>
+            <IconPreview iconKey={resolvedKey} label={resolvedKey} size="md" />
+            <IconPickerDialog id={ids.icon} value={card.iconKey} onChange={handleIconChange} />
+          </div>
+          {showHint && <div className={styles.iconHint}>Currently auto-picking: {resolvedKey}</div>}
+        </label>
+      </div>
       <label className={styles.field} htmlFor={ids.typeLine}>
         <span className={styles.label}>Type line</span>
         <Input
@@ -52,14 +62,6 @@ export function ItemEditor({ card, onChange }: Props) {
           onChange={handle("typeLine")}
           placeholder="Wondrous item, uncommon"
         />
-      </label>
-      <label className={styles.field} htmlFor={ids.icon}>
-        <span className={styles.label}>Icon (optional)</span>
-        <div className={styles.iconRow}>
-          <IconPreview iconKey={resolvedKey} label={resolvedKey} size="md" />
-          <IconPickerDialog id={ids.icon} value={card.iconKey} onChange={handleIconChange} />
-        </div>
-        {showHint && <div className={styles.iconHint}>Currently auto-picking: {resolvedKey}</div>}
       </label>
       <label className={styles.field} htmlFor={ids.body}>
         <span className={styles.label}>Body</span>
