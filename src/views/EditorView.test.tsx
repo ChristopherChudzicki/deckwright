@@ -1,12 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { magicItemDetail2024Factory, magicItemIndexEntryFactory } from "../api/factories";
 import * as paginateModule from "../cards/paginate";
 import { makeCardRow, makeItemPayload } from "../test/factories";
-import { SB_URL as SB, server } from "../test/msw";
+import { magicItemDetailHandler, magicItemIndexHandler, SB_URL as SB, server } from "../test/msw";
 import { EditorView } from "./EditorView";
 
 const navigate = vi.fn();
@@ -32,6 +33,21 @@ describe("EditorView", () => {
     await waitFor(() => expect(screen.getByText(/card not found/i)).toBeInTheDocument());
   });
 
+  it("opens a new card with an empty name field", async () => {
+    render(wrap(<EditorView deckId="d1" cardId="new" />));
+    const nameInput = (await screen.findByLabelText(/name/i)) as HTMLInputElement;
+    expect(nameInput.value).toBe("");
+  });
+
+  it("disables Save until the name is non-empty", async () => {
+    render(wrap(<EditorView deckId="d1" cardId="new" />));
+    const save = await screen.findByRole("button", { name: /save/i });
+    expect(save).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText(/name/i), "Vorpal");
+    expect(save).toBeEnabled();
+  });
+
   it("saves via POST when cardId='new'", async () => {
     const onPost = vi.fn();
     server.use(
@@ -41,7 +57,8 @@ describe("EditorView", () => {
       }),
     );
     render(wrap(<EditorView deckId="d1" cardId="new" />));
-    await userEvent.click(await screen.findByRole("button", { name: /save/i }));
+    await userEvent.type(await screen.findByLabelText(/name/i), "Vorpal");
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => expect(onPost).toHaveBeenCalled());
     expect(navigate).toHaveBeenCalledWith({ to: "/deck/$deckId", params: { deckId: "d1" } });
   });
@@ -71,6 +88,52 @@ describe("EditorView", () => {
     server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
     render(wrap(<EditorView deckId="d1" cardId="c1" />));
     expect(await screen.findByTestId("template-notice")).toBeInTheDocument();
+  });
+
+  it("shows the import-from-API hint on a fresh new card", async () => {
+    render(wrap(<EditorView deckId="d1" cardId="new" />));
+    expect(await screen.findByTestId("import-hint")).toBeInTheDocument();
+  });
+
+  it("hides the import hint once a name is typed", async () => {
+    render(wrap(<EditorView deckId="d1" cardId="new" />));
+    await screen.findByTestId("import-hint");
+    await userEvent.type(screen.getByLabelText(/name/i), "x");
+    expect(screen.queryByTestId("import-hint")).not.toBeInTheDocument();
+  });
+
+  it("does NOT show the import hint when editing an existing card", async () => {
+    const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
+    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
+    render(wrap(<EditorView deckId="d1" cardId="c1" />));
+    await screen.findByRole("button", { name: /save/i });
+    expect(screen.queryByTestId("import-hint")).not.toBeInTheDocument();
+  });
+
+  it("opens BrowseApiModal when the hint button is pressed", async () => {
+    render(wrap(<EditorView deckId="d1" cardId="new" />));
+    const hint = await screen.findByTestId("import-hint");
+    await userEvent.click(within(hint).getByRole("button", { name: /browse from api/i }));
+    expect(await screen.findByRole("dialog", { name: /browse magic items/i })).toBeInTheDocument();
+  });
+
+  it("navigates to the imported card's editor after picking from the modal", async () => {
+    const entry = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const detail = magicItemDetail2024Factory.build({ index: entry.index, name: entry.name });
+    server.use(
+      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
+      magicItemDetailHandler("2024", entry.index, detail),
+    );
+    render(wrap(<EditorView deckId="d1" cardId="new" />));
+    const hint = await screen.findByTestId("import-hint");
+    await userEvent.click(within(hint).getByRole("button", { name: /browse from api/i }));
+    await userEvent.click(await screen.findByRole("button", { name: "Bag of Holding" }));
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith({
+        to: "/deck/$deckId/edit/$cardId",
+        params: { deckId: "d1", cardId: expect.any(String) },
+      }),
+    );
   });
 
   it("does NOT show the template notice for custom items", async () => {

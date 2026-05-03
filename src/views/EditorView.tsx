@@ -11,10 +11,11 @@ import { nowIso } from "../lib/time";
 import { Button } from "../lib/ui/Button";
 import { LoadingState } from "../lib/ui/LoadingState";
 import { useDebouncedValue } from "../lib/useDebouncedValue";
+import { BrowseApiModal } from "./BrowseApiModal";
 import styles from "./EditorView.module.css";
 
 const isPristineNewCard = (card: ItemCard): boolean =>
-  card.name === "Untitled item" &&
+  card.name === "" &&
   card.headerTags.length === 0 &&
   card.body === "" &&
   card.footerTags.length === 0 &&
@@ -54,7 +55,7 @@ export function EditorView({ deckId, cardId }: Props) {
     return {
       id: newId(),
       kind: "item",
-      name: "Untitled item",
+      name: "",
       headerTags: [],
       body: "",
       footerTags: [],
@@ -88,6 +89,7 @@ export function EditorView({ deckId, cardId }: Props) {
   const { physicalCards: chunks2Up } = useExpandedCards(measurementItems, 2);
 
   const [previewPage, setPreviewPage] = useState(0);
+  const [browseOpen, setBrowseOpen] = useState(false);
   const totalPages4 = Math.max(chunks4Up.length, 1);
   const clampedPage = Math.min(previewPage, totalPages4 - 1);
   const visibleChunk = chunks4Up[clampedPage];
@@ -116,6 +118,8 @@ export function EditorView({ deckId, cardId }: Props) {
 
   const showPaginator = totalPages4 > 1;
 
+  const showImportHint = isNew && draft.name === "";
+
   return (
     <section className={styles.editor}>
       <div className={styles.form}>
@@ -126,9 +130,21 @@ export function EditorView({ deckId, cardId }: Props) {
             weapon or armor.
           </div>
         )}
+        {showImportHint && (
+          <div className={styles.importHint} data-testid="import-hint">
+            <span>Importing from the SRD? Browse the catalog instead.</span>
+            <Button variant="secondary" size="sm" onPress={() => setBrowseOpen(true)}>
+              Browse from API
+            </Button>
+          </div>
+        )}
         <ItemEditor card={draft} onChange={setDraft} />
         <div className={styles.formActions}>
-          <Button variant="primary" onPress={handleSave} isDisabled={saveCard.isPending}>
+          <Button
+            variant="primary"
+            onPress={handleSave}
+            isDisabled={saveCard.isPending || draft.name === ""}
+          >
             Save
           </Button>
           <Button variant="secondary" onPress={handleCancel}>
@@ -171,6 +187,19 @@ export function EditorView({ deckId, cardId }: Props) {
           {label}
         </div>
       </div>
+      {browseOpen && (
+        <BrowseApiModal
+          deckId={deckId}
+          onClose={() => setBrowseOpen(false)}
+          onSelected={(importedCardId) => {
+            setBrowseOpen(false);
+            navigate({
+              to: "/deck/$deckId/edit/$cardId",
+              params: { deckId, cardId: importedCardId },
+            });
+          }}
+        />
+      )}
     </section>
   );
 }

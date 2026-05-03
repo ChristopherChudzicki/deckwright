@@ -54,7 +54,12 @@ export function ItemEditor({ card, onChange }: Props) {
       <div className={styles.row}>
         <label className={styles.field} htmlFor={ids.name}>
           <span className={styles.label}>Name</span>
-          <Input id={ids.name} value={card.name} onChange={handle("name")} />
+          <Input
+            id={ids.name}
+            value={card.name}
+            onChange={handle("name")}
+            placeholder="Untitled item"
+          />
         </label>
         <label className={styles.field} htmlFor={ids.icon}>
           <span className={styles.label}>Icon (optional)</span>
