@@ -81,6 +81,7 @@ export function ItemEditor({ card, onChange }: Props) {
           value={card.footerTags}
           onChange={handleFooterTagsChange}
           placeholder="Type and press Enter — e.g. 500 gp, 10 lb, rare"
+          followUpPlaceholder="Press Enter for new tag"
         />
       </div>
       <label className={styles.field} htmlFor={ids.imageUrl}>
