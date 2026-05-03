@@ -8,6 +8,7 @@ import { magicItemDetail2024Factory, magicItemIndexEntryFactory } from "../api/f
 import { makeCardRow } from "../test/factories";
 import {
   apiErrorHandler,
+  equipmentIndexHandler,
   magicItemDetailHandler,
   magicItemIndexHandler,
   SB_URL,
@@ -65,7 +66,15 @@ describe("<BrowseApiModal>", () => {
 
   test("clicking a row POSTs the card to the persistence layer and calls onSelected", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
-    const detail = magicItemDetail2024Factory.build({ index: entry.index, name: entry.name });
+    const detail = magicItemDetail2024Factory.build({
+      index: entry.index,
+      name: entry.name,
+      equipment_category: {
+        index: "wondrous-items",
+        name: "Wondrous Items",
+        url: "",
+      },
+    });
     server.use(
       magicItemIndexHandler("2024", { count: 1, results: [entry] }),
       magicItemDetailHandler("2024", entry.index, detail),
@@ -89,7 +98,15 @@ describe("<BrowseApiModal>", () => {
 
   test("clicking the same row only POSTs once even under StrictMode double-render", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Flame Tongue" });
-    const detail = magicItemDetail2024Factory.build({ index: entry.index, name: entry.name });
+    const detail = magicItemDetail2024Factory.build({
+      index: entry.index,
+      name: entry.name,
+      equipment_category: {
+        index: "wondrous-items",
+        name: "Wondrous Items",
+        url: "",
+      },
+    });
     server.use(
       magicItemIndexHandler("2024", { count: 1, results: [entry] }),
       magicItemDetailHandler("2024", entry.index, detail),
@@ -134,5 +151,115 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
 
     expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  test("specific weapon advances to enrichment with auto-select", async () => {
+    const entry = magicItemIndexEntryFactory.build({ name: "Sun Blade" });
+    const detail = magicItemDetail2024Factory.build({
+      index: entry.index,
+      name: entry.name,
+      equipment_category: { index: "weapons", name: "Weapons", url: "" },
+      rarity: { name: "Rare" },
+      attunement: true,
+      desc: "Weapon (Longsword)  \n A glowing sword.",
+    });
+    server.use(
+      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
+      magicItemDetailHandler("2024", entry.index, detail),
+      equipmentIndexHandler("2024", {
+        count: 1,
+        results: [{ index: "longsword", name: "Longsword", url: "/api/2024/equipment/longsword" }],
+      }),
+    );
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Sun Blade" }));
+
+    const longswordRow = await screen.findByRole("button", { name: /longsword/i });
+    await waitFor(() => expect(longswordRow).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: /skip/i })).toBeInTheDocument();
+  });
+
+  test("'any X' template advances to enrichment with no auto-select", async () => {
+    const entry = magicItemIndexEntryFactory.build({ name: "Flame Tongue" });
+    const detail = magicItemDetail2024Factory.build({
+      index: entry.index,
+      name: entry.name,
+      equipment_category: { index: "weapons", name: "Weapons", url: "" },
+      desc: "Weapon (Any Melee Weapon)  \n A flaming sword.",
+    });
+    server.use(
+      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
+      magicItemDetailHandler("2024", entry.index, detail),
+      equipmentIndexHandler("2024", {
+        count: 2,
+        results: [
+          { index: "longsword", name: "Longsword", url: "" },
+          { index: "warhammer", name: "Warhammer", url: "" },
+        ],
+      }),
+    );
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Flame Tongue" }));
+
+    await screen.findByRole("button", { name: /skip/i });
+    expect(screen.getByRole("button", { name: /confirm/i })).toBeDisabled();
+  });
+
+  test("Skip from enrichment saves the card without enrichment", async () => {
+    const entry = magicItemIndexEntryFactory.build({ name: "Flame Tongue" });
+    const detail = magicItemDetail2024Factory.build({
+      index: entry.index,
+      name: entry.name,
+      equipment_category: { index: "weapons", name: "Weapons", url: "" },
+      desc: "Weapon (Any Melee Weapon)  \n A flaming sword.",
+    });
+    server.use(
+      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
+      magicItemDetailHandler("2024", entry.index, detail),
+      equipmentIndexHandler("2024", { count: 0, results: [] }),
+    );
+    const onPost = vi.fn();
+    server.use(
+      http.post(`${SB_URL}/rest/v1/cards`, async ({ request }) => {
+        onPost(await request.json());
+        return HttpResponse.json([makeCardRow.build()], { status: 201 });
+      }),
+    );
+    const onSelected = vi.fn();
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Flame Tongue" }));
+    await userEvent.click(await screen.findByRole("button", { name: /skip/i }));
+
+    await waitFor(() => expect(onPost).toHaveBeenCalled());
+    expect(onSelected).toHaveBeenCalled();
+  });
+
+  test("Back from enrichment returns to picker", async () => {
+    const entry = magicItemIndexEntryFactory.build({ name: "Flame Tongue" });
+    const detail = magicItemDetail2024Factory.build({
+      index: entry.index,
+      name: entry.name,
+      equipment_category: { index: "weapons", name: "Weapons", url: "" },
+      desc: "Weapon (Any Melee Weapon)  \n A flaming sword.",
+    });
+    server.use(
+      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
+      magicItemDetailHandler("2024", entry.index, detail),
+      equipmentIndexHandler("2024", { count: 0, results: [] }),
+    );
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Flame Tongue" }));
+    await userEvent.click(await screen.findByRole("button", { name: /back/i }));
+
+    await screen.findByRole("button", { name: "Flame Tongue" });
+    expect(screen.queryByRole("button", { name: /skip/i })).not.toBeInTheDocument();
   });
 });

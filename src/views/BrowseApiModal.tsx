@@ -1,8 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { TextField } from "react-aria-components";
-import { fetchMagicItemDetail, type Ruleset } from "../api/endpoints/magicItems";
+import type { EquipmentDetail } from "../api/endpoints/equipment";
+import {
+  fetchMagicItemDetail,
+  type MagicItemDetail,
+  type Ruleset,
+} from "../api/endpoints/magicItems";
 import { useMagicItemIndex } from "../api/hooks";
+import { type BaseHint, parseBaseHint } from "../api/mappers/baseHint";
 import { magicItemDetailToCard } from "../api/mappers/magicItems";
 import { useSaveCard } from "../decks/mutations";
 import { Button } from "../lib/ui/Button";
@@ -13,6 +19,7 @@ import { LoadingState } from "../lib/ui/LoadingState";
 import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import styles from "./BrowseApiModal.module.css";
+import { EnrichmentStep } from "./EnrichmentStep";
 
 type Props = {
   deckId: string;
@@ -20,13 +27,21 @@ type Props = {
   onSelected: (cardId: string) => void;
 };
 
+type Step = { step: "pick" } | { step: "enrich"; magicDetail: MagicItemDetail; hint: BaseHint };
+
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const isEnrichable = (k: string): boolean => {
+  const lo = k.toLowerCase();
+  return lo === "weapon" || lo === "weapons" || lo === "armor";
+};
 
 export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
   const [ruleset, setRuleset] = useState<Ruleset>("2024");
   const [query, setQuery] = useState("");
   const [pickingSlug, setPickingSlug] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>({ step: "pick" });
 
   const index = useMagicItemIndex(ruleset);
   const queryClient = useQueryClient();
@@ -49,9 +64,15 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
         queryFn: () => fetchMagicItemDetail(ruleset, slug),
         staleTime: DAY_MS,
       });
-      const card = magicItemDetailToCard(detail);
-      await saveCard.mutateAsync({ card, deckId, isNew: true });
-      onSelected(card.id);
+      if (isEnrichable(detail.equipment_category.index)) {
+        const desc0 = detail.ruleset === "2024" ? detail.desc : detail.desc[0];
+        const hint = parseBaseHint(desc0);
+        setStep({ step: "enrich", magicDetail: detail, hint });
+      } else {
+        const card = magicItemDetailToCard(detail);
+        await saveCard.mutateAsync({ card, deckId, isNew: true });
+        onSelected(card.id);
+      }
     } catch (err) {
       console.error("Failed to add magic-item to deck", err);
       setPickError(
@@ -61,6 +82,19 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
       setPickingSlug(null);
     }
   };
+
+  const handleEnrichmentConfirm = async (enrichment: EquipmentDetail | null) => {
+    if (step.step !== "enrich") return;
+    const card = magicItemDetailToCard(step.magicDetail, enrichment ?? undefined);
+    await saveCard.mutateAsync({ card, deckId, isNew: true });
+    onSelected(card.id);
+  };
+
+  const handleEnrichmentCancel = () => {
+    setStep({ step: "pick" });
+  };
+
+  const title = step.step === "enrich" ? step.magicDetail.name : "Browse magic items";
 
   return (
     <DialogShell
@@ -75,68 +109,83 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
     >
       {() => (
         <>
-          <DialogHeader title="Browse magic items" onClose={onClose}>
-            <ToggleButtonGroup
-              aria-label="Magic items ruleset"
-              selectionMode="single"
-              disallowEmptySelection
-              selectedKeys={[ruleset]}
-              onSelectionChange={(keys) => {
-                const next = Array.from(keys)[0];
-                if (next === "2014" || next === "2024") setRuleset(next);
-              }}
-            >
-              <ToggleButton id="2014">2014</ToggleButton>
-              <ToggleButton id="2024">2024</ToggleButton>
-            </ToggleButtonGroup>
+          <DialogHeader title={title} onClose={onClose}>
+            {step.step === "pick" && (
+              <ToggleButtonGroup
+                aria-label="Magic items ruleset"
+                selectionMode="single"
+                disallowEmptySelection
+                selectedKeys={[ruleset]}
+                onSelectionChange={(keys) => {
+                  const next = Array.from(keys)[0];
+                  if (next === "2014" || next === "2024") setRuleset(next);
+                }}
+              >
+                <ToggleButton id="2014">2014</ToggleButton>
+                <ToggleButton id="2024">2024</ToggleButton>
+              </ToggleButtonGroup>
+            )}
           </DialogHeader>
 
-          <div className={styles.searchRow}>
-            <TextField aria-label="Search magic items" className={styles.searchField}>
-              <Input
-                type="search"
-                placeholder="Search magic items…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                autoFocus
-              />
-            </TextField>
-          </div>
+          {step.step === "pick" ? (
+            <>
+              <div className={styles.searchRow}>
+                <TextField aria-label="Search magic items" className={styles.searchField}>
+                  <Input
+                    type="search"
+                    placeholder="Search magic items…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    autoFocus
+                  />
+                </TextField>
+              </div>
 
-          <div className={styles.results}>
-            {index.isLoading && <LoadingState />}
-            {index.isError && (
-              <div className={styles.state}>
-                Couldn't load the magic-items list.
-                <div className={styles.errorActions}>
-                  <Button variant="secondary" size="sm" onPress={() => index.refetch()}>
-                    Retry
-                  </Button>
-                </div>
+              <div className={styles.results}>
+                {index.isLoading && <LoadingState />}
+                {index.isError && (
+                  <div className={styles.state}>
+                    Couldn't load the magic-items list.
+                    <div className={styles.errorActions}>
+                      <Button variant="secondary" size="sm" onPress={() => index.refetch()}>
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {index.isSuccess && filtered.length === 0 && (
+                  <div className={styles.state}>No items match your search.</div>
+                )}
+                {pickError && (
+                  <div className={styles.state} role="alert">
+                    {pickError}
+                  </div>
+                )}
+                {index.isSuccess &&
+                  filtered.map((entry) => (
+                    <button
+                      key={entry.index}
+                      type="button"
+                      className={styles.row}
+                      onClick={() => handlePick(entry.index)}
+                      disabled={pickingSlug !== null}
+                    >
+                      <span className={styles.rowName}>{entry.name}</span>
+                      {pickingSlug === entry.index && (
+                        <span className={styles.rowMeta}>Loading…</span>
+                      )}
+                    </button>
+                  ))}
               </div>
-            )}
-            {index.isSuccess && filtered.length === 0 && (
-              <div className={styles.state}>No items match your search.</div>
-            )}
-            {pickError && (
-              <div className={styles.state} role="alert">
-                {pickError}
-              </div>
-            )}
-            {index.isSuccess &&
-              filtered.map((entry) => (
-                <button
-                  key={entry.index}
-                  type="button"
-                  className={styles.row}
-                  onClick={() => handlePick(entry.index)}
-                  disabled={pickingSlug !== null}
-                >
-                  <span className={styles.rowName}>{entry.name}</span>
-                  {pickingSlug === entry.index && <span className={styles.rowMeta}>Loading…</span>}
-                </button>
-              ))}
-          </div>
+            </>
+          ) : (
+            <EnrichmentStep
+              ruleset={ruleset}
+              hint={step.hint}
+              onConfirm={handleEnrichmentConfirm}
+              onCancel={handleEnrichmentCancel}
+            />
+          )}
         </>
       )}
     </DialogShell>

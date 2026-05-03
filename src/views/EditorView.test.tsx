@@ -119,7 +119,11 @@ describe("EditorView", () => {
 
   it("navigates to the imported card's editor after picking from the modal", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
-    const detail = magicItemDetail2024Factory.build({ index: entry.index, name: entry.name });
+    const detail = magicItemDetail2024Factory.build({
+      index: entry.index,
+      name: entry.name,
+      equipment_category: { index: "wondrous-items", name: "Wondrous Items", url: "" },
+    });
     server.use(
       magicItemIndexHandler("2024", { count: 1, results: [entry] }),
       magicItemDetailHandler("2024", entry.index, detail),
