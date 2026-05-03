@@ -261,4 +261,26 @@ describe("<BrowseApiModal>", () => {
     await screen.findByRole("button", { name: "Flame Tongue" });
     expect(screen.queryByRole("button", { name: /skip/i })).not.toBeInTheDocument();
   });
+
+  test("Back from enrichment returns focus to the previously picked row", async () => {
+    const entry = magicItemIndexEntryFactory.build({ name: "Flame Tongue" });
+    const detail = magicItemDetail2024Factory.build({
+      index: entry.index,
+      name: entry.name,
+      equipment_category: { index: "weapons", name: "Weapons", url: "" },
+      desc: "Weapon (Any Melee Weapon)  \n A flaming sword.",
+    });
+    server.use(
+      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
+      magicItemDetailHandler("2024", entry.index, detail),
+      equipmentIndexHandler("2024", { count: 0, results: [] }),
+    );
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Flame Tongue" }));
+    await userEvent.click(await screen.findByRole("button", { name: /back/i }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Flame Tongue" })).toHaveFocus());
+  });
 });

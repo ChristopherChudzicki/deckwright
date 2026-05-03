@@ -131,4 +131,30 @@ describe("EnrichmentStep", () => {
     await userEvent.click(await screen.findByRole("button", { name: /longsword/i }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
+
+  it("shows a 'Suggested' chip on the single prefilled match", async () => {
+    renderWithClient(
+      <EnrichmentStep
+        ruleset="2014"
+        hint={{ kind: "specific", hint: "longsword", source: "Weapon (longsword)" }}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    await screen.findByRole("button", { name: /longsword/i });
+    expect(await screen.findByText(/suggested/i)).toBeInTheDocument();
+  });
+
+  it("does not show a 'Suggested' chip for 'any' hints", async () => {
+    renderWithClient(
+      <EnrichmentStep
+        ruleset="2014"
+        hint={{ kind: "any", hint: "sword", source: "Weapon (any sword)" }}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    await screen.findByRole("button", { name: /longsword/i });
+    expect(screen.queryByText(/suggested/i)).not.toBeInTheDocument();
+  });
 });

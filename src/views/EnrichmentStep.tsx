@@ -34,6 +34,9 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
     return all.filter((e) => e.name.toLowerCase().includes(q));
   }, [index.data, query]);
 
+  const showSuggestedChip =
+    hint.kind === "specific" && hint.hint !== "" && query === hint.hint && filtered.length === 1;
+
   useEffect(() => {
     if (initRef.current) return;
     if (!index.data) return;
@@ -116,6 +119,7 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
               disabled={pickingSlug !== null || skipping}
             >
               <span className={styles.rowName}>{entry.name}</span>
+              {showSuggestedChip && <span className={styles.suggestedChip}>Suggested</span>}
               {pickingSlug === entry.index && <span className={styles.rowMeta}>Loading…</span>}
             </button>
           ))}

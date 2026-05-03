@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TextField } from "react-aria-components";
 import type { EquipmentDetail } from "../api/endpoints/equipment";
 import {
@@ -41,6 +41,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
   const [pickingSlug, setPickingSlug] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>({ step: "pick" });
+  const lastPickedSlugRef = useRef<string | null>(null);
 
   const index = useMagicItemIndex(ruleset);
   const queryClient = useQueryClient();
@@ -53,8 +54,17 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
     return all.filter((e) => e.name.toLowerCase().includes(q));
   }, [index.data, query]);
 
+  useEffect(() => {
+    if (step.step !== "pick") return;
+    const slug = lastPickedSlugRef.current;
+    if (!slug) return;
+    const row = document.querySelector(`[data-slug="${CSS.escape(slug)}"]`);
+    if (row instanceof HTMLElement) row.focus();
+  }, [step.step]);
+
   const handlePick = async (slug: string) => {
     if (pickingSlug !== null) return;
+    lastPickedSlugRef.current = slug;
     setPickingSlug(slug);
     setPickError(null);
     try {
@@ -92,7 +102,10 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
     setStep({ step: "pick" });
   };
 
-  const title = step.step === "enrich" ? step.magicDetail.name : "Browse magic items";
+  const title =
+    step.step === "enrich"
+      ? `${step.magicDetail.name} — pick base equipment`
+      : "Browse magic items";
 
   return (
     <DialogShell
@@ -165,6 +178,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
                       key={entry.index}
                       type="button"
                       className={styles.row}
+                      data-slug={entry.index}
                       onClick={() => handlePick(entry.index)}
                       disabled={pickingSlug !== null}
                     >

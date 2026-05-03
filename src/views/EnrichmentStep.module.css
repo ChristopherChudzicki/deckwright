@@ -66,6 +66,16 @@
   color: var(--color-text-muted);
 }
 
+.suggestedChip {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  margin-left: var(--space-2);
+}
+
 .state {
   padding: var(--space-5);
   text-align: center;
