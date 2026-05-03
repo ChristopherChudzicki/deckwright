@@ -5,9 +5,10 @@ import type { MagicItemDetail } from "../endpoints/magicItems";
 
 const IMAGE_BASE = "https://www.dnd5eapi.co";
 
-const composeTypeLine = (category: string, rarity: string, attunement: boolean): string => {
-  const base = `${category}, ${rarity.toLowerCase()}`;
-  return attunement ? `${base} (requires attunement)` : base;
+const composeHeaderTags = (category: string, rarity: string, attunement: boolean): string[] => {
+  const tags = [category, rarity.toLowerCase()];
+  if (attunement) tags.push("requires attunement");
+  return tags;
 };
 
 const detectAttunement2014 = (firstLine: string | undefined): boolean =>
@@ -33,7 +34,7 @@ export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
   if (detail.ruleset === "2024") {
     return {
       ...common,
-      typeLine: composeTypeLine(
+      headerTags: composeHeaderTags(
         detail.equipment_category.name,
         detail.rarity.name,
         detail.attunement,
@@ -45,7 +46,7 @@ export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
 
   return {
     ...common,
-    typeLine: composeTypeLine(
+    headerTags: composeHeaderTags(
       detail.equipment_category.name,
       detail.rarity.name,
       detectAttunement2014(detail.desc[0]),

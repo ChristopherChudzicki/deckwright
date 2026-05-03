@@ -20,7 +20,7 @@ const baseCardSchema = z.object({
 
 export const itemCardSchema = baseCardSchema.extend({
   kind: z.literal("item"),
-  typeLine: z.string(),
+  headerTags: z.array(z.string()).default([]),
   footerTags: z.array(z.string()).default([]),
 });
 

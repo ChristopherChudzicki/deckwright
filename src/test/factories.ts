@@ -22,7 +22,7 @@ export const makeItemPayload = Factory.define<Omit<ItemCard, "id">>(() => {
   return {
     kind: "item",
     name: faker.commerce.productName(),
-    typeLine: "Weapon",
+    headerTags: ["Weapon"],
     body: faker.lorem.paragraph(),
     source: "custom",
     footerTags: [],

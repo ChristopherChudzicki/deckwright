@@ -14,7 +14,7 @@ export type BaseCard = {
 
 export type ItemCard = BaseCard & {
   kind: "item";
-  typeLine: string;
+  headerTags: string[];
   footerTags: string[];
 };
 

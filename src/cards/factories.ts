@@ -10,7 +10,7 @@ export const itemCardFactory = Factory.define<ItemCard>(() => {
     id: faker.string.nanoid(),
     kind: "item",
     name: faker.commerce.productName(),
-    typeLine: `Wondrous item, ${faker.helpers.arrayElement(rarities)}`,
+    headerTags: ["Wondrous item", faker.helpers.arrayElement(rarities)],
     body: faker.lorem.paragraph(),
     footerTags: [
       `${faker.number.int({ min: 10, max: 5000 })} gp`,

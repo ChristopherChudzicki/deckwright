@@ -10,7 +10,7 @@ describe("magicItemDetailToCard — 2024", () => {
     expect(itemCardSchema.safeParse(card).success).toBe(true);
   });
 
-  test("composes typeLine from category + rarity", () => {
+  test("composes headerTags from category + rarity", () => {
     const detail = magicItemDetail2024Factory.build({
       equipment_category: {
         index: "wondrous-items",
@@ -21,17 +21,17 @@ describe("magicItemDetailToCard — 2024", () => {
       attunement: false,
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.typeLine).toBe("Wondrous Items, uncommon");
+    expect(card.headerTags).toEqual(["Wondrous Items", "uncommon"]);
   });
 
-  test("adds attunement suffix when attunement is true", () => {
+  test("adds attunement tag when attunement is true", () => {
     const detail = magicItemDetail2024Factory.build({
       equipment_category: { index: "rings", name: "Rings", url: "" },
       rarity: { name: "Rare" },
       attunement: true,
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.typeLine).toBe("Rings, rare (requires attunement)");
+    expect(card.headerTags).toEqual(["Rings", "rare", "requires attunement"]);
   });
 
   test("carries through source + apiRef with ruleset", () => {
@@ -76,6 +76,6 @@ describe("magicItemDetailToCard — 2014", () => {
       desc: ["Ring, rare (requires attunement)", "body"],
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.typeLine).toBe("Rings, rare (requires attunement)");
+    expect(card.headerTags).toEqual(["Rings", "rare", "requires attunement"]);
   });
 });
