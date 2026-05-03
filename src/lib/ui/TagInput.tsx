@@ -73,7 +73,7 @@ export function TagInput({
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={onKeyDown}
         onBlur={commit}
-        placeholder={placeholder}
+        placeholder={value.length === 0 ? placeholder : undefined}
       />
     </div>
   );
