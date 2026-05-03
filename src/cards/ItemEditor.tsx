@@ -81,7 +81,7 @@ export function ItemEditor({ card, onChange }: Props) {
           onChange={handleHeaderTagsChange}
           placeholder="Type and press Enter — e.g. Weapon, 1d6 piercing, requires attunement"
         />
-        <span className={styles.help}>Type first, then damage/AC, then attunement.</span>
+        <span className={styles.help}>Suggested order: type, damage/AC, attunement.</span>
       </div>
       <label className={styles.field} htmlFor={ids.body}>
         <span className={styles.label}>Body</span>
@@ -98,7 +98,7 @@ export function ItemEditor({ card, onChange }: Props) {
           onChange={handleFooterTagsChange}
           placeholder="Type and press Enter — e.g. rare, 100 gp, 10 lb"
         />
-        <span className={styles.help}>Rarity first, then cost, then weight.</span>
+        <span className={styles.help}>Suggested order: rarity, cost, weight.</span>
       </div>
       <label className={styles.field} htmlFor={ids.imageUrl}>
         <span className={styles.label}>Image URL (optional)</span>
