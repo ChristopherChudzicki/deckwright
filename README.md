@@ -27,9 +27,9 @@ Then open http://localhost:5173. On the login page, use the **dev** sign-in butt
 
 - **Add a migration:** `npx supabase migration new <name>`
 - **Reset the local database:** `npx supabase db reset`
-- **Production:** migrations apply automatically via [`.github/workflows/deploy-db.yml`](.github/workflows/deploy-db.yml) on merges to `main` that touch `supabase/migrations/**`.
+- **Deploy to production:** migrations apply automatically via [`.github/workflows/deploy-db.yml`](.github/workflows/deploy-db.yml) on merges to `main` that touch `supabase/migrations/**`.
 
-Schema: `decks` and `cards` tables, gated by row-level security on the deck owner.
+**Schema:** `decks` and `cards` tables, gated by row-level security on the deck owner.
 
 ## How to print
 
