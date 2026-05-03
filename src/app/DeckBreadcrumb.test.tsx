@@ -115,4 +115,15 @@ describe("DeckBreadcrumb", () => {
     expect(screen.queryByText("›")).not.toBeInTheDocument();
     expect(screen.queryByText("…")).not.toBeInTheDocument();
   });
+
+  it("sets the full deck name on title for a truncated link", async () => {
+    const longName = "A Very Long Deck Name That Will Overflow Twenty Four Characters";
+    const deck = makeDeckRow.build({ name: longName });
+    mockPathname = `/deck/${deck.id}/edit/new`;
+    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    render(wrap(<DeckBreadcrumb />));
+
+    const link = await screen.findByRole("link", { name: longName });
+    expect(link).toHaveAttribute("title", longName);
+  });
 });
