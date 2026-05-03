@@ -145,7 +145,7 @@ export function EditorView({ deckId, cardId }: Props) {
               ? Browse the catalog instead.
             </span>
             <Button variant="secondary" onPress={() => setBrowseOpen(true)}>
-              Browse from API
+              Browse Items
             </Button>
           </div>
         )}
