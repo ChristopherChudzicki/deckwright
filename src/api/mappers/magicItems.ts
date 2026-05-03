@@ -13,7 +13,7 @@ const composeHeaderTags = (
   enrichment: EquipmentDetail | undefined,
 ): string[] => {
   const tags = [category];
-  const insert = enrichment ? equipmentToHeaderInsert(enrichment) : null;
+  const insert = equipmentToHeaderInsert(enrichment);
   if (insert) tags.push(insert);
   if (attunement) tags.push("requires attunement");
   return tags;
@@ -21,7 +21,7 @@ const composeHeaderTags = (
 
 const composeFooterTags = (rarity: string, enrichment: EquipmentDetail | undefined): string[] => {
   const tags = [rarity.toLowerCase()];
-  const insert = enrichment ? equipmentToFooterInsert(enrichment) : null;
+  const insert = equipmentToFooterInsert(enrichment);
   if (insert) tags.push(insert);
   return tags;
 };

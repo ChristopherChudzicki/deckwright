@@ -1,6 +1,7 @@
 import type { EquipmentDetail } from "../endpoints/equipment";
 
-export const equipmentToHeaderInsert = (e: EquipmentDetail): string | null => {
+export const equipmentToHeaderInsert = (e: EquipmentDetail | undefined): string | null => {
+  if (!e) return null;
   if (e.damage) {
     return `${e.damage.damage_dice} ${e.damage.damage_type.name.toLowerCase()}`;
   }
@@ -10,7 +11,8 @@ export const equipmentToHeaderInsert = (e: EquipmentDetail): string | null => {
   return null;
 };
 
-export const equipmentToFooterInsert = (e: EquipmentDetail): string | null => {
+export const equipmentToFooterInsert = (e: EquipmentDetail | undefined): string | null => {
+  if (!e) return null;
   if (!e.weight) return null;
   return `${e.weight} lb`;
 };

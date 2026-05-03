@@ -86,46 +86,42 @@ describe("magicItemDetailToCard — 2014", () => {
 });
 
 describe("magicItemDetailToCard — enrichment", () => {
+  const sunBladeLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
+    equipment_category: { index: "weapon", name: "Weapon", url: "" },
+    rarity: { name: "Rare" },
+    desc: ["Weapon (longsword), rare (requires attunement)", "..."],
+  });
+  const dwarvenPlateLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
+    equipment_category: { index: "armor", name: "Armor", url: "" },
+    rarity: { name: "Very Rare" },
+    desc: ["Armor (plate), very rare", "..."],
+  });
+  const longsword: EquipmentDetail = {
+    index: "longsword",
+    name: "Longsword",
+    damage: { damage_dice: "1d8", damage_type: { name: "Slashing" } },
+    weight: 3,
+  };
+  const plate: EquipmentDetail = {
+    index: "plate-armor",
+    name: "Plate Armor",
+    armor_class: { base: 18 },
+    weight: 65,
+  };
+
   test("splices weapon damage into header and weight into footer", () => {
-    const sunBladeLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-      equipment_category: { index: "weapon", name: "Weapon", url: "" },
-      rarity: { name: "Rare" },
-      desc: ["Weapon (longsword), rare (requires attunement)", "..."],
-    });
-    const longsword: EquipmentDetail = {
-      index: "longsword",
-      name: "Longsword",
-      damage: { damage_dice: "1d8", damage_type: { name: "Slashing" } },
-      weight: 3,
-    };
     const card = magicItemDetailToCard(sunBladeLike, longsword);
     expect(card.headerTags).toEqual(["Weapon", "1d8 slashing", "requires attunement"]);
     expect(card.footerTags).toEqual(["rare", "3 lb"]);
   });
 
   test("splices armor AC into header and weight into footer", () => {
-    const dwarvenPlateLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-      equipment_category: { index: "armor", name: "Armor", url: "" },
-      rarity: { name: "Very Rare" },
-      desc: ["Armor (plate), very rare", "..."],
-    });
-    const plate: EquipmentDetail = {
-      index: "plate-armor",
-      name: "Plate Armor",
-      armor_class: { base: 18 },
-      weight: 65,
-    };
     const card = magicItemDetailToCard(dwarvenPlateLike, plate);
     expect(card.headerTags).toEqual(["Armor", "AC 18"]);
     expect(card.footerTags).toEqual(["very rare", "65 lb"]);
   });
 
   test("omits header insert when enrichment has neither damage nor AC", () => {
-    const sunBladeLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-      equipment_category: { index: "weapon", name: "Weapon", url: "" },
-      rarity: { name: "Rare" },
-      desc: ["Weapon (longsword), rare (requires attunement)", "..."],
-    });
     const empty: EquipmentDetail = { index: "x", name: "X" };
     const card = magicItemDetailToCard(sunBladeLike, empty);
     expect(card.headerTags).toEqual(["Weapon", "requires attunement"]);
@@ -133,11 +129,6 @@ describe("magicItemDetailToCard — enrichment", () => {
   });
 
   test("works without enrichment (existing behavior)", () => {
-    const sunBladeLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-      equipment_category: { index: "weapon", name: "Weapon", url: "" },
-      rarity: { name: "Rare" },
-      desc: ["Weapon (longsword), rare (requires attunement)", "..."],
-    });
     const card = magicItemDetailToCard(sunBladeLike);
     expect(card.headerTags).toEqual(["Weapon", "requires attunement"]);
     expect(card.footerTags).toEqual(["rare"]);

@@ -30,6 +30,10 @@ describe("equipmentToHeaderInsert", () => {
   it("returns null for items with neither damage nor AC", () => {
     expect(equipmentToHeaderInsert(noShape)).toBeNull();
   });
+
+  it("returns null when given undefined", () => {
+    expect(equipmentToHeaderInsert(undefined)).toBeNull();
+  });
 });
 
 describe("equipmentToFooterInsert", () => {
@@ -44,5 +48,9 @@ describe("equipmentToFooterInsert", () => {
 
   it("returns null when weight is zero", () => {
     expect(equipmentToFooterInsert({ ...longsword, weight: 0 })).toBeNull();
+  });
+
+  it("returns null when given undefined", () => {
+    expect(equipmentToFooterInsert(undefined)).toBeNull();
   });
 });
