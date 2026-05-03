@@ -174,7 +174,9 @@ describe("<BrowseApiModal>", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Sun Blade" }));
 
-    expect(await screen.findByRole("button", { name: /longsword/i })).toBeInTheDocument();
+    const longswordRow = await screen.findByRole("button", { name: /longsword/i });
+    expect(longswordRow).toBeInTheDocument();
+    expect(longswordRow).not.toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /skip/i })).toBeInTheDocument();
   });
 

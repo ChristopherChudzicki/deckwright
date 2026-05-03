@@ -10,6 +10,7 @@ import {
 import { useMagicItemIndex } from "../api/hooks";
 import { type BaseHint, parseBaseHint } from "../api/mappers/baseHint";
 import { magicItemDetailToCard } from "../api/mappers/magicItems";
+import { DAY_MS } from "../api/timing";
 import { useSaveCard } from "../decks/mutations";
 import { Button } from "../lib/ui/Button";
 import { DialogHeader } from "../lib/ui/DialogHeader";
@@ -28,8 +29,6 @@ type Props = {
 };
 
 type Step = { step: "pick" } | { step: "enrich"; magicDetail: MagicItemDetail; hint: BaseHint };
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const isEnrichable = (k: string): boolean => {
   const lo = k.toLowerCase();
@@ -74,7 +73,6 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
         onSelected(card.id);
       }
     } catch (err) {
-      console.error("Failed to add magic-item to deck", err);
       setPickError(
         err instanceof Error ? err.message : "Couldn't add this card. Please try again.",
       );
@@ -144,7 +142,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
               <div className={styles.results}>
                 {index.isLoading && <LoadingState />}
                 {index.isError && (
-                  <div className={styles.state}>
+                  <div className={styles.state} role="alert">
                     Couldn't load the magic-items list.
                     <div className={styles.errorActions}>
                       <Button variant="secondary" size="sm" onPress={() => index.refetch()}>

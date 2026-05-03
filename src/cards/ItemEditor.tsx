@@ -42,10 +42,12 @@ export function ItemEditor({ card, onChange }: Props) {
     name: `${idBase}-name`,
     headerTags: `${idBase}-headerTags`,
     headerTagsLabel: `${idBase}-headerTagsLabel`,
+    headerTagsHelp: `${idBase}-headerTagsHelp`,
     icon: `${idBase}-icon`,
     body: `${idBase}-body`,
     footerTags: `${idBase}-footerTags`,
     footerTagsLabel: `${idBase}-footerTagsLabel`,
+    footerTagsHelp: `${idBase}-footerTagsHelp`,
     imageUrl: `${idBase}-imageUrl`,
   };
 
@@ -77,11 +79,14 @@ export function ItemEditor({ card, onChange }: Props) {
         <TagInput
           id={ids.headerTags}
           aria-labelledby={ids.headerTagsLabel}
+          aria-describedby={ids.headerTagsHelp}
           value={card.headerTags}
           onChange={handleHeaderTagsChange}
           placeholder="Type and press Enter — e.g. Weapon, 1d6 piercing, requires attunement"
         />
-        <span className={styles.help}>Suggested order: type, damage/AC, attunement.</span>
+        <span id={ids.headerTagsHelp} className={styles.help}>
+          Suggested order: type, damage/AC, attunement.
+        </span>
       </div>
       <label className={styles.field} htmlFor={ids.body}>
         <span className={styles.label}>Body</span>
@@ -94,11 +99,14 @@ export function ItemEditor({ card, onChange }: Props) {
         <TagInput
           id={ids.footerTags}
           aria-labelledby={ids.footerTagsLabel}
+          aria-describedby={ids.footerTagsHelp}
           value={card.footerTags}
           onChange={handleFooterTagsChange}
           placeholder="Type and press Enter — e.g. rare, 100 gp, 10 lb"
         />
-        <span className={styles.help}>Suggested order: rarity, cost, weight.</span>
+        <span id={ids.footerTagsHelp} className={styles.help}>
+          Suggested order: rarity, cost, weight.
+        </span>
       </div>
       <label className={styles.field} htmlFor={ids.imageUrl}>
         <span className={styles.label}>Image URL (optional)</span>

@@ -3,7 +3,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { equipmentDetailHandler, equipmentIndexHandler, server } from "../test/msw";
+import {
+  apiErrorHandler,
+  equipmentDetailHandler,
+  equipmentIndexHandler,
+  server,
+} from "../test/msw";
 import { EnrichmentStep } from "./EnrichmentStep";
 
 const renderWithClient = (ui: ReactNode) => {
@@ -111,5 +116,19 @@ describe("EnrichmentStep", () => {
       />,
     );
     expect(screen.getByText(/auto-fill damage\/AC and weight/i)).toBeInTheDocument();
+  });
+
+  it("shows an alert when the equipment detail fetch fails", async () => {
+    server.use(apiErrorHandler("/api/2014/equipment/longsword", 500));
+    renderWithClient(
+      <EnrichmentStep
+        ruleset="2014"
+        hint={{ kind: "specific", hint: "longsword", source: "Weapon (longsword)" }}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /longsword/i }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
 });

@@ -5,6 +5,7 @@ import { type EquipmentDetail, fetchEquipmentDetail } from "../api/endpoints/equ
 import type { Ruleset } from "../api/endpoints/magicItems";
 import { useEquipmentIndex } from "../api/hooks";
 import type { BaseHint } from "../api/mappers/baseHint";
+import { DAY_MS } from "../api/timing";
 import { Button } from "../lib/ui/Button";
 import { Input } from "../lib/ui/Input";
 import { LoadingState } from "../lib/ui/LoadingState";
@@ -16,8 +17,6 @@ type Props = {
   onConfirm: (enrichment: EquipmentDetail | null) => Promise<void>;
   onCancel: () => void;
 };
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
   const index = useEquipmentIndex(ruleset);
@@ -38,11 +37,12 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
   useEffect(() => {
     if (initRef.current) return;
     if (!index.data) return;
+    if (query !== "") return;
     initRef.current = true;
     if (hint.hint === "") return;
     const wouldMatch = index.data.results.some((e) => e.name.toLowerCase().includes(hint.hint));
     if (wouldMatch) setQuery(hint.hint);
-  }, [index.data, hint.hint]);
+  }, [index.data, hint.hint, query]);
 
   const handlePick = async (slug: string) => {
     if (pickingSlug !== null) return;
@@ -56,7 +56,7 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
       });
       await onConfirm(detail);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load this item.");
+      setError(err instanceof Error ? err.message : "Couldn't import this card. Please try again.");
       setPickingSlug(null);
     }
   };
@@ -68,7 +68,7 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
     try {
       await onConfirm(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save this card.");
+      setError(err instanceof Error ? err.message : "Couldn't import this card. Please try again.");
       setSkipping(false);
     }
   };
@@ -93,7 +93,11 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
 
       <div className={styles.results}>
         {index.isLoading && <LoadingState />}
-        {index.isError && <div className={styles.state}>Couldn't load equipment.</div>}
+        {index.isError && (
+          <div className={styles.state} role="alert">
+            Couldn't load equipment.
+          </div>
+        )}
         {index.isSuccess && filtered.length === 0 && (
           <div className={styles.state}>No equipment matches your search.</div>
         )}
@@ -130,7 +134,7 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
           onPress={handleSkip}
           isDisabled={pickingSlug !== null || skipping}
         >
-          Skip
+          {skipping ? "Saving…" : "Skip"}
         </Button>
       </div>
     </>

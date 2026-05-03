@@ -10,6 +10,7 @@ export type TagInputProps = {
   placeholder?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
+  "aria-describedby"?: string;
 };
 
 export function TagInput({
@@ -20,6 +21,7 @@ export function TagInput({
   placeholder,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
+  "aria-describedby": ariaDescribedBy,
 }: TagInputProps) {
   const [draft, setDraft] = useState("");
 
@@ -68,6 +70,7 @@ export function TagInput({
         type="text"
         aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? "Tags")}
         aria-labelledby={ariaLabelledBy}
+        aria-describedby={ariaDescribedBy}
         className={styles.input}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}

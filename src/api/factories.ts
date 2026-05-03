@@ -9,10 +9,10 @@ import type {
 
 const rarities = ["Common", "Uncommon", "Rare", "Very Rare", "Legendary"];
 const categories = [
-  { index: "wondrous-items", name: "Wondrous Items" },
-  { index: "rings", name: "Rings" },
-  { index: "rods", name: "Rods" },
-  { index: "weapons", name: "Weapons" },
+  { index: "wondrous-items", name: "Wondrous Items", descName: "Wondrous Item" },
+  { index: "rings", name: "Rings", descName: "Ring" },
+  { index: "rods", name: "Rods", descName: "Rod" },
+  { index: "weapons", name: "Weapons", descName: "Weapon" },
 ];
 
 export const magicItemIndexEntryFactory = Factory.define<MagicItemIndexEntry>(() => {
@@ -35,7 +35,7 @@ export const magicItemIndexFactory = Factory.define<MagicItemIndex, MagicItemInd
 );
 
 export const magicItemDetail2024Factory = Factory.define<MagicItemDetail2024>(() => {
-  const category = faker.helpers.arrayElement(categories);
+  const { descName, ...category } = faker.helpers.arrayElement(categories);
   const slug = faker.helpers.slugify(faker.commerce.productName()).toLowerCase();
   return {
     ruleset: "2024",
@@ -44,7 +44,7 @@ export const magicItemDetail2024Factory = Factory.define<MagicItemDetail2024>(()
     equipment_category: { ...category, url: `/api/2024/equipment-categories/${category.index}` },
     rarity: { name: faker.helpers.arrayElement(rarities) },
     attunement: faker.datatype.boolean(),
-    desc: `${category.name}  \n ${faker.lorem.paragraph()}`,
+    desc: `${descName}  \n${faker.lorem.paragraph()}`,
     image: `/api/images/magic-items/${slug}.png`,
     variants: [],
     variant: false,
@@ -52,7 +52,7 @@ export const magicItemDetail2024Factory = Factory.define<MagicItemDetail2024>(()
 });
 
 export const magicItemDetail2014Factory = Factory.define<MagicItemDetail2014>(() => {
-  const category = faker.helpers.arrayElement(categories);
+  const { descName, ...category } = faker.helpers.arrayElement(categories);
   const rarity = faker.helpers.arrayElement(rarities);
   const slug = faker.helpers.slugify(faker.commerce.productName()).toLowerCase();
   return {
@@ -62,7 +62,7 @@ export const magicItemDetail2014Factory = Factory.define<MagicItemDetail2014>(()
     equipment_category: { ...category, url: `/api/2014/equipment-categories/${category.index}` },
     rarity: { name: rarity },
     desc: [
-      `${category.name.slice(0, -1)}, ${rarity.toLowerCase()}`,
+      `${descName}, ${rarity.toLowerCase()}`,
       faker.lorem.paragraph(),
       faker.lorem.paragraph(),
     ],

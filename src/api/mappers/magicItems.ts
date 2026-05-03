@@ -102,9 +102,7 @@ export const magicItemDetailToCard = (
   };
 
   if (detail.ruleset === "2024") {
-    const hint = parseBaseHint(
-      detail.desc.slice(0, detail.desc.indexOf("\n")).trim() || detail.desc,
-    );
+    const hint = parseBaseHint(detail.desc);
     return {
       ...common,
       name: composeName(detail.name, hint, enrichment),
