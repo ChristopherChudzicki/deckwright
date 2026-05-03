@@ -38,8 +38,6 @@
 }
 
 .page {
-  width: 8.5in;
-  height: 11in;
   background: var(--print-color-paper);
   padding: 0.5in;
   box-sizing: border-box;
@@ -50,6 +48,8 @@
 }
 
 .perPage4 {
+  width: 8.5in;
+  height: 11in;
   grid-template-columns: 3.75in 3.75in;
   grid-template-rows: 5in 5in;
   gap: 1px; /* blade kerf for cutting */
@@ -58,8 +58,10 @@
 }
 
 .perPage2 {
-  grid-template-columns: 7.5in;
-  grid-template-rows: 5in 5in;
+  width: 11in;
+  height: 8.5in;
+  grid-template-columns: 5in 5in;
+  grid-template-rows: 7.5in;
   gap: 1px; /* blade kerf for cutting */
   justify-content: center;
   align-content: center;
@@ -82,5 +84,11 @@
     box-shadow: none;
     padding: 0;
     break-after: page;
+  }
+  @page perPage2 {
+    size: letter landscape;
+  }
+  .perPage2 {
+    page: perPage2;
   }
 }

@@ -8,6 +8,7 @@ import * as paginateModule from "../cards/paginate";
 import { makeCardRow } from "../test/factories";
 import { SB_URL as SB, server } from "../test/msw";
 import { PrintView } from "./PrintView";
+import styles from "./PrintView.module.css";
 
 function wrap(ui: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -34,8 +35,20 @@ describe("<PrintView>", () => {
     server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
-    await userEvent.selectOptions(screen.getByLabelText(/cards per page/i), "2");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: /cards per page/i }), "2");
     expect(screen.getAllByTestId("page")).toHaveLength(2);
+  });
+
+  test("2-up pages carry the landscape layout class", async () => {
+    const cards = makeCardRow.buildList(2);
+    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: /cards per page/i }), "2");
+    for (const page of screen.getAllByTestId("page")) {
+      expect(page).toHaveClass(styles.perPage2 as string);
+      expect(page).not.toHaveClass(styles.perPage4 as string);
+    }
   });
 
   test("renders multiple physical cards for an oversized item at 4-up", async () => {

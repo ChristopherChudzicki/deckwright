@@ -25,15 +25,15 @@
 
 .perPage2 {
   --card-base: 24px;
-  --card-width: 7.5in;
-  --card-height: 5in;
+  --card-width: 5in;
+  --card-height: 7.5in;
 }
 
 .image {
   float: right;
-  margin: 0 0 0.2em 0.4em;
-  width: 3.5em;
-  height: 3.5em;
+  margin: 0 0 -0.1em 0.4em;
+  width: 3em;
+  height: 3em;
   background: var(--print-color-image-bg);
   border: 1px solid var(--print-color-image-frame);
   border-radius: 0.2em;
@@ -43,9 +43,9 @@
 
 .icon {
   float: right;
-  margin: 0 0 0.2em 0.4em;
-  width: 3.5em;
-  height: 3.5em;
+  margin: 0 0 -0.1em 0.4em;
+  width: 3em;
+  height: 3em;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,8 +54,8 @@
 }
 
 .icon svg {
-  width: 85%;
-  height: 85%;
+  width: 100%;
+  height: 100%;
 }
 
 .header {
@@ -71,10 +71,11 @@
 }
 
 .headerTags {
+  display: block;
   font-size: 0.9em;
   font-style: italic;
   color: var(--print-color-ink-muted);
-  line-height: 1.3;
+  line-height: 1.2;
 }
 
 .headerTag + .headerTag::before {
