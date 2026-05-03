@@ -22,11 +22,14 @@ describe("parseBaseHint", () => {
     });
   });
 
-  it("normalizes mixed-case 2024-style hints", () => {
+  it("normalizes a mixed-case 2024-style 'any' hint", () => {
     expect(parseBaseHint("Weapon (Any Melee Weapon)")).toEqual({
       kind: "any",
       hint: "melee weapon",
     });
+  });
+
+  it("normalizes a mixed-case 2024-style specific hint", () => {
     expect(parseBaseHint("Weapon (Longsword), Rare")).toEqual({
       kind: "specific",
       hint: "longsword",
