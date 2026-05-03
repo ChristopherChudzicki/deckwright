@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import styles from "./Card.module.css";
 import { pickIconKey } from "./iconRules";
 import { ResolvedIcon } from "./resolveIcon";
@@ -32,13 +32,17 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [autofit, setAutofit] = useState<AutofitState>({ kind: "unmeasured" });
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset key tied to inputs that change wrap behaviour
-  useEffect(() => {
-    setAutofit({ kind: "unmeasured" });
-  }, [card.id, card.name, cardsPerPage]);
+  const lastInputKeyRef = useRef<string | null>(null);
 
   useLayoutEffect(() => {
+    const inputKey = `${card.id}:${card.name}:${cardsPerPage}`;
+    if (lastInputKeyRef.current !== inputKey) {
+      lastInputKeyRef.current = inputKey;
+      if (autofit.kind !== "unmeasured") {
+        setAutofit({ kind: "unmeasured" });
+        return;
+      }
+    }
     if (autofit.kind === "gave-up") return;
     if (autofit.kind === "fitted" && autofit.scale === 1) return;
     const el = titleRef.current;
@@ -54,7 +58,7 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
     if (!wraps) return;
     if (autofit.scale === 0.9) setAutofit({ kind: "fitted", scale: 0.8 });
     else setAutofit({ kind: "gave-up" });
-  });
+  }, [autofit, card.id, card.name, cardsPerPage]);
 
   const titleStyle =
     autofit.kind === "fitted" && autofit.scale !== 1
