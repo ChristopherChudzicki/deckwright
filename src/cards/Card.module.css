@@ -30,9 +30,8 @@
 }
 
 .image {
-  position: absolute;
-  top: 0.2em;
-  right: 0.2em;
+  float: right;
+  margin: 0 0 0.2em 0.4em;
   width: 3.5em;
   height: 3.5em;
   background: var(--print-color-image-bg);
@@ -43,9 +42,8 @@
 }
 
 .fallbackIcon {
-  position: absolute;
-  top: 0.2em;
-  right: 0.2em;
+  float: right;
+  margin: 0 0 0.2em 0.4em;
   width: 3.5em;
   height: 3.5em;
   display: flex;
@@ -62,21 +60,26 @@
 
 .header {
   flex-shrink: 0;
+  display: flow-root;
 }
 
 .title {
   margin: 0 0 0.2em;
-  padding-right: 3.9em;
   font-size: 1.2em;
   font-weight: 700;
   line-height: 1.15;
 }
 
-.typeLine {
+.headerTags {
   font-size: 0.9em;
   font-style: italic;
   color: var(--print-color-ink-muted);
   line-height: 1.3;
+}
+
+.headerTag + .headerTag::before {
+  content: " · ";
+  white-space: pre;
 }
 
 .divider {

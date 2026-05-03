@@ -4,11 +4,13 @@ import { Card } from "./Card";
 import { itemCardFactory } from "./factories";
 
 describe("<Card>", () => {
-  test("shows name, type line, and body", () => {
+  test("shows name, header tags, and body", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
     expect(screen.getByRole("heading", { name: card.name })).toBeInTheDocument();
-    expect(screen.getByText(card.typeLine)).toBeInTheDocument();
+    for (const tag of card.headerTags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
     expect(screen.getByText(card.body)).toBeInTheDocument();
   });
 
@@ -67,7 +69,6 @@ describe("<Card>", () => {
   test("renders the heuristic-picked icon when iconKey is unset", () => {
     const card = itemCardFactory.build({
       name: "Flame Tongue Trident",
-      typeLine: "Weapon, rare",
       imageUrl: undefined,
       iconKey: undefined,
     });
@@ -79,7 +80,6 @@ describe("<Card>", () => {
   test("renders the explicit override icon when iconKey is set", () => {
     const card = itemCardFactory.build({
       name: "Anything",
-      typeLine: "",
       imageUrl: undefined,
       iconKey: "trident",
     });
@@ -91,7 +91,6 @@ describe("<Card>", () => {
   test("does not crash for a stale or unknown iconKey", () => {
     const card = itemCardFactory.build({
       name: "X",
-      typeLine: "",
       imageUrl: undefined,
       iconKey: "definitely-removed-icon",
     });
@@ -112,16 +111,20 @@ describe("<Card> with pagination", () => {
     expect(screen.getByTestId("card-pagination")).toHaveTextContent(/^Card 2 of 4$/);
   });
 
-  test("hides type line on continuation pages", () => {
+  test("hides header tags on continuation pages", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 2, total: 3 }} />);
-    expect(screen.queryByText(card.typeLine)).not.toBeInTheDocument();
+    for (const tag of card.headerTags) {
+      expect(screen.queryByText(tag)).not.toBeInTheDocument();
+    }
   });
 
-  test("shows type line on the first page when paginated", () => {
+  test("shows header tags on the first page when paginated", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
-    expect(screen.getByText(card.typeLine)).toBeInTheDocument();
+    for (const tag of card.headerTags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
   });
 
   test("renders bodyOverride instead of card.body", () => {

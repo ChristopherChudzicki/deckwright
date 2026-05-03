@@ -37,22 +37,30 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
 
   return (
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
-      {showImage ? (
-        <img
-          className={styles.image}
-          src={card.imageUrl}
-          alt=""
-          data-testid="card-image"
-          onError={() => setBrokenUrl(card.imageUrl ?? null)}
-        />
-      ) : (
-        <div className={styles.fallbackIcon} data-testid="card-fallback-icon" aria-hidden="true">
-          <ResolvedIcon iconKey={iconKey} />
-        </div>
-      )}
       <div className={styles.header}>
+        {showImage ? (
+          <img
+            className={styles.image}
+            src={card.imageUrl}
+            alt=""
+            data-testid="card-image"
+            onError={() => setBrokenUrl(card.imageUrl ?? null)}
+          />
+        ) : (
+          <div className={styles.fallbackIcon} data-testid="card-fallback-icon" aria-hidden="true">
+            <ResolvedIcon iconKey={iconKey} />
+          </div>
+        )}
         <h3 className={styles.title}>{card.name}</h3>
-        {isFirstPage && <div className={styles.typeLine}>{card.typeLine}</div>}
+        {isFirstPage && card.headerTags.length > 0 && (
+          <span className={styles.headerTags}>
+            {card.headerTags.map((tag) => (
+              <span key={tag} className={styles.headerTag}>
+                {tag}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
       <hr className={styles.divider} />
       <div className={styles.body} data-role="card-body">
