@@ -30,16 +30,14 @@ export function PrintView({ deckId }: Props) {
   return (
     <div>
       <div className={styles.controls}>
-        <label>
-          Cards per page{" "}
-          <select
-            value={perPage}
-            onChange={(e) => setPerPage(Number(e.target.value) as CardsPerPage)}
-          >
-            <option value={4}>4</option>
-            <option value={2}>2</option>
-          </select>
-        </label>
+        <select
+          aria-label="Cards per page"
+          value={perPage}
+          onChange={(e) => setPerPage(Number(e.target.value) as CardsPerPage)}
+        >
+          <option value={4}>4 per page (portrait)</option>
+          <option value={2}>2 per page (landscape)</option>
+        </select>
         <Button variant="primary" onPress={() => window.print()} isDisabled={items.length === 0}>
           Print
         </Button>
