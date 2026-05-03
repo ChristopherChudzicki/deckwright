@@ -154,6 +154,18 @@ describe("<ItemEditor>", () => {
     expect(seen[seen.length - 1]?.footerTags).toEqual(["10 lb"]);
   });
 
+  test("renders header tag help text", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+    expect(screen.getByText(/suggested order: type, damage\/AC, attunement/i)).toBeInTheDocument();
+  });
+
+  test("renders footer tag help text", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+    expect(screen.getByText(/suggested order: rarity, cost, weight/i)).toBeInTheDocument();
+  });
+
   test("Name and Icon controls share a row container", () => {
     const card = itemCardFactory.build();
     render(<Harness initial={card} />);

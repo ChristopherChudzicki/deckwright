@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { fetchEquipmentIndex } from "./endpoints/equipment";
 import { fetchMagicItemDetail, fetchMagicItemIndex, type Ruleset } from "./endpoints/magicItems";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { DAY_MS } from "./timing";
 
 export const useMagicItemIndex = (ruleset: Ruleset) =>
   useQuery({
@@ -16,6 +16,14 @@ export const useMagicItemDetail = (ruleset: Ruleset, slug: string | null) =>
     enabled: slug !== null,
     queryKey: ["magic-items", ruleset, "detail", slug],
     queryFn: () => fetchMagicItemDetail(ruleset, slug as string),
+    staleTime: DAY_MS,
+    gcTime: DAY_MS,
+  });
+
+export const useEquipmentIndex = (ruleset: Ruleset) =>
+  useQuery({
+    queryKey: ["equipment", ruleset, "index"],
+    queryFn: () => fetchEquipmentIndex(ruleset),
     staleTime: DAY_MS,
     gcTime: DAY_MS,
   });

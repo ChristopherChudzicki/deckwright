@@ -42,10 +42,12 @@ export function ItemEditor({ card, onChange }: Props) {
     name: `${idBase}-name`,
     headerTags: `${idBase}-headerTags`,
     headerTagsLabel: `${idBase}-headerTagsLabel`,
+    headerTagsHelp: `${idBase}-headerTagsHelp`,
     icon: `${idBase}-icon`,
     body: `${idBase}-body`,
     footerTags: `${idBase}-footerTags`,
     footerTagsLabel: `${idBase}-footerTagsLabel`,
+    footerTagsHelp: `${idBase}-footerTagsHelp`,
     imageUrl: `${idBase}-imageUrl`,
   };
 
@@ -72,15 +74,19 @@ export function ItemEditor({ card, onChange }: Props) {
       </div>
       <div className={styles.field}>
         <span className={styles.label} id={ids.headerTagsLabel}>
-          Header tags (type, rarity, …)
+          Header tags
         </span>
         <TagInput
           id={ids.headerTags}
           aria-labelledby={ids.headerTagsLabel}
+          aria-describedby={ids.headerTagsHelp}
           value={card.headerTags}
           onChange={handleHeaderTagsChange}
-          placeholder="Type and press Enter — e.g. Wondrous item, uncommon, requires attunement"
+          placeholder="Type and press Enter — e.g. Weapon, 1d6 piercing, requires attunement"
         />
+        <span id={ids.headerTagsHelp} className={styles.help}>
+          Suggested order: type, damage/AC, attunement.
+        </span>
       </div>
       <label className={styles.field} htmlFor={ids.body}>
         <span className={styles.label}>Body</span>
@@ -88,15 +94,19 @@ export function ItemEditor({ card, onChange }: Props) {
       </label>
       <div className={styles.field}>
         <span className={styles.label} id={ids.footerTagsLabel}>
-          Footer tags (cost, weight, …)
+          Footer tags
         </span>
         <TagInput
           id={ids.footerTags}
           aria-labelledby={ids.footerTagsLabel}
+          aria-describedby={ids.footerTagsHelp}
           value={card.footerTags}
           onChange={handleFooterTagsChange}
-          placeholder="Type and press Enter — e.g. 500 gp, 10 lb, rare"
+          placeholder="Type and press Enter — e.g. rare, 100 gp, 10 lb"
         />
+        <span id={ids.footerTagsHelp} className={styles.help}>
+          Suggested order: rarity, cost, weight.
+        </span>
       </div>
       <label className={styles.field} htmlFor={ids.imageUrl}>
         <span className={styles.label}>Image URL (optional)</span>
