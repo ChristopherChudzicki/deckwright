@@ -37,7 +37,7 @@ describe("EnrichmentStep", () => {
     renderWithClient(
       <EnrichmentStep
         ruleset="2014"
-        hint={{ kind: "specific", hint: "longsword" }}
+        hint={{ kind: "specific", hint: "longsword", source: "Weapon (longsword)" }}
         onConfirm={onConfirm}
         onCancel={vi.fn()}
       />,
@@ -54,7 +54,7 @@ describe("EnrichmentStep", () => {
     renderWithClient(
       <EnrichmentStep
         ruleset="2014"
-        hint={{ kind: "any", hint: "sword" }}
+        hint={{ kind: "any", hint: "sword", source: "Weapon (any sword)" }}
         onConfirm={onConfirm}
         onCancel={vi.fn()}
       />,
@@ -78,7 +78,7 @@ describe("EnrichmentStep", () => {
     renderWithClient(
       <EnrichmentStep
         ruleset="2014"
-        hint={{ kind: "specific", hint: "longsword" }}
+        hint={{ kind: "specific", hint: "longsword", source: "Weapon (longsword)" }}
         onConfirm={onConfirm}
         onCancel={vi.fn()}
       />,
@@ -97,7 +97,7 @@ describe("EnrichmentStep", () => {
     renderWithClient(
       <EnrichmentStep
         ruleset="2014"
-        hint={{ kind: "any", hint: "sword" }}
+        hint={{ kind: "any", hint: "sword", source: "Weapon (any sword)" }}
         onConfirm={vi.fn()}
         onCancel={onCancel}
       />,
@@ -105,5 +105,42 @@ describe("EnrichmentStep", () => {
     await screen.findByRole("button", { name: /back/i });
     await userEvent.click(screen.getByRole("button", { name: /back/i }));
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not pre-fill the search when the hint matches nothing", async () => {
+    renderWithClient(
+      <EnrichmentStep
+        ruleset="2014"
+        hint={{ kind: "any", hint: "melee weapon", source: "Weapon (Any Melee Weapon)" }}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    await screen.findByRole("button", { name: /longsword/i });
+    expect(screen.getByRole("searchbox")).toHaveValue("");
+  });
+
+  it("renders the description source line", async () => {
+    renderWithClient(
+      <EnrichmentStep
+        ruleset="2014"
+        hint={{ kind: "specific", hint: "longsword", source: "Weapon (longsword)" }}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(await screen.findByText(/Weapon \(longsword\)/i)).toBeInTheDocument();
+  });
+
+  it("renders the intro instructions", () => {
+    renderWithClient(
+      <EnrichmentStep
+        ruleset="2014"
+        hint={{ kind: "any", hint: "sword", source: "Weapon (any sword)" }}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/auto-fill damage\/AC and weight/i)).toBeInTheDocument();
   });
 });

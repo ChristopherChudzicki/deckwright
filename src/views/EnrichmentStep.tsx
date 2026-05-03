@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TextField } from "react-aria-components";
 import { type EquipmentDetail, fetchEquipmentDetail } from "../api/endpoints/equipment";
 import type { Ruleset } from "../api/endpoints/magicItems";
@@ -22,7 +22,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
   const index = useEquipmentIndex(ruleset);
   const queryClient = useQueryClient();
-  const [query, setQuery] = useState(hint.hint);
+  const [query, setQuery] = useState("");
+  const initRef = useRef(false);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,15 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
     if (q === "") return all;
     return all.filter((e) => e.name.toLowerCase().includes(q));
   }, [index.data, query]);
+
+  useEffect(() => {
+    if (initRef.current) return;
+    if (!index.data) return;
+    initRef.current = true;
+    if (hint.hint === "") return;
+    const wouldMatch = index.data.results.some((e) => e.name.toLowerCase().includes(hint.hint));
+    if (wouldMatch) setQuery(hint.hint);
+  }, [index.data, hint.hint]);
 
   useEffect(() => {
     if (selectedSlug !== null) return;
@@ -73,6 +83,10 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
 
   return (
     <>
+      <p className={styles.intro}>
+        Pick the base equipment to auto-fill damage/AC and weight, or skip.
+      </p>
+      {hint.source && <p className={styles.source}>Described as: {hint.source}</p>}
       <div className={styles.searchRow}>
         <TextField aria-label="Search equipment" className={styles.searchField}>
           <Input
