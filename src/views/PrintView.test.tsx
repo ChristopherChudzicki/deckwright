@@ -46,8 +46,8 @@ describe("<PrintView>", () => {
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: /cards per page/i }), "2");
     for (const page of screen.getAllByTestId("page")) {
-      expect(page).toHaveClass(styles.perPage2);
-      expect(page).not.toHaveClass(styles.perPage4);
+      expect(page).toHaveClass(styles.perPage2 as string);
+      expect(page).not.toHaveClass(styles.perPage4 as string);
     }
   });
 
