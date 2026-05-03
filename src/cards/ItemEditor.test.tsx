@@ -146,4 +146,17 @@ describe("<ItemEditor>", () => {
     await userEvent.click(screen.getByRole("button", { name: /remove 500 gp/i }));
     expect(seen[seen.length - 1]?.footerTags).toEqual(["10 lb"]);
   });
+
+  test("Name and Icon controls share a row container", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+
+    const nameField = screen.getByLabelText(/name/i).closest("label");
+    const iconField = screen.getByRole("button", { name: /pick icon/i }).closest("label");
+
+    expect(nameField).not.toBeNull();
+    expect(iconField).not.toBeNull();
+    expect(nameField?.parentElement).toBe(iconField?.parentElement);
+    expect(nameField?.parentElement?.tagName).toBe("DIV");
+  });
 });

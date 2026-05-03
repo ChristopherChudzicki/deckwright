@@ -51,10 +51,20 @@ export function ItemEditor({ card, onChange }: Props) {
 
   return (
     <form className={styles.form} onSubmit={(e) => e.preventDefault()}>
-      <label className={styles.field} htmlFor={ids.name}>
-        <span className={styles.label}>Name</span>
-        <Input id={ids.name} value={card.name} onChange={handle("name")} />
-      </label>
+      <div className={styles.row}>
+        <label className={styles.field} htmlFor={ids.name}>
+          <span className={styles.label}>Name</span>
+          <Input id={ids.name} value={card.name} onChange={handle("name")} />
+        </label>
+        <label className={styles.field} htmlFor={ids.icon}>
+          <span className={styles.label}>Icon (optional)</span>
+          <div className={styles.iconRow}>
+            <IconPreview iconKey={resolvedKey} label={resolvedKey} size="md" />
+            <IconPickerDialog id={ids.icon} value={card.iconKey} onChange={handleIconChange} />
+          </div>
+          {showHint && <div className={styles.iconHint}>Currently auto-picking: {resolvedKey}</div>}
+        </label>
+      </div>
       <div className={styles.field}>
         <span className={styles.label} id={ids.headerTagsLabel}>
           Header tags (type, rarity, …)
@@ -67,14 +77,6 @@ export function ItemEditor({ card, onChange }: Props) {
           placeholder="Type and press Enter — e.g. Wondrous item, uncommon, requires attunement"
         />
       </div>
-      <label className={styles.field} htmlFor={ids.icon}>
-        <span className={styles.label}>Icon (optional)</span>
-        <div className={styles.iconRow}>
-          <IconPreview iconKey={resolvedKey} label={resolvedKey} size="md" />
-          <IconPickerDialog id={ids.icon} value={card.iconKey} onChange={handleIconChange} />
-        </div>
-        {showHint && <div className={styles.iconHint}>Currently auto-picking: {resolvedKey}</div>}
-      </label>
       <label className={styles.field} htmlFor={ids.body}>
         <span className={styles.label}>Body</span>
         <Textarea id={ids.body} value={card.body} onChange={handle("body")} rows={8} />
