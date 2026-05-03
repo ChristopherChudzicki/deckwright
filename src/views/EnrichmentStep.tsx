@@ -13,7 +13,7 @@ import styles from "./EnrichmentStep.module.css";
 type Props = {
   ruleset: Ruleset;
   hint: BaseHint;
-  onConfirm: (enrichment: EquipmentDetail | null) => void;
+  onConfirm: (enrichment: EquipmentDetail | null) => Promise<void>;
   onCancel: () => void;
 };
 
@@ -51,7 +51,7 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
         queryFn: () => fetchEquipmentDetail(ruleset, selectedSlug),
         staleTime: DAY_MS,
       });
-      onConfirm(detail);
+      await onConfirm(detail);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't load this item.");
     } finally {

@@ -159,8 +159,6 @@ describe("<BrowseApiModal>", () => {
       index: entry.index,
       name: entry.name,
       equipment_category: { index: "weapons", name: "Weapons", url: "" },
-      rarity: { name: "Rare" },
-      attunement: true,
       desc: "Weapon (Longsword)  \n A glowing sword.",
     });
     server.use(
