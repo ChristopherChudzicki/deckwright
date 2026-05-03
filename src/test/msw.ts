@@ -1,6 +1,5 @@
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
-import type { EquipmentDetail, EquipmentIndex } from "../api/endpoints/equipment";
 import type { MagicItemDetail, MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
 import { SB_URL, TEST_USER_ID } from "./constants";
 
@@ -68,14 +67,6 @@ export const magicItemDetailHandler = (ruleset: Ruleset, slug: string, body: Mag
     HttpResponse.json(rest),
   );
 };
-
-export const equipmentIndexHandler = (ruleset: Ruleset, body: EquipmentIndex) =>
-  http.get(`https://www.dnd5eapi.co/api/${ruleset}/equipment`, () => HttpResponse.json(body));
-
-export const equipmentDetailHandler = (ruleset: Ruleset, slug: string, body: EquipmentDetail) =>
-  http.get(`https://www.dnd5eapi.co/api/${ruleset}/equipment/${slug}`, () =>
-    HttpResponse.json(body),
-  );
 
 export const apiErrorHandler = (path: string, status: number) =>
   http.get(`https://www.dnd5eapi.co${path}`, () => new HttpResponse(null, { status }));
