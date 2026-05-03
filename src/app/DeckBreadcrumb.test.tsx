@@ -82,4 +82,26 @@ describe("DeckBreadcrumb", () => {
     const deckLink = await screen.findByRole("link", { name: deck.name });
     expect(deckLink).toHaveAttribute("href", "/deck/$deckId");
   });
+
+  it("shows an ellipsis while the deck query is pending", async () => {
+    const deck = makeDeckRow.build();
+    mockPathname = `/deck/${deck.id}`;
+    let resolve: ((res: Response) => void) | undefined;
+    server.use(
+      http.get(
+        `${SB}/rest/v1/decks`,
+        () =>
+          new Promise<Response>((r) => {
+            resolve = r;
+          }),
+      ),
+    );
+    render(wrap(<DeckBreadcrumb />));
+
+    expect(await screen.findByText("…")).toBeInTheDocument();
+    expect(screen.queryByText(deck.name)).not.toBeInTheDocument();
+
+    resolve?.(HttpResponse.json([deck]));
+    await screen.findByText(deck.name);
+  });
 });
