@@ -28,6 +28,11 @@
   margin-top: var(--space-1);
 }
 
+.help {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+
 .row {
   display: flex;
   gap: var(--space-4);

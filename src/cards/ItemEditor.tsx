@@ -72,15 +72,16 @@ export function ItemEditor({ card, onChange }: Props) {
       </div>
       <div className={styles.field}>
         <span className={styles.label} id={ids.headerTagsLabel}>
-          Header tags (type, rarity, …)
+          Header tags
         </span>
         <TagInput
           id={ids.headerTags}
           aria-labelledby={ids.headerTagsLabel}
           value={card.headerTags}
           onChange={handleHeaderTagsChange}
-          placeholder="Type and press Enter — e.g. Wondrous item, uncommon, requires attunement"
+          placeholder="Type and press Enter — e.g. Weapon, 1d6 piercing, requires attunement"
         />
+        <span className={styles.help}>Type first, then damage/AC, then attunement.</span>
       </div>
       <label className={styles.field} htmlFor={ids.body}>
         <span className={styles.label}>Body</span>
@@ -88,15 +89,16 @@ export function ItemEditor({ card, onChange }: Props) {
       </label>
       <div className={styles.field}>
         <span className={styles.label} id={ids.footerTagsLabel}>
-          Footer tags (cost, weight, …)
+          Footer tags
         </span>
         <TagInput
           id={ids.footerTags}
           aria-labelledby={ids.footerTagsLabel}
           value={card.footerTags}
           onChange={handleFooterTagsChange}
-          placeholder="Type and press Enter — e.g. 500 gp, 10 lb, rare"
+          placeholder="Type and press Enter — e.g. rare, 100 gp, 10 lb"
         />
+        <span className={styles.help}>Rarity first, then cost, then weight.</span>
       </div>
       <label className={styles.field} htmlFor={ids.imageUrl}>
         <span className={styles.label}>Image URL (optional)</span>
