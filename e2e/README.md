@@ -49,7 +49,7 @@ the API.
 To add write support, update the relevant route handler in `fixtures.ts`:
 
 ```ts
-await page.route(`${SB_URL}/rest/v1/cards*`, (route) => {
+await page.route("**/rest/v1/cards*", (route) => {
   const method = route.request().method();
   if (method === "GET") { route.fulfill({ json: cardRows }); return; }
   if (method === "POST") {
