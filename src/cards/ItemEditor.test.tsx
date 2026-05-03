@@ -36,7 +36,7 @@ describe("<ItemEditor>", () => {
   });
 
   test("name field shows 'Untitled item' as placeholder", () => {
-    const card = itemCardFactory.build({ name: "" });
+    const card = itemCardFactory.build();
     render(<Harness initial={card} />);
 
     expect(screen.getByPlaceholderText("Untitled item")).toBe(screen.getByLabelText(/name/i));
