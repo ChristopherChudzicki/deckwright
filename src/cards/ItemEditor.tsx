@@ -14,7 +14,7 @@ type Props = {
   onChange: (next: ItemCard) => void;
 };
 
-type EditableField = "name" | "typeLine" | "body" | "imageUrl";
+type EditableField = "name" | "body" | "imageUrl";
 
 export function ItemEditor({ card, onChange }: Props) {
   const handle =
@@ -24,6 +24,10 @@ export function ItemEditor({ card, onChange }: Props) {
 
   const handleIconChange = (next: string | undefined) => {
     onChange({ ...card, iconKey: next, updatedAt: nowIso() });
+  };
+
+  const handleHeaderTagsChange = (next: string[]) => {
+    onChange({ ...card, headerTags: next, updatedAt: nowIso() });
   };
 
   const handleFooterTagsChange = (next: string[]) => {
@@ -36,7 +40,8 @@ export function ItemEditor({ card, onChange }: Props) {
   const idBase = useId();
   const ids = {
     name: `${idBase}-name`,
-    typeLine: `${idBase}-typeLine`,
+    headerTags: `${idBase}-headerTags`,
+    headerTagsLabel: `${idBase}-headerTagsLabel`,
     icon: `${idBase}-icon`,
     body: `${idBase}-body`,
     footerTags: `${idBase}-footerTags`,
@@ -50,15 +55,19 @@ export function ItemEditor({ card, onChange }: Props) {
         <span className={styles.label}>Name</span>
         <Input id={ids.name} value={card.name} onChange={handle("name")} />
       </label>
-      <label className={styles.field} htmlFor={ids.typeLine}>
-        <span className={styles.label}>Type line</span>
-        <Input
-          id={ids.typeLine}
-          value={card.typeLine}
-          onChange={handle("typeLine")}
-          placeholder="Wondrous item, uncommon"
+      <div className={styles.field}>
+        <span className={styles.label} id={ids.headerTagsLabel}>
+          Header tags (type, rarity, …)
+        </span>
+        <TagInput
+          id={ids.headerTags}
+          aria-labelledby={ids.headerTagsLabel}
+          value={card.headerTags}
+          onChange={handleHeaderTagsChange}
+          placeholder="Type and press Enter — e.g. Wondrous item, uncommon, requires attunement"
+          followUpPlaceholder="Press Enter for new tag"
         />
-      </label>
+      </div>
       <label className={styles.field} htmlFor={ids.icon}>
         <span className={styles.label}>Icon (optional)</span>
         <div className={styles.iconRow}>
