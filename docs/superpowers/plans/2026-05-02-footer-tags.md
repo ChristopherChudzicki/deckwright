@@ -1,5 +1,15 @@
 # Footer Tags Implementation Plan
 
+> **Post-review revisions (applied during execution):** The task pseudocode below was superseded by review feedback. The landed shape on the `footer-tags` branch differs in five ways:
+>
+> 1. **Enter is the sole commit key.** The `e.key === ","` branch was removed from `TagInput` so values like `"5,000 gp"` can be typed without the comma triggering a chip commit.
+> 2. **Migration splits on `·` only.** The data-migration regex is `'\s*·\s*'` (not `'\s*[,·]\s*'`) — splitting on `,` would corrupt thousands-comma values.
+> 3. **TagGroup uses a fixed `aria-label="Tags"`.** The caller's `aria-label`/`aria-labelledby` is forwarded to the inner `<input>` only, so screen readers don't double-announce the field label when entering the chip list.
+> 4. **`.list` is a real flex container.** It uses `display: flex; flex-wrap: wrap; align-items: center; gap` instead of `display: contents` so RAC's `role="grid"` semantics are preserved across browsers/AT.
+> 5. **Zod defaults `footerTags` to `[]`.** `z.array(z.string()).default([])` so legacy deck JSON exports (which lack the field) remain importable. The DB constraint stays strictly `required`; the SQL migration backfills `[]` for rows missing the key.
+>
+> Original Task pseudocode is preserved unchanged below as historical record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the item card's freeform `costWeight: string` field with a `footerTags: string[]` chip-input, so users can enter multiple short labels (cost, weight, rarity, attunement, etc.) that the card footer renders separated by `·`.

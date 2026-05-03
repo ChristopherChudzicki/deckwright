@@ -66,7 +66,7 @@ export function TagInput({
       <input
         id={id}
         type="text"
-        aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? "tags")}
+        aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? "Tags")}
         aria-labelledby={ariaLabelledBy}
         className={styles.input}
         value={draft}
