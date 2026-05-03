@@ -15,7 +15,7 @@ export function DeckBreadcrumb() {
             Decks
           </Link>
         </li>
-        {deckId && (
+        {deckId && (deckQuery.isPending || deckQuery.data) && (
           <>
             <li aria-hidden="true" className={styles.separator}>
               ›

@@ -104,4 +104,15 @@ describe("DeckBreadcrumb", () => {
     resolve?.(HttpResponse.json([deck]));
     await screen.findByText(deck.name);
   });
+
+  it("collapses to just Decks when the deck is not found", async () => {
+    mockPathname = "/deck/missing";
+    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])));
+    render(wrap(<DeckBreadcrumb />));
+
+    await screen.findByRole("link", { name: "Decks" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText("›")).not.toBeInTheDocument();
+    expect(screen.queryByText("…")).not.toBeInTheDocument();
+  });
 });
