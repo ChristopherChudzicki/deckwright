@@ -4,21 +4,32 @@ A browser app for creating and printing **D&D 5e item cards** with a legibility-
 
 ## Run locally
 
+**Prerequisites:**
+
+- Docker (for the local Supabase stack)
+- [`just`](https://github.com/casey/just) — `brew install just`
+- [`pre-commit`](https://pre-commit.com/) — `brew install pre-commit`
+
+**First-time setup:**
+
 ```bash
-npm install
-npm run dev
+pre-commit install
+just start
 ```
 
-Then open http://localhost:5173.
+Then open http://localhost:5173. On the login page, use the **dev** sign-in button (creates `dev@local` / `devpass` on first run).
 
-## Scripts
+`just` recipes are thin wrappers around npm scripts; running npm directly works too.
 
-- `npm run dev` — start Vite dev server
-- `npm run build` — production build to `dist/`
-- `npm run preview` — preview the production build
-- `npm test` — run Vitest suite
-- `npm run lint` — Biome lint + format check
-- `npm run lint:fix` — auto-fix lint + format
+## Database
+
+`just start` brings up a local Supabase stack (`supabase start`) and applies all migrations (`supabase migration up`). The Vite dev server's [`scripts/vite-supabase-env.ts`](scripts/vite-supabase-env.ts) plugin injects the local Supabase URL and anon key at boot, so a `.env.local` file is only needed when pointing local dev at a non-local Supabase.
+
+- **Add a migration:** `npx supabase migration new <name>`
+- **Reset the local database:** `npx supabase db reset`
+- **Deploy to production:** migrations apply automatically via [`.github/workflows/deploy-db.yml`](.github/workflows/deploy-db.yml) on merges to `main` that touch `supabase/migrations/**`.
+
+**Schema:** `decks` and `cards` tables, gated by row-level security on the deck owner.
 
 ## How to print
 
@@ -53,5 +64,3 @@ For rationale, see the [UI refinement spec](docs/superpowers/specs/2026-04-29-ui
 
 - Design: [`docs/superpowers/specs/2026-04-19-dnd-cards-design.md`](docs/superpowers/specs/2026-04-19-dnd-cards-design.md)
 - Implementation plan: [`docs/superpowers/plans/2026-04-19-dnd-cards-v1.md`](docs/superpowers/plans/2026-04-19-dnd-cards-v1.md)
-
-Deck data is persisted in Supabase (decks + cards tables, gated by row-level security on the deck owner). For local development, run a local Supabase via `supabase start` and use the **dev** sign-in button on the login page (creates `dev@local` / `devpass` on first run). You can also **Import JSON / Export JSON** from the deck view.
