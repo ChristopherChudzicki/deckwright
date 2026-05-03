@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { Card } from "./Card";
 import { itemCardFactory } from "./factories";
 
@@ -156,5 +156,86 @@ describe("<Card> with pagination", () => {
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
     expect(screen.getByTestId("card-footer")).toBeInTheDocument();
     expect(screen.getByTestId("card-pagination")).toHaveTextContent(/^Card 1 of 3$/);
+  });
+});
+
+describe("<Card> with title autofit", () => {
+  const LINE_HEIGHT_PX = 20;
+  let titleHeights: Record<string, number> = {};
+  let originalOffsetHeight: PropertyDescriptor | undefined;
+  let originalGetComputedStyle: typeof window.getComputedStyle;
+
+  beforeEach(() => {
+    originalOffsetHeight = Object.getOwnPropertyDescriptor(
+      HTMLHeadingElement.prototype,
+      "offsetHeight",
+    );
+    Object.defineProperty(HTMLHeadingElement.prototype, "offsetHeight", {
+      configurable: true,
+      get(this: HTMLHeadingElement) {
+        const fontSize = this.style.fontSize;
+        const key = fontSize === "" ? "1" : fontSize.replace("em", "");
+        return titleHeights[key] ?? 0;
+      },
+    });
+
+    originalGetComputedStyle = window.getComputedStyle;
+    window.getComputedStyle = ((el: Element, pseudo?: string | null) => {
+      const real = originalGetComputedStyle.call(window, el, pseudo);
+      if (el instanceof HTMLHeadingElement) {
+        return new Proxy(real, {
+          get(target, prop, receiver) {
+            if (prop === "lineHeight") return `${LINE_HEIGHT_PX}px`;
+            const value = Reflect.get(target, prop, receiver);
+            return typeof value === "function" ? value.bind(target) : value;
+          },
+        });
+      }
+      return real;
+    }) as typeof window.getComputedStyle;
+  });
+
+  afterEach(() => {
+    if (originalOffsetHeight) {
+      Object.defineProperty(HTMLHeadingElement.prototype, "offsetHeight", originalOffsetHeight);
+    } else {
+      delete (HTMLHeadingElement.prototype as { offsetHeight?: number }).offsetHeight;
+    }
+    window.getComputedStyle = originalGetComputedStyle;
+    titleHeights = {};
+  });
+
+  test("title that fits on one line gets no inline font-size", async () => {
+    titleHeights = { "1": LINE_HEIGHT_PX };
+    const card = itemCardFactory.build();
+    render(<Card card={card} cardsPerPage={4} />);
+    const heading = screen.getByRole("heading", { name: card.name });
+    await waitFor(() => {
+      expect(heading.style.fontSize).toBe("");
+    });
+  });
+
+  test("title that wraps at 1.0 but fits at 0.9 shrinks to 0.9em", async () => {
+    titleHeights = { "1": LINE_HEIGHT_PX * 2, "0.9": LINE_HEIGHT_PX };
+    const card = itemCardFactory.build();
+    render(<Card card={card} cardsPerPage={4} />);
+    const heading = screen.getByRole("heading", { name: card.name });
+    await waitFor(() => {
+      expect(heading.style.fontSize).toBe("0.9em");
+    });
+  });
+
+  test("title that wraps at every scale ends up unstyled (gave-up state)", async () => {
+    titleHeights = {
+      "1": LINE_HEIGHT_PX * 2,
+      "0.9": LINE_HEIGHT_PX * 2,
+      "0.8": LINE_HEIGHT_PX * 2,
+    };
+    const card = itemCardFactory.build();
+    render(<Card card={card} cardsPerPage={4} />);
+    const heading = screen.getByRole("heading", { name: card.name });
+    await waitFor(() => {
+      expect(heading.style.fontSize).toBe("");
+    });
   });
 });
