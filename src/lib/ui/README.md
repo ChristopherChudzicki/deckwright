@@ -10,6 +10,7 @@ Thin wrappers around `react-aria-components` (and a couple of native elements) t
 | `IconButton` | An icon-only button. Pass an SVG component as children. |
 | `OAuthButton` | A sign-in button branded for an OAuth provider. |
 | `Input` | A single-line text field. |
+| `Link` | An `<a>` styled with the accent color and an underline. Use for inline external links; in-app navigation goes through TanStack Router's `<Link>`. |
 | `Textarea` | A multi-line text field. |
 | `TagInput` | A controlled chip-input field. Users type freeform text + Enter to commit chips; `×` per chip removes them. |
 | `Switch` | An on/off toggle with a track + thumb. Children are the label. |

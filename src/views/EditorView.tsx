@@ -9,6 +9,7 @@ import { useDeckCards } from "../decks/queries";
 import { newId } from "../lib/id";
 import { nowIso } from "../lib/time";
 import { Button } from "../lib/ui/Button";
+import { Link } from "../lib/ui/Link";
 import { LoadingState } from "../lib/ui/LoadingState";
 import { useDebouncedValue } from "../lib/useDebouncedValue";
 import { BrowseApiModal } from "./BrowseApiModal";
@@ -134,13 +135,13 @@ export function EditorView({ deckId, cardId }: Props) {
           <div className={styles.importHint} data-testid="import-hint">
             <span>
               Importing from the{" "}
-              <a
+              <Link
                 href="https://en.wikipedia.org/wiki/System_Reference_Document"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 SRD
-              </a>
+              </Link>
               ? Browse the catalog instead.
             </span>
             <Button variant="secondary" size="sm" onPress={() => setBrowseOpen(true)}>
