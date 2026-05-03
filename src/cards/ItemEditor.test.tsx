@@ -124,9 +124,7 @@ describe("<ItemEditor>", () => {
     render(<Harness initial={card} />);
 
     const nameField = screen.getByLabelText(/name/i).closest("label");
-    const iconField = screen
-      .getByRole("button", { name: /pick icon/i })
-      .closest("label");
+    const iconField = screen.getByRole("button", { name: /pick icon/i }).closest("label");
 
     expect(nameField).not.toBeNull();
     expect(iconField).not.toBeNull();
