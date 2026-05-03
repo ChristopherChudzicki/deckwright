@@ -62,13 +62,9 @@
 
 .crumbCurrent {
   font-weight: 600;
-  max-width: 24ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.crumbList .link {
+.crumbList :is(.crumbCurrent, .link) {
   max-width: 24ch;
   overflow: hidden;
   text-overflow: ellipsis;

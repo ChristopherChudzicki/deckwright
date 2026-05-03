@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -111,8 +111,7 @@ describe("DeckBreadcrumb", () => {
     render(wrap(<DeckBreadcrumb />));
 
     await screen.findByRole("link", { name: "Decks" });
-    await new Promise((r) => setTimeout(r, 0));
-    expect(screen.queryByText("›")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("›")).not.toBeInTheDocument());
     expect(screen.queryByText("…")).not.toBeInTheDocument();
   });
 
