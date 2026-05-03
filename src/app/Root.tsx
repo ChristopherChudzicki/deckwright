@@ -1,5 +1,6 @@
 import { Link, Outlet } from "@tanstack/react-router";
 import { UserMenu } from "../lib/ui/UserMenu";
+import { DeckBreadcrumb } from "./DeckBreadcrumb";
 import styles from "./root.module.css";
 
 export function Root() {
@@ -9,11 +10,7 @@ export function Root() {
         <Link to="/" className={styles.brand}>
           D&amp;D Cards
         </Link>
-        <nav aria-label="Primary" className={styles.nav}>
-          <Link to="/" className={styles.link} activeProps={{ className: styles.active }}>
-            Decks
-          </Link>
-        </nav>
+        <DeckBreadcrumb />
         <UserMenu />
       </header>
       <main className={styles.main}>

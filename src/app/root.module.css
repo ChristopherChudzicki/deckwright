@@ -22,11 +22,6 @@
   letter-spacing: 0.02em;
 }
 
-.nav {
-  display: flex;
-  gap: var(--space-3);
-}
-
 .link {
   color: var(--color-text);
   text-decoration: none;
@@ -38,9 +33,42 @@
   background: var(--color-surface-2);
 }
 
-.active {
-  background: var(--color-surface-2);
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.crumbList {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.crumbList li {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.separator {
+  color: var(--color-text-muted);
+}
+
+.crumbCurrent {
   font-weight: 600;
+}
+
+.crumbList :is(.crumbCurrent, .link) {
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .main {
