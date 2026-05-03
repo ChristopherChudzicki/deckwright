@@ -61,4 +61,25 @@ describe("DeckBreadcrumb", () => {
     expect(current).toHaveAttribute("aria-current", "page");
     expect(current.tagName).not.toBe("A");
   });
+
+  it("renders the deck name as a link on the editor route", async () => {
+    const deck = makeDeckRow.build();
+    mockPathname = `/deck/${deck.id}/edit/new`;
+    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    render(wrap(<DeckBreadcrumb />));
+
+    const deckLink = await screen.findByRole("link", { name: deck.name });
+    expect(deckLink).toHaveAttribute("href", "/deck/$deckId");
+    expect(deckLink).not.toHaveAttribute("aria-current");
+  });
+
+  it("renders the deck name as a link on the print route", async () => {
+    const deck = makeDeckRow.build();
+    mockPathname = `/deck/${deck.id}/print`;
+    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    render(wrap(<DeckBreadcrumb />));
+
+    const deckLink = await screen.findByRole("link", { name: deck.name });
+    expect(deckLink).toHaveAttribute("href", "/deck/$deckId");
+  });
 });

@@ -20,7 +20,7 @@ export function DeckBreadcrumb() {
             <li aria-hidden="true" className={styles.separator}>
               ›
             </li>
-            <li>{renderDeckCrumb(deckQuery.data?.name, isAtDeckRoot)}</li>
+            <li>{renderDeckCrumb(deckQuery.data?.name, isAtDeckRoot, deckId)}</li>
           </>
         )}
       </ol>
@@ -28,16 +28,20 @@ export function DeckBreadcrumb() {
   );
 }
 
-function renderDeckCrumb(name: string | undefined, isAtDeckRoot: boolean) {
+function renderDeckCrumb(name: string | undefined, isAtDeckRoot: boolean, deckId: string) {
   if (!name) return "…";
   if (isAtDeckRoot) {
     return (
-      <span aria-current="page" className={styles.crumbCurrent}>
+      <span aria-current="page" className={styles.crumbCurrent} title={name}>
         {name}
       </span>
     );
   }
-  return name;
+  return (
+    <Link to="/deck/$deckId" params={{ deckId }} className={styles.link} title={name}>
+      {name}
+    </Link>
+  );
 }
 
 function parsePathname(pathname: string): { deckId: string | undefined; isAtDeckRoot: boolean } {
