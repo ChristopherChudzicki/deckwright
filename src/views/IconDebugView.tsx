@@ -4,8 +4,8 @@ import { IconPreview } from "../lib/ui/IconPreview";
 import { Input } from "../lib/ui/Input";
 import styles from "./IconDebugView.module.css";
 
-function pickRule(name: string, typeLine: string) {
-  const haystack = `${name} ${typeLine}`;
+function pickRule(name: string, headerTagsText: string) {
+  const haystack = `${name} ${headerTagsText}`;
   let index = 0;
   for (const rule of ICON_RULES) {
     if (rule.pattern.test(haystack)) {
@@ -18,12 +18,12 @@ function pickRule(name: string, typeLine: string) {
 
 export function IconDebugView() {
   const [name, setName] = useState("");
-  const [typeLine, setTypeLine] = useState("");
-  const matched = pickRule(name, typeLine);
+  const [headerTagsText, setHeaderTagsText] = useState("");
+  const matched = pickRule(name, headerTagsText);
   const idBase = useId();
   const ids = {
     name: `${idBase}-name`,
-    typeLine: `${idBase}-typeLine`,
+    headerTags: `${idBase}-headerTags`,
   };
 
   return (
@@ -36,9 +36,13 @@ export function IconDebugView() {
           <span>Name</span>
           <Input id={ids.name} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label className={styles.row} htmlFor={ids.typeLine}>
-          <span>Type line</span>
-          <Input id={ids.typeLine} value={typeLine} onChange={(e) => setTypeLine(e.target.value)} />
+        <label className={styles.row} htmlFor={ids.headerTags}>
+          <span>Header tags</span>
+          <Input
+            id={ids.headerTags}
+            value={headerTagsText}
+            onChange={(e) => setHeaderTagsText(e.target.value)}
+          />
         </label>
         <div className={styles.result} data-testid="simulator-result">
           {matched ? (

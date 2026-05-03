@@ -120,6 +120,10 @@
   margin-left: auto;
 }
 
+.footerTags {
+  /* Wrapper span — groups tags as a single flex item alongside .footerRight. */
+}
+
 .footerTag + .footerTag::before {
   content: " · ";
   white-space: pre;

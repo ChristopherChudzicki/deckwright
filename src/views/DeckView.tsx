@@ -89,7 +89,7 @@ export function DeckView({ deckId }: Props) {
                   <strong>{card.name}</strong>
                 )}
                 {card.kind === "item" && card.headerTags.length > 0 && (
-                  <span className={styles.typeLine}>{card.headerTags.join(" · ")}</span>
+                  <span className={styles.headerTags}>{card.headerTags.join(" · ")}</span>
                 )}
               </div>
               {isOwner && (
