@@ -1,8 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { makeDeckRow } from "../test/factories";
+import { server } from "../test/msw";
 import { DeckBreadcrumb } from "./DeckBreadcrumb";
+
+const SB = "http://localhost:54321";
 
 let mockPathname = "/";
 
@@ -43,5 +48,17 @@ describe("DeckBreadcrumb", () => {
     expect(nav).toContainElement(links[0]);
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute("href", "/");
+  });
+
+  it("renders the deck name as current page on /deck/$id", async () => {
+    const deck = makeDeckRow.build();
+    mockPathname = `/deck/${deck.id}`;
+    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    render(wrap(<DeckBreadcrumb />));
+
+    expect(screen.getByRole("link", { name: "Decks" })).toHaveAttribute("href", "/");
+    const current = await screen.findByText(deck.name);
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(current.tagName).not.toBe("A");
   });
 });
