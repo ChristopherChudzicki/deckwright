@@ -33,7 +33,7 @@
   border-bottom: 0;
 }
 
-.row:hover {
+.row:hover:not(:disabled) {
   background: var(--color-surface-2);
 }
 
@@ -44,6 +44,8 @@
 
 .row[aria-pressed="true"] {
   background: var(--color-surface-2);
+  border-left: 3px solid var(--color-accent);
+  padding-left: calc(var(--space-4) - 3px);
 }
 
 .rowName {

@@ -1,11 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { TextField } from "react-aria-components";
-import {
-  type EquipmentDetail,
-  type EquipmentIndexEntry,
-  fetchEquipmentDetail,
-} from "../api/endpoints/equipment";
+import { type EquipmentDetail, fetchEquipmentDetail } from "../api/endpoints/equipment";
 import type { Ruleset } from "../api/endpoints/magicItems";
 import { useEquipmentIndex } from "../api/hooks";
 import type { BaseHint } from "../api/mappers/baseHint";
@@ -31,7 +27,7 @@ export function EnrichmentStep({ ruleset, hint, onConfirm, onCancel }: Props) {
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const filtered: EquipmentIndexEntry[] = useMemo(() => {
+  const filtered = useMemo(() => {
     const all = index.data?.results ?? [];
     const q = query.trim().toLowerCase();
     if (q === "") return all;
