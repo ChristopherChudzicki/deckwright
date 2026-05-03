@@ -25,8 +25,8 @@
 
 .perPage2 {
   --card-base: 24px;
-  --card-width: 7.5in;
-  --card-height: 5in;
+  --card-width: 5in;
+  --card-height: 7.5in;
 }
 
 .image {
