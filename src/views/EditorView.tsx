@@ -15,7 +15,7 @@ import styles from "./EditorView.module.css";
 
 const isPristineNewCard = (card: ItemCard): boolean =>
   card.name === "Untitled item" &&
-  card.typeLine === "" &&
+  card.headerTags.length === 0 &&
   card.body === "" &&
   card.footerTags.length === 0 &&
   card.imageUrl === undefined &&
@@ -55,7 +55,7 @@ export function EditorView({ deckId, cardId }: Props) {
       id: newId(),
       kind: "item",
       name: "Untitled item",
-      typeLine: "",
+      headerTags: [],
       body: "",
       footerTags: [],
       source: "custom",
