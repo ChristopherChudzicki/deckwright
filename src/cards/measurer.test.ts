@@ -29,24 +29,28 @@ beforeEach(() => {
 });
 
 describe("measurer", () => {
-  test("measureFirst writes title (no suffix) and the type line", () => {
+  test("measureFirst writes title (no suffix) and the header tags", () => {
     const measurer = getMeasurer(4);
     const card = itemCardFactory.build();
     measurer.measureFirst(card, "body chunk");
 
     const titleEl = document.querySelector<HTMLElement>('[data-shape="first"] [data-slot="title"]');
-    const typeLineEl = document.querySelector<HTMLElement>(
-      '[data-shape="first"] [data-slot="typeLine"]',
+    const headerTagsEl = document.querySelector<HTMLElement>(
+      '[data-shape="first"] [data-slot="headerTags"]',
     );
 
     expect(titleEl?.textContent).toBe(card.name);
-    expect(typeLineEl?.textContent).toBe(card.typeLine);
+    for (const tag of card.headerTags) {
+      expect(headerTagsEl?.textContent).toContain(tag);
+    }
   });
 
-  test("continuation scaffold has no type line slot", () => {
+  test("continuation scaffold has no headerTags slot", () => {
     getMeasurer(4);
-    const typeLineEl = document.querySelector('[data-shape="continuation"] [data-slot="typeLine"]');
-    expect(typeLineEl).toBeNull();
+    const headerTagsEl = document.querySelector(
+      '[data-shape="continuation"] [data-slot="headerTags"]',
+    );
+    expect(headerTagsEl).toBeNull();
   });
 
   test("footer always renders pagination sentinel during measurement", () => {
