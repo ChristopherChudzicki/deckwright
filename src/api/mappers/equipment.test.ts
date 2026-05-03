@@ -12,7 +12,7 @@ const longsword: EquipmentDetail = {
 const plateArmor: EquipmentDetail = {
   index: "plate-armor",
   name: "Plate Armor",
-  armor_class: { base: 18, dex_bonus: false },
+  armor_class: { base: 18 },
   weight: 65,
 };
 
