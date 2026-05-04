@@ -2,14 +2,14 @@ import { useLayoutEffect, useRef, useState } from "react";
 import styles from "./Card.module.css";
 import { pickIconKey } from "./iconRules";
 import { ResolvedIcon } from "./resolveIcon";
-import type { ItemCard } from "./types";
+import type { RenderableCard } from "./types";
 
 export type CardsPerPage = 2 | 4;
 
 export type CardPagination = { page: number; total: number };
 
 type Props = {
-  card: ItemCard;
+  card: RenderableCard;
   cardsPerPage: CardsPerPage;
   pagination?: CardPagination;
   bodyOverride?: string;

@@ -1,15 +1,15 @@
 import type { CardPagination } from "./Card";
 import type { CardMeasurer } from "./measurer";
 import { paginateBody } from "./paginate";
-import type { ItemCard } from "./types";
+import type { RenderableCard } from "./types";
 
 export type PhysicalCard = {
-  card: ItemCard;
+  card: RenderableCard;
   bodyChunk: string;
   pagination?: CardPagination;
 };
 
-export function expandCard(card: ItemCard, measurer: CardMeasurer): PhysicalCard[] {
+export function expandCard(card: RenderableCard, measurer: CardMeasurer): PhysicalCard[] {
   const chunks = paginateBody({
     body: card.body,
     measureFirst: (s) => measurer.measureFirst(card, s),
