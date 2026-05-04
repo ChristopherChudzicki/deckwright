@@ -5,17 +5,27 @@ import { HttpResponse, http } from "msw";
 import { type ReactNode, StrictMode } from "react";
 import { describe, expect, test, vi } from "vitest";
 import type { MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
-import { magicItemIndexEntryFactory } from "../api/factories";
+import type { SpellIndex } from "../api/endpoints/spells";
+import { magicItemIndexEntryFactory, spellIndexEntryFactory } from "../api/factories";
 import { makeCardRow } from "../test/factories";
 import { SB_URL, server } from "../test/msw";
 import { BrowseApiModal } from "./BrowseApiModal";
 
-const indexKey = (ruleset: Ruleset) => ["magic-items", ruleset, "index"];
+const itemKey = (ruleset: Ruleset) => ["magic-items", ruleset, "index"];
+const spellKey = (ruleset: Ruleset) => ["spells", ruleset, "index"];
 
-const makeClient = (seeds: Partial<Record<Ruleset, MagicItemIndex>> = {}) => {
+type Seeds = {
+  items?: Partial<Record<Ruleset, MagicItemIndex>>;
+  spells?: Partial<Record<Ruleset, SpellIndex>>;
+};
+
+const makeClient = (seeds: Seeds = {}) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  for (const [ruleset, body] of Object.entries(seeds) as [Ruleset, MagicItemIndex][]) {
-    client.setQueryData(indexKey(ruleset), body);
+  for (const [ruleset, body] of Object.entries(seeds.items ?? {}) as [Ruleset, MagicItemIndex][]) {
+    client.setQueryData(itemKey(ruleset), body);
+  }
+  for (const [ruleset, body] of Object.entries(seeds.spells ?? {}) as [Ruleset, SpellIndex][]) {
+    client.setQueryData(spellKey(ruleset), body);
   }
   return client;
 };
@@ -24,10 +34,10 @@ const wrap = (ui: ReactNode, client: QueryClient) =>
   render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 
 describe("<BrowseApiModal>", () => {
-  test("shows index entries once the list loads", async () => {
+  test("shows index entries once the items list loads", async () => {
     const entryA = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const entryB = magicItemIndexEntryFactory.build({ name: "Cloak of Protection" });
-    const client = makeClient({ "2024": { count: 2, results: [entryA, entryB] } });
+    const client = makeClient({ items: { "2024": { count: 2, results: [entryA, entryB] } } });
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
@@ -35,10 +45,10 @@ describe("<BrowseApiModal>", () => {
     expect(screen.getByRole("button", { name: "Cloak of Protection" })).toBeInTheDocument();
   });
 
-  test("search filters the list", async () => {
+  test("search filters the items list", async () => {
     const entryA = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const entryB = magicItemIndexEntryFactory.build({ name: "Cloak of Protection" });
-    const client = makeClient({ "2024": { count: 2, results: [entryA, entryB] } });
+    const client = makeClient({ items: { "2024": { count: 2, results: [entryA, entryB] } } });
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
@@ -49,12 +59,14 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: "Cloak of Protection" })).not.toBeInTheDocument();
   });
 
-  test("switching ruleset loads a different list", async () => {
+  test("switching ruleset loads a different items list", async () => {
     const v2024 = magicItemIndexEntryFactory.build({ name: "Ring A" });
     const v2014 = magicItemIndexEntryFactory.build({ name: "Ring Z" });
     const client = makeClient({
-      "2024": { count: 1, results: [v2024] },
-      "2014": { count: 1, results: [v2014] },
+      items: {
+        "2024": { count: 1, results: [v2024] },
+        "2014": { count: 1, results: [v2014] },
+      },
     });
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
@@ -66,9 +78,28 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: "Ring A" })).not.toBeInTheDocument();
   });
 
-  test("clicking a row POSTs the card to the persistence layer and calls onSelected", async () => {
+  test("switching kind to Spells swaps the list source", async () => {
+    const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const spell = spellIndexEntryFactory.build({ name: "Fireball" });
+    const client = makeClient({
+      items: { "2024": { count: 1, results: [item] } },
+      spells: { "2024": { count: 1, results: [spell] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await screen.findByRole("button", { name: "Bag of Holding" });
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Fireball" })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("button", { name: "Bag of Holding" })).not.toBeInTheDocument();
+  });
+
+  test("clicking an item POSTs a card with kind:item", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
-    const client = makeClient({ "2024": { count: 1, results: [entry] } });
+    const client = makeClient({ items: { "2024": { count: 1, results: [entry] } } });
     const onPost = vi.fn();
     server.use(
       http.post(`${SB_URL}/rest/v1/cards`, async ({ request }) => {
@@ -83,12 +114,33 @@ describe("<BrowseApiModal>", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Bag of Holding" }));
 
     await waitFor(() => expect(onPost).toHaveBeenCalled());
+    expect(onPost.mock.calls[0]?.[0]?.payload?.kind).toBe("item");
     expect(onSelected).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  test("clicking a spell POSTs a card with kind:spell", async () => {
+    const entry = spellIndexEntryFactory.build({ name: "Fireball" });
+    const client = makeClient({ spells: { "2024": { count: 1, results: [entry] } } });
+    const onPost = vi.fn();
+    server.use(
+      http.post(`${SB_URL}/rest/v1/cards`, async ({ request }) => {
+        onPost(await request.json());
+        return HttpResponse.json([makeCardRow.build()], { status: 201 });
+      }),
+    );
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Fireball" }));
+
+    await waitFor(() => expect(onPost).toHaveBeenCalled());
+    expect(onPost.mock.calls[0]?.[0]?.payload?.kind).toBe("spell");
   });
 
   test("clicking the same row only POSTs once even under StrictMode double-render", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Flame Tongue" });
-    const client = makeClient({ "2024": { count: 1, results: [entry] } });
+    const client = makeClient({ items: { "2024": { count: 1, results: [entry] } } });
     const onPost = vi.fn();
     server.use(
       http.post(`${SB_URL}/rest/v1/cards`, async ({ request }) => {
@@ -114,11 +166,20 @@ describe("<BrowseApiModal>", () => {
 
   test("Escape calls onClose", async () => {
     const onClose = vi.fn();
-    const client = makeClient({ "2024": { count: 0, results: [] } });
+    const client = makeClient({ items: { "2024": { count: 0, results: [] } } });
 
     wrap(<BrowseApiModal deckId="d1" onClose={onClose} onSelected={() => {}} />, client);
 
     await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalled();
+  });
+
+  test("renders the SRD notice with a link", async () => {
+    const client = makeClient({ items: { "2024": { count: 0, results: [] } } });
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+    expect(await screen.findByRole("link", { name: "SRD" })).toHaveAttribute(
+      "href",
+      "https://en.wikipedia.org/wiki/System_Reference_Document",
+    );
   });
 });
