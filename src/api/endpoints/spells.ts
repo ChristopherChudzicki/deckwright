@@ -9,6 +9,8 @@ export type SpellIndex = {
   results: Spell[];
 };
 
+// JSON shape is validated at write time by scripts/fetch-srd.ts; the cast is
+// the trust boundary into the bundled file.
 const loadData = async (ruleset: Ruleset): Promise<Spell[]> => {
   const m =
     ruleset === "2024"
