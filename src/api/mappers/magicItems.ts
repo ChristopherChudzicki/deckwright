@@ -10,7 +10,12 @@ export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
     headerTags.push(`${detail.weapon.damage_dice} ${detail.weapon.damage_type.name.toLowerCase()}`);
   }
   if (detail.armor) {
-    headerTags.push(`AC ${detail.armor.ac_base}`);
+    const { ac_base, ac_add_dexmod, ac_cap_dexmod } = detail.armor;
+    let ac = `AC ${ac_base}`;
+    if (ac_add_dexmod) {
+      ac += ac_cap_dexmod !== null ? ` + dex mod (max ${ac_cap_dexmod})` : " + dex mod";
+    }
+    headerTags.push(ac);
   }
   if (detail.requires_attunement) {
     headerTags.push(

@@ -75,12 +75,28 @@ describe("magicItemDetailToCard", () => {
     expect(card.headerTags).toContain("1d12 slashing");
   });
 
-  test("armor non-null → header includes AC tag", () => {
+  test("heavy armor (no dex bonus) → 'AC X'", () => {
     const detail = magicItemDetailFactory.build({
-      armor: { ac_base: 14 },
+      armor: { ac_base: 18, ac_add_dexmod: false, ac_cap_dexmod: null },
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.headerTags).toContain("AC 14");
+    expect(card.headerTags).toContain("AC 18");
+  });
+
+  test("medium armor (dex bonus capped) → 'AC X + dex mod (max N)'", () => {
+    const detail = magicItemDetailFactory.build({
+      armor: { ac_base: 14, ac_add_dexmod: true, ac_cap_dexmod: 2 },
+    });
+    const card = magicItemDetailToCard(detail);
+    expect(card.headerTags).toContain("AC 14 + dex mod (max 2)");
+  });
+
+  test("light armor (uncapped dex bonus) → 'AC X + dex mod'", () => {
+    const detail = magicItemDetailFactory.build({
+      armor: { ac_base: 11, ac_add_dexmod: true, ac_cap_dexmod: null },
+    });
+    const card = magicItemDetailToCard(detail);
+    expect(card.headerTags).toContain("AC 11 + dex mod");
   });
 
   test("weight > 0 → footer includes weight tag with trailing zeros stripped", () => {
@@ -112,12 +128,12 @@ describe("magicItemDetailToCard", () => {
   test("armor + weight → AC in header, weight in footer", () => {
     const detail = magicItemDetailFactory.build({
       category: { name: "Armor" },
-      armor: { ac_base: 14 },
+      armor: { ac_base: 14, ac_add_dexmod: true, ac_cap_dexmod: 2 },
       weight: "20.000",
       weight_unit: "lb",
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.headerTags).toEqual(["Armor", "AC 14"]);
+    expect(card.headerTags).toEqual(["Armor", "AC 14 + dex mod (max 2)"]);
     expect(card.footerTags).toContain("20 lb");
   });
 });

@@ -19,6 +19,8 @@ export const magicItemSchema = z.object({
   armor: z
     .object({
       ac_base: z.number(),
+      ac_add_dexmod: z.boolean(),
+      ac_cap_dexmod: z.number().nullable(),
     })
     .nullable(),
   weight: z.string(),

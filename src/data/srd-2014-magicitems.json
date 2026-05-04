@@ -13,7 +13,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "20.000",
     "weight_unit": "lb"
@@ -32,7 +34,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 16
+      "ac_base": 16,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "55.000",
     "weight_unit": "lb"
@@ -51,7 +55,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 13
+      "ac_base": 13,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "20.000",
     "weight_unit": "lb"
@@ -70,7 +76,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 15
+      "ac_base": 15,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "40.000",
     "weight_unit": "lb"
@@ -89,7 +97,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 18
+      "ac_base": 18,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "65.000",
     "weight_unit": "lb"
@@ -108,7 +118,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "40.000",
     "weight_unit": "lb"
@@ -127,7 +139,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "45.000",
     "weight_unit": "lb"
@@ -146,7 +160,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 17
+      "ac_base": 17,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "60.000",
     "weight_unit": "lb"
@@ -250,7 +266,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 18
+      "ac_base": 18,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "65.000",
     "weight_unit": "lb"
@@ -269,7 +287,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "20.000",
     "weight_unit": "lb"
@@ -288,7 +308,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 16
+      "ac_base": 16,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "55.000",
     "weight_unit": "lb"
@@ -307,7 +329,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 13
+      "ac_base": 13,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "20.000",
     "weight_unit": "lb"
@@ -326,7 +350,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 15
+      "ac_base": 15,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "40.000",
     "weight_unit": "lb"
@@ -345,7 +371,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 12
+      "ac_base": 12,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "12.000",
     "weight_unit": "lb"
@@ -364,7 +392,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 11
+      "ac_base": 11,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": null
     },
     "weight": "10.000",
     "weight_unit": "lb"
@@ -383,7 +413,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 11
+      "ac_base": 11,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": null
     },
     "weight": "8.000",
     "weight_unit": "lb"
@@ -402,7 +434,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 18
+      "ac_base": 18,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "65.000",
     "weight_unit": "lb"
@@ -421,7 +455,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "40.000",
     "weight_unit": "lb"
@@ -440,7 +476,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "45.000",
     "weight_unit": "lb"
@@ -459,7 +497,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 17
+      "ac_base": 17,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "60.000",
     "weight_unit": "lb"
@@ -478,7 +518,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 12
+      "ac_base": 12,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": null
     },
     "weight": "13.000",
     "weight_unit": "lb"
@@ -497,7 +539,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 18
+      "ac_base": 18,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "65.000",
     "weight_unit": "lb"
@@ -2024,7 +2068,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 18
+      "ac_base": 18,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "65.000",
     "weight_unit": "lb"
@@ -2060,7 +2106,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "45.000",
     "weight_unit": "lb"
@@ -2218,7 +2266,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 18
+      "ac_base": 18,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "65.000",
     "weight_unit": "lb"
@@ -2310,7 +2360,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 13
+      "ac_base": 13,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "20.000",
     "weight_unit": "lb"
@@ -3097,7 +3149,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 12
+      "ac_base": 12,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": null
     },
     "weight": "13.000",
     "weight_unit": "lb"
@@ -4925,7 +4979,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "20.000",
     "weight_unit": "lb"
@@ -4944,7 +5000,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 16
+      "ac_base": 16,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "55.000",
     "weight_unit": "lb"
@@ -4963,7 +5021,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 13
+      "ac_base": 13,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "20.000",
     "weight_unit": "lb"
@@ -4982,7 +5042,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 15
+      "ac_base": 15,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "40.000",
     "weight_unit": "lb"
@@ -5001,7 +5063,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 18
+      "ac_base": 18,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "65.000",
     "weight_unit": "lb"
@@ -5020,7 +5084,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "40.000",
     "weight_unit": "lb"
@@ -5039,7 +5105,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 14
+      "ac_base": 14,
+      "ac_add_dexmod": true,
+      "ac_cap_dexmod": 2
     },
     "weight": "45.000",
     "weight_unit": "lb"
@@ -5058,7 +5126,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 17
+      "ac_base": 17,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "60.000",
     "weight_unit": "lb"
@@ -5623,7 +5693,9 @@
     "attunement_detail": null,
     "weapon": null,
     "armor": {
-      "ac_base": 18
+      "ac_base": 18,
+      "ac_add_dexmod": false,
+      "ac_cap_dexmod": null
     },
     "weight": "65.000",
     "weight_unit": "lb"
