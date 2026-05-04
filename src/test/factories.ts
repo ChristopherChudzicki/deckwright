@@ -36,7 +36,9 @@ export const makeSpellPayload = Factory.define<Omit<SpellCard, "id">>(() => {
   return {
     kind: "spell",
     name: faker.lorem.words(2),
+    headerTags: [],
     body: faker.lorem.paragraph(),
+    footerTags: [],
     source: "custom",
     createdAt: now,
     updatedAt: now,
@@ -48,7 +50,9 @@ export const makeAbilityPayload = Factory.define<Omit<AbilityCard, "id">>(() => 
   return {
     kind: "ability",
     name: faker.lorem.words(2),
+    headerTags: [],
     body: faker.lorem.paragraph(),
+    footerTags: [],
     source: "custom",
     createdAt: now,
     updatedAt: now,

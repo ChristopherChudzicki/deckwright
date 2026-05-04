@@ -16,21 +16,13 @@ const baseCardSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   iconKey: z.string().optional(),
-});
-
-export const itemCardSchema = baseCardSchema.extend({
-  kind: z.literal("item"),
   headerTags: z.array(z.string()).default([]),
   footerTags: z.array(z.string()).default([]),
 });
 
-export const spellCardSchema = baseCardSchema.extend({
-  kind: z.literal("spell"),
-});
-
-export const abilityCardSchema = baseCardSchema.extend({
-  kind: z.literal("ability"),
-});
+export const itemCardSchema = baseCardSchema.extend({ kind: z.literal("item") });
+export const spellCardSchema = baseCardSchema.extend({ kind: z.literal("spell") });
+export const abilityCardSchema = baseCardSchema.extend({ kind: z.literal("ability") });
 
 export const cardSchema = z.discriminatedUnion("kind", [
   itemCardSchema,
