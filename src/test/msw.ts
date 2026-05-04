@@ -72,14 +72,7 @@ export const magicItemIndexHandler = (ruleset: Ruleset, body: MagicItemIndex) =>
       count: body.count,
       next: null,
       previous: null,
-      results: body.results.map((r) => ({
-        ...r,
-        desc: "",
-        category: { name: "" },
-        rarity: { name: "" },
-        requires_attunement: false,
-        attunement_detail: null,
-      })),
+      results: body.results,
     });
   });
 

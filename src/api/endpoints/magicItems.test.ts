@@ -51,30 +51,29 @@ describe("fetchMagicItemIndex", () => {
     await expect(fetchMagicItemIndex("2024")).rejects.toThrow(/exceeding the 2000-row limit/);
   });
 
-  test("returns only key+name from each result", async () => {
-    const raw = {
-      count: 1,
-      next: null,
-      previous: null,
-      results: [
-        {
-          key: "srd-2024_bag-of-holding",
-          name: "Bag of Holding",
-          desc: "...",
-          category: { name: "Wondrous Item" },
-          rarity: { name: "Uncommon" },
-          requires_attunement: false,
-          attunement_detail: null,
-        },
-      ],
+  test("passes results through verbatim", async () => {
+    const row = {
+      key: "srd-2024_bag-of-holding",
+      name: "Bag of Holding",
+      desc: "A magical bag.",
+      category: { name: "Wondrous Item" },
+      rarity: { name: "Uncommon" },
+      requires_attunement: false,
+      attunement_detail: null,
+      weapon: null,
+      armor: null,
+      weight: "0.000",
+      weight_unit: "lb",
     };
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify(raw), { status: 200 })) as typeof fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ count: 1, next: null, previous: null, results: [row] }), {
+        status: 200,
+      }),
+    ) as typeof fetch;
 
     const result = await fetchMagicItemIndex("2024");
 
-    expect(result.results).toEqual([{ key: "srd-2024_bag-of-holding", name: "Bag of Holding" }]);
+    expect(result.results).toEqual([row]);
   });
 });
 

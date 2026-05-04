@@ -14,6 +14,15 @@ export const magicItemIndexEntryFactory = Factory.define<MagicItemIndexEntry>(()
   return {
     key: open5eKey(slug),
     name: faker.commerce.productName(),
+    desc: faker.lorem.paragraph(),
+    category: { name: faker.helpers.arrayElement(categories) },
+    rarity: { name: faker.helpers.arrayElement(rarities) },
+    requires_attunement: false,
+    attunement_detail: null,
+    weapon: null,
+    armor: null,
+    weight: "0.000",
+    weight_unit: "lb",
   };
 });
 
@@ -27,22 +36,7 @@ export const magicItemIndexFactory = Factory.define<MagicItemIndex, MagicItemInd
   },
 );
 
-export const magicItemDetailFactory = Factory.define<MagicItemDetail>(() => {
-  const slug = faker.helpers
-    .slugify(`${faker.commerce.productName()}-${faker.string.alphanumeric(5)}`)
-    .toLowerCase();
-  return {
-    key: open5eKey(slug),
-    name: faker.commerce.productName(),
-    desc: faker.lorem.paragraph(),
-    category: { name: faker.helpers.arrayElement(categories) },
-    rarity: { name: faker.helpers.arrayElement(rarities) },
-    requires_attunement: false,
-    attunement_detail: null,
-    weapon: null,
-    armor: null,
-    weight: "0.000",
-    weight_unit: "lb",
-    ruleset: "2024",
-  };
-});
+export const magicItemDetailFactory = Factory.define<MagicItemDetail>(() => ({
+  ...magicItemIndexEntryFactory.build(),
+  ruleset: "2024",
+}));
