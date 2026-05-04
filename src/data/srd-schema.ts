@@ -37,6 +37,14 @@ export const CASTING_TIME_VALUES = [
   "reaction",
   "minute",
   "hour",
+  // 2014 SRD uses concatenated forms (e.g. "1minute", "8hours") instead of
+  // bare unit names.
+  "1minute",
+  "10minutes",
+  "1hour",
+  "8hours",
+  "12hours",
+  "24hours",
 ] as const;
 
 export const spellSchema = z.object({
