@@ -16,7 +16,7 @@ const documentKey = (ruleset: Ruleset): string => (ruleset === "2024" ? "srd-202
 type ResourceConfig = {
   name: string;
   url: (ruleset: Ruleset) => string;
-  schema: z.ZodTypeAny;
+  schema: z.ZodType<unknown[]>;
 };
 
 const RESOURCES: ResourceConfig[] = [
@@ -76,7 +76,7 @@ for (const resource of RESOURCES) {
     const previous = previousCount(slimPath);
 
     const raw = await fetchResource(resource, ruleset);
-    const slim = resource.schema.parse(raw.results) as unknown[];
+    const slim = resource.schema.parse(raw.results);
 
     if (previous !== null && slim.length < previous) {
       const lost = previous - slim.length;
