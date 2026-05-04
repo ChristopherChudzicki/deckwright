@@ -14,6 +14,15 @@ export type MagicItemIndex = {
   results: MagicItemIndexEntry[];
 };
 
+type WeaponInfo = {
+  damage_dice: string;
+  damage_type: { name: string };
+};
+
+type ArmorInfo = {
+  ac_base: number;
+};
+
 export type MagicItemDetail = {
   key: string;
   name: string;
@@ -22,6 +31,10 @@ export type MagicItemDetail = {
   rarity: { name: string };
   requires_attunement: boolean;
   attunement_detail: string | null;
+  weapon: WeaponInfo | null;
+  armor: ArmorInfo | null;
+  weight: string;
+  weight_unit: string;
   ruleset: Ruleset;
 };
 
@@ -40,6 +53,10 @@ type RawMagicItem = {
   rarity: { name: string };
   requires_attunement: boolean;
   attunement_detail: string | null;
+  weapon: WeaponInfo | null;
+  armor: ArmorInfo | null;
+  weight: string;
+  weight_unit: string;
 };
 
 const FETCH_LIMIT = 2000;

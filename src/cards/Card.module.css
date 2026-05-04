@@ -81,6 +81,7 @@
 .headerTag + .headerTag::before {
   content: " | ";
   white-space: pre;
+  font-style: normal;
 }
 
 .divider {

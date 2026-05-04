@@ -68,4 +68,58 @@ describe("magicItemDetailToCard", () => {
     expect(card.source).toBe("api");
     expect(card.imageUrl).toBeUndefined();
   });
+
+  test("weapon non-null → header includes damage tag with lowercased damage type", () => {
+    const detail = magicItemDetailFactory.build({
+      weapon: { damage_dice: "1d12", damage_type: { name: "Slashing" } },
+    });
+    const card = magicItemDetailToCard(detail);
+    expect(card.headerTags).toContain("1d12 slashing");
+  });
+
+  test("armor non-null → header includes AC tag", () => {
+    const detail = magicItemDetailFactory.build({
+      armor: { ac_base: 14 },
+    });
+    const card = magicItemDetailToCard(detail);
+    expect(card.headerTags).toContain("AC 14");
+  });
+
+  test("weight > 0 → footer includes weight tag with trailing zeros stripped", () => {
+    const detail = magicItemDetailFactory.build({
+      weight: "7.000",
+      weight_unit: "lb",
+    });
+    const card = magicItemDetailToCard(detail);
+    expect(card.footerTags).toContain("7 lb");
+  });
+
+  test("weight = '0.000' → no weight tag in footer", () => {
+    const detail = magicItemDetailFactory.build({ weight: "0.000" });
+    const card = magicItemDetailToCard(detail);
+    expect(card.footerTags).toHaveLength(1);
+  });
+
+  test("weapon + attunement → [category, damage, attunement] order", () => {
+    const detail = magicItemDetailFactory.build({
+      category: { name: "Weapon" },
+      weapon: { damage_dice: "1d12", damage_type: { name: "Slashing" } },
+      requires_attunement: true,
+      attunement_detail: null,
+    });
+    const card = magicItemDetailToCard(detail);
+    expect(card.headerTags).toEqual(["Weapon", "1d12 slashing", "requires attunement"]);
+  });
+
+  test("armor + weight → AC in header, weight in footer", () => {
+    const detail = magicItemDetailFactory.build({
+      category: { name: "Armor" },
+      armor: { ac_base: 14 },
+      weight: "20.000",
+      weight_unit: "lb",
+    });
+    const card = magicItemDetailToCard(detail);
+    expect(card.headerTags).toEqual(["Armor", "AC 14"]);
+    expect(card.footerTags).toContain("20 lb");
+  });
 });

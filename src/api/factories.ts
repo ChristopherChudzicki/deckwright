@@ -39,6 +39,10 @@ export const magicItemDetailFactory = Factory.define<MagicItemDetail>(() => {
     rarity: { name: faker.helpers.arrayElement(rarities) },
     requires_attunement: false,
     attunement_detail: null,
+    weapon: null,
+    armor: null,
+    weight: "0.000",
+    weight_unit: "lb",
     ruleset: "2024",
   };
 });
