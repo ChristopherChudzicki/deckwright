@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "../cards/Card";
 import { CardEditor } from "../cards/CardEditor";
-import type { ItemCard } from "../cards/types";
+import type { ItemCard, RenderableCard } from "../cards/types";
 import { useExpandedCards } from "../cards/useExpandedCards";
 import { useDeleteCard, useSaveCard } from "../decks/mutations";
 import { useDeckCards } from "../decks/queries";
@@ -66,16 +66,16 @@ export function EditorView({ deckId, cardId }: Props) {
   const existing = cardsQuery.data?.find((c) => c.id === cardId) ?? null;
   const initial = isNew ? stub : existing;
 
-  const [draft, setDraft] = useState<ItemCard | null>(
-    initial && initial.kind === "item" ? initial : null,
+  const [draft, setDraft] = useState<RenderableCard | null>(
+    initial && (initial.kind === "item" || initial.kind === "spell") ? initial : null,
   );
 
   useEffect(() => {
-    if (initial && initial.kind === "item") setDraft(initial);
+    if (initial && (initial.kind === "item" || initial.kind === "spell")) setDraft(initial);
   }, [initial]);
 
   const debouncedBody = useDebouncedValue(draft?.body ?? "", 200);
-  const measurementCard = useMemo<ItemCard | null>(
+  const measurementCard = useMemo<RenderableCard | null>(
     () => (draft ? { ...draft, body: debouncedBody } : null),
     [draft, debouncedBody],
   );
@@ -139,7 +139,7 @@ export function EditorView({ deckId, cardId }: Props) {
             </Button>
           </div>
         )}
-        <CardEditor card={draft} onChange={(next) => setDraft(next as ItemCard)} />
+        <CardEditor card={draft} onChange={setDraft} />
         <div className={styles.formActions}>
           <Button
             variant="primary"
