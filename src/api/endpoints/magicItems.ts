@@ -2,14 +2,15 @@ import type { MagicItem } from "../../data/srd-schema";
 
 export type Ruleset = "2014" | "2024";
 
-export type MagicItemIndexEntry = MagicItem;
 export type MagicItemDetail = MagicItem & { ruleset: Ruleset };
 
 export type MagicItemIndex = {
   count: number;
-  results: MagicItemIndexEntry[];
+  results: MagicItem[];
 };
 
+// JSON shape is validated at write time by scripts/fetch-srd.ts; the cast is
+// the trust boundary into the bundled file.
 const loadData = async (ruleset: Ruleset): Promise<MagicItem[]> => {
   const m =
     ruleset === "2024"

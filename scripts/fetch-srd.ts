@@ -13,8 +13,6 @@ const documentKey = (ruleset: Ruleset): string => (ruleset === "2024" ? "srd-202
 
 type Open5eMagicItemsResponse = {
   count: number;
-  next: string | null;
-  previous: string | null;
   results: unknown[];
 };
 
@@ -40,9 +38,10 @@ const writeJson = (path: string, value: unknown) => {
 
 for (const ruleset of RULESETS) {
   const raw = await fetchRuleset(ruleset);
-  writeJson(resolve(__dirname, `../data/srd-${ruleset}-magicitems.raw.json`), raw);
-
+  // Parse first so a malformed Open5e payload throws before any file is written.
   const slim = magicItemListSchema.parse(raw.results);
+
+  writeJson(resolve(__dirname, `../data/srd-${ruleset}-magicitems.raw.json`), raw);
   writeJson(resolve(__dirname, `../src/data/srd-${ruleset}-magicitems.json`), slim);
 
   console.log(`  ${ruleset}: ${slim.length} items`);

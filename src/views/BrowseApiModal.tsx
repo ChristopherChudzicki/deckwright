@@ -3,6 +3,7 @@ import { TextField } from "react-aria-components";
 import type { Ruleset } from "../api/endpoints/magicItems";
 import { useMagicItemIndex } from "../api/hooks";
 import { magicItemDetailToCard } from "../api/mappers/magicItems";
+import type { MagicItem } from "../data/srd-schema";
 import { useSaveCard } from "../decks/mutations";
 import { Button } from "../lib/ui/Button";
 import { DialogHeader } from "../lib/ui/DialogHeader";
@@ -35,11 +36,9 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
     return all.filter((e) => e.name.toLowerCase().includes(q));
   }, [index.data, query]);
 
-  const handlePick = async (slug: string) => {
+  const handlePick = async (entry: MagicItem) => {
     if (pickingSlug !== null) return;
-    const entry = filtered.find((e) => e.key === slug);
-    if (!entry) return;
-    setPickingSlug(slug);
+    setPickingSlug(entry.key);
     setPickError(null);
     try {
       const card = magicItemDetailToCard({ ...entry, ruleset });
@@ -121,7 +120,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
                   key={entry.key}
                   type="button"
                   className={styles.row}
-                  onClick={() => handlePick(entry.key)}
+                  onClick={() => handlePick(entry)}
                   disabled={pickingSlug !== null}
                 >
                   <span className={styles.rowName}>{entry.name}</span>

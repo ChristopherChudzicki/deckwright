@@ -14,7 +14,6 @@ describe("magicItemDetailToCard", () => {
     const detail = magicItemDetailFactory.build({
       category: { name: "Ring" },
       rarity: { name: "Uncommon" },
-      requires_attunement: false,
     });
     const card = magicItemDetailToCard(detail);
     expect(card.headerTags).toEqual(["Ring"]);
@@ -52,7 +51,6 @@ describe("magicItemDetailToCard", () => {
   test("apiRef carries open5e system, the detail key as slug, and the ruleset", () => {
     const detail = magicItemDetailFactory.build({
       key: "srd-2024_bag-of-holding",
-      ruleset: "2024",
     });
     const card = magicItemDetailToCard(detail);
     expect(card.apiRef).toEqual({

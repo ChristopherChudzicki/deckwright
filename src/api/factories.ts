@@ -1,13 +1,14 @@
 import { faker } from "@faker-js/faker";
 import { Factory } from "fishery";
-import type { MagicItemDetail, MagicItemIndex, MagicItemIndexEntry } from "./endpoints/magicItems";
+import type { MagicItem } from "../data/srd-schema";
+import type { MagicItemDetail, MagicItemIndex } from "./endpoints/magicItems";
 
 const rarities = ["Common", "Uncommon", "Rare", "Very Rare", "Legendary"];
 const categories = ["Wondrous Item", "Ring", "Rod", "Weapon", "Armor", "Potion", "Scroll", "Wand"];
 
 const open5eKey = (slug: string): string => `srd-2024_${slug}`;
 
-export const magicItemIndexEntryFactory = Factory.define<MagicItemIndexEntry>(() => {
+export const magicItemIndexEntryFactory = Factory.define<MagicItem>(() => {
   const slug = faker.helpers
     .slugify(`${faker.commerce.productName()}-${faker.string.alphanumeric(5)}`)
     .toLowerCase();
