@@ -79,7 +79,7 @@
 }
 
 .headerTag + .headerTag::before {
-  content: " · ";
+  content: " | ";
   white-space: pre;
 }
 
@@ -126,6 +126,6 @@
 }
 
 .footerTag + .footerTag::before {
-  content: " · ";
+  content: " | ";
   white-space: pre;
 }

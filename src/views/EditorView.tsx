@@ -37,7 +37,7 @@ function countsLabel(buckets: Bucket[]): string {
   }
   return buckets
     .map((b) => `${b.count} card${b.count === 1 ? "" : "s"} (${b.perPage} per page)`)
-    .join(" · ");
+    .join(" | ");
 }
 
 type Props = { deckId: string; cardId: string };

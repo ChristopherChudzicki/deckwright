@@ -177,7 +177,7 @@ describe("EditorView", () => {
     server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
     render(wrap(<EditorView deckId="d1" cardId="c1" />));
     expect(
-      await screen.findByText("3 cards (4 per page) · 2 cards (2 per page)"),
+      await screen.findByText("3 cards (4 per page) | 2 cards (2 per page)"),
     ).toBeInTheDocument();
   });
 });
