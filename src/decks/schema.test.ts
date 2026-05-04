@@ -31,7 +31,7 @@ describe("itemCardSchema", () => {
       body: "Big bag.",
       footerTags: [],
       source: "api" as const,
-      apiRef: { system: "dnd5eapi" as const, slug: "bag-of-holding", ruleset: "2024" as const },
+      apiRef: { system: "open5e" as const, slug: "bag-of-holding", ruleset: "2024" as const },
       createdAt: "2026-04-19T00:00:00.000Z",
       updatedAt: "2026-04-19T00:00:00.000Z",
     };
@@ -47,7 +47,7 @@ describe("itemCardSchema", () => {
       body: "Big bag.",
       footerTags: [],
       source: "api" as const,
-      apiRef: { system: "dnd5eapi" as const, slug: "bag-of-holding", ruleset: "2014" as const },
+      apiRef: { system: "open5e" as const, slug: "bag-of-holding", ruleset: "2014" as const },
       createdAt: "2026-04-19T00:00:00.000Z",
       updatedAt: "2026-04-19T00:00:00.000Z",
     };
@@ -110,7 +110,7 @@ describe("itemCardSchema", () => {
       headerTags: [],
       body: "",
       source: "api" as const,
-      apiRef: { system: "dnd5eapi" as const, slug: "x" },
+      apiRef: { system: "open5e" as const, slug: "x" },
       createdAt: "2026-04-19T00:00:00.000Z",
       updatedAt: "2026-04-19T00:00:00.000Z",
     };

@@ -1,7 +1,5 @@
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
-import type { EquipmentDetail, EquipmentIndex } from "../api/endpoints/equipment";
-import type { MagicItemDetail, MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
 import { SB_URL, TEST_USER_ID } from "./constants";
 
 export { SB_URL };
@@ -58,24 +56,3 @@ export const supabaseDefaultHandlers = [
 // Pass the defaults to setupServer so they survive `server.resetHandlers()`
 // (which removes runtime handlers but keeps the initial set).
 export const server = setupServer(...supabaseDefaultHandlers);
-
-export const magicItemIndexHandler = (ruleset: Ruleset, body: MagicItemIndex) =>
-  http.get(`https://www.dnd5eapi.co/api/${ruleset}/magic-items`, () => HttpResponse.json(body));
-
-export const magicItemDetailHandler = (ruleset: Ruleset, slug: string, body: MagicItemDetail) => {
-  const { ruleset: _ruleset, ...rest } = body as MagicItemDetail & { ruleset: Ruleset };
-  return http.get(`https://www.dnd5eapi.co/api/${ruleset}/magic-items/${slug}`, () =>
-    HttpResponse.json(rest),
-  );
-};
-
-export const equipmentIndexHandler = (ruleset: Ruleset, body: EquipmentIndex) =>
-  http.get(`https://www.dnd5eapi.co/api/${ruleset}/equipment`, () => HttpResponse.json(body));
-
-export const equipmentDetailHandler = (ruleset: Ruleset, slug: string, body: EquipmentDetail) =>
-  http.get(`https://www.dnd5eapi.co/api/${ruleset}/equipment/${slug}`, () =>
-    HttpResponse.json(body),
-  );
-
-export const apiErrorHandler = (path: string, status: number) =>
-  http.get(`https://www.dnd5eapi.co${path}`, () => new HttpResponse(null, { status }));

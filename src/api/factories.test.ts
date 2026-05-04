@@ -1,16 +1,15 @@
 import { describe, expect, test } from "vitest";
 import {
-  magicItemDetail2014Factory,
-  magicItemDetail2024Factory,
+  magicItemDetailFactory,
   magicItemIndexEntryFactory,
   magicItemIndexFactory,
 } from "./factories";
 
 describe("magicItemIndexEntryFactory", () => {
-  test("produces unique indices across builds", () => {
+  test("produces unique keys across builds", () => {
     const a = magicItemIndexEntryFactory.build();
     const b = magicItemIndexEntryFactory.build();
-    expect(a.index).not.toBe(b.index);
+    expect(a.key).not.toBe(b.key);
   });
 });
 
@@ -22,16 +21,15 @@ describe("magicItemIndexFactory", () => {
   });
 });
 
-describe("magicItemDetail2024Factory", () => {
-  test("tags the response with ruleset '2024'", () => {
-    expect(magicItemDetail2024Factory.build().ruleset).toBe("2024");
+describe("magicItemDetailFactory", () => {
+  test("defaults ruleset to '2024' and exposes a string desc", () => {
+    const d = magicItemDetailFactory.build();
+    expect(d.ruleset).toBe("2024");
+    expect(typeof d.desc).toBe("string");
   });
-});
 
-describe("magicItemDetail2014Factory", () => {
-  test("tags the response with ruleset '2014' and provides a desc array", () => {
-    const d = magicItemDetail2014Factory.build();
+  test("ruleset can be overridden", () => {
+    const d = magicItemDetailFactory.build({ ruleset: "2014" });
     expect(d.ruleset).toBe("2014");
-    expect(Array.isArray(d.desc)).toBe(true);
   });
 });

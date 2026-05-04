@@ -6,7 +6,7 @@ export type BaseCard = {
   body: string;
   imageUrl?: string;
   source: "custom" | "api";
-  apiRef?: { system: "dnd5eapi"; slug: string; ruleset: "2014" | "2024" };
+  apiRef?: { system: "open5e"; slug: string; ruleset: "2014" | "2024" };
   createdAt: string;
   updatedAt: string;
   iconKey?: string;

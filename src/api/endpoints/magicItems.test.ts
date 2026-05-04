@@ -1,64 +1,31 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
-import { fetchMagicItemDetail, fetchMagicItemIndex } from "./magicItems";
-
-const originalFetch = globalThis.fetch;
-afterEach(() => {
-  globalThis.fetch = originalFetch;
-  vi.restoreAllMocks();
-});
+import { describe, expect, test } from "vitest";
+import { magicItemSchema } from "../../data/srd-schema";
+import { fetchMagicItemIndex } from "./magicItems";
 
 describe("fetchMagicItemIndex", () => {
-  test("hits /api/2024/magic-items when ruleset is 2024", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ count: 0, results: [] }), { status: 200 }));
-    globalThis.fetch = fetchMock as typeof fetch;
+  test("returns the bundled 2024 SRD index", async () => {
+    const result = await fetchMagicItemIndex("2024");
 
-    await fetchMagicItemIndex("2024");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://www.dnd5eapi.co/api/2024/magic-items",
-      expect.anything(),
-    );
+    expect(result.count).toBe(result.results.length);
+    expect(result.results.length).toBeGreaterThan(0);
+    expect(() => magicItemSchema.parse(result.results[0])).not.toThrow();
   });
 
-  test("hits /api/2014/magic-items when ruleset is 2014", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ count: 0, results: [] }), { status: 200 }));
-    globalThis.fetch = fetchMock as typeof fetch;
+  test("returns the bundled 2014 SRD index", async () => {
+    const result = await fetchMagicItemIndex("2014");
 
-    await fetchMagicItemIndex("2014");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://www.dnd5eapi.co/api/2014/magic-items",
-      expect.anything(),
-    );
+    expect(result.count).toBe(result.results.length);
+    expect(result.results.length).toBeGreaterThan(0);
+    expect(() => magicItemSchema.parse(result.results[0])).not.toThrow();
   });
-});
 
-describe("fetchMagicItemDetail", () => {
-  test("hits the right path and tags response with ruleset", async () => {
-    const raw = {
-      index: "bag-of-holding",
-      name: "Bag of Holding",
-      equipment_category: { index: "wondrous-items", name: "Wondrous Items", url: "" },
-      rarity: { name: "Uncommon" },
-      attunement: false,
-      desc: "Wondrous Item  \n A big bag.",
-      variants: [],
-      variant: false,
-    };
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(raw), { status: 200 }));
-    globalThis.fetch = fetchMock as typeof fetch;
+  test("returns different data for 2014 vs 2024", async () => {
+    const v2014 = await fetchMagicItemIndex("2014");
+    const v2024 = await fetchMagicItemIndex("2024");
 
-    const result = await fetchMagicItemDetail("2024", "bag-of-holding");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://www.dnd5eapi.co/api/2024/magic-items/bag-of-holding",
-      expect.anything(),
-    );
-    expect(result.ruleset).toBe("2024");
-    expect(result.name).toBe("Bag of Holding");
+    const keys2014 = new Set(v2014.results.map((e) => e.key));
+    const keys2024 = new Set(v2024.results.map((e) => e.key));
+    const overlap = [...keys2024].filter((k) => keys2014.has(k));
+    expect(overlap.length).toBeLessThan(v2024.count);
   });
 });

@@ -4,10 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { magicItemDetail2024Factory, magicItemIndexEntryFactory } from "../api/factories";
+import type { MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
+import { magicItemIndexEntryFactory } from "../api/factories";
 import * as paginateModule from "../cards/paginate";
-import { makeCardRow, makeItemPayload } from "../test/factories";
-import { magicItemDetailHandler, magicItemIndexHandler, SB_URL as SB, server } from "../test/msw";
+import { makeCardRow } from "../test/factories";
+import { SB_URL as SB, server } from "../test/msw";
 import { EditorView } from "./EditorView";
 
 const navigate = vi.fn();
@@ -17,8 +18,9 @@ vi.mock("@tanstack/react-router", async () => {
   return { ...actual, useNavigate: () => navigate };
 });
 
-function wrap(ui: ReactNode) {
+function wrap(ui: ReactNode, seed?: { ruleset: Ruleset; body: MagicItemIndex }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  if (seed) client.setQueryData(["magic-items", seed.ruleset, "index"], seed.body);
   return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
 }
 
@@ -78,18 +80,6 @@ describe("EditorView", () => {
     await waitFor(() => expect(onPatch).toHaveBeenCalled());
   });
 
-  it("shows the template-item notice for API-sourced cards with a generic body", async () => {
-    const templatePayload = {
-      ...makeItemPayload.build(),
-      source: "api" as const,
-      body: "Weapon (Any Melee Weapon). +1 to attack rolls.",
-    };
-    const card = makeCardRow.build({ id: "c1", deck_id: "d1", payload: templatePayload });
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
-    render(wrap(<EditorView deckId="d1" cardId="c1" />));
-    expect(await screen.findByTestId("template-notice")).toBeInTheDocument();
-  });
-
   it("shows the import-from-API hint on a fresh new card", async () => {
     render(wrap(<EditorView deckId="d1" cardId="new" />));
     expect(await screen.findByTestId("import-hint")).toBeInTheDocument();
@@ -119,16 +109,12 @@ describe("EditorView", () => {
 
   it("navigates to the imported card's editor after picking from the modal", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
-    const detail = magicItemDetail2024Factory.build({
-      index: entry.index,
-      name: entry.name,
-      equipment_category: { index: "wondrous-items", name: "Wondrous Items", url: "" },
-    });
-    server.use(
-      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
-      magicItemDetailHandler("2024", entry.index, detail),
+    render(
+      wrap(<EditorView deckId="d1" cardId="new" />, {
+        ruleset: "2024",
+        body: { count: 1, results: [entry] },
+      }),
     );
-    render(wrap(<EditorView deckId="d1" cardId="new" />));
     const hint = await screen.findByTestId("import-hint");
     await userEvent.click(within(hint).getByRole("button", { name: /browse items/i }));
     await userEvent.click(await screen.findByRole("button", { name: "Bag of Holding" }));
@@ -138,14 +124,6 @@ describe("EditorView", () => {
         params: { deckId: "d1", cardId: expect.any(String) },
       }),
     );
-  });
-
-  it("does NOT show the template notice for custom items", async () => {
-    const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
-    render(wrap(<EditorView deckId="d1" cardId="c1" />));
-    await screen.findByRole("button", { name: /save/i }); // wait for render
-    expect(screen.queryByTestId("template-notice")).not.toBeInTheDocument();
   });
 
   it("shows '1 card' counts label when body fits", async () => {
@@ -177,7 +155,7 @@ describe("EditorView", () => {
     server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
     render(wrap(<EditorView deckId="d1" cardId="c1" />));
     expect(
-      await screen.findByText("3 cards (4 per page) · 2 cards (2 per page)"),
+      await screen.findByText("3 cards (4 per page) | 2 cards (2 per page)"),
     ).toBeInTheDocument();
   });
 });

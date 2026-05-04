@@ -23,9 +23,6 @@ const isPristineNewCard = (card: ItemCard): boolean =>
   card.imageUrl === undefined &&
   card.createdAt === card.updatedAt;
 
-const isTemplateItem = (card: ItemCard): boolean =>
-  card.source === "api" && /\(any /i.test(card.body);
-
 type Bucket = { perPage: number; count: number };
 
 function countsLabel(buckets: Bucket[]): string {
@@ -37,7 +34,7 @@ function countsLabel(buckets: Bucket[]): string {
   }
   return buckets
     .map((b) => `${b.count} card${b.count === 1 ? "" : "s"} (${b.perPage} per page)`)
-    .join(" · ");
+    .join(" | ");
 }
 
 type Props = { deckId: string; cardId: string };
@@ -124,13 +121,6 @@ export function EditorView({ deckId, cardId }: Props) {
   return (
     <section className={styles.editor}>
       <div className={styles.form}>
-        {isTemplateItem(draft) && (
-          <div className={styles.templateNotice} data-testid="template-notice">
-            <strong>Template item.</strong> The dnd5eapi entry is weapon-type-agnostic (e.g.
-            &ldquo;Any melee weapon&rdquo;). Rename and edit the description to match your specific
-            weapon or armor.
-          </div>
-        )}
         {showImportHint && (
           <div className={styles.importHint} data-testid="import-hint">
             <span>

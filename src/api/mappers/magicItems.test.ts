@@ -1,226 +1,139 @@
 import { describe, expect, test } from "vitest";
 import { itemCardSchema } from "../../decks/schema";
-import type { EquipmentDetail } from "../endpoints/equipment";
-import type { MagicItemDetail2014, MagicItemDetail2024 } from "../endpoints/magicItems";
-import { magicItemDetail2014Factory, magicItemDetail2024Factory } from "../factories";
+import { magicItemDetailFactory } from "../factories";
 import { magicItemDetailToCard } from "./magicItems";
 
-describe("magicItemDetailToCard — 2024", () => {
+describe("magicItemDetailToCard", () => {
   test("output is a valid ItemCard", () => {
-    const detail = magicItemDetail2024Factory.build();
+    const detail = magicItemDetailFactory.build();
     const card = magicItemDetailToCard(detail);
     expect(itemCardSchema.safeParse(card).success).toBe(true);
   });
 
-  test("composes headerTags from category, footerTags from rarity", () => {
-    const detail = magicItemDetail2024Factory.build({
-      equipment_category: {
-        index: "wondrous-items",
-        name: "Wondrous Items",
-        url: "",
-      },
+  test("category goes to headerTags, rarity (lowercased) goes to footerTags", () => {
+    const detail = magicItemDetailFactory.build({
+      category: { name: "Ring" },
       rarity: { name: "Uncommon" },
-      attunement: false,
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.headerTags).toEqual(["Wondrous Items"]);
+    expect(card.headerTags).toEqual(["Ring"]);
     expect(card.footerTags).toEqual(["uncommon"]);
   });
 
-  test("adds attunement tag to headerTags when attunement is true", () => {
-    const detail = magicItemDetail2024Factory.build({
-      equipment_category: { index: "rings", name: "Rings", url: "" },
-      rarity: { name: "Rare" },
-      attunement: true,
+  test("adds 'requires attunement' to headerTags when requires_attunement is true and detail is null", () => {
+    const detail = magicItemDetailFactory.build({
+      category: { name: "Ring" },
+      requires_attunement: true,
+      attunement_detail: null,
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.headerTags).toEqual(["Rings", "requires attunement"]);
-    expect(card.footerTags).toEqual(["rare"]);
+    expect(card.headerTags).toEqual(["Ring", "requires attunement"]);
   });
 
-  test("carries through source + apiRef with ruleset", () => {
-    const detail = magicItemDetail2024Factory.build({ index: "bag-of-holding" });
+  test("appends attunement_detail when present", () => {
+    const detail = magicItemDetailFactory.build({
+      category: { name: "Weapon" },
+      requires_attunement: true,
+      attunement_detail: "by a dwarf or paladin",
+    });
     const card = magicItemDetailToCard(detail);
-    expect(card.source).toBe("api");
+    expect(card.headerTags).toEqual(["Weapon", "requires attunement by a dwarf or paladin"]);
+  });
+
+  test("body equals detail.desc verbatim — no header-line stripping", () => {
+    const detail = magicItemDetailFactory.build({
+      desc: "This suit of armor is reinforced with adamantine.",
+    });
+    const card = magicItemDetailToCard(detail);
+    expect(card.body).toBe("This suit of armor is reinforced with adamantine.");
+  });
+
+  test("apiRef carries open5e system, the detail key as slug, and the ruleset", () => {
+    const detail = magicItemDetailFactory.build({
+      key: "srd-2024_bag-of-holding",
+    });
+    const card = magicItemDetailToCard(detail);
     expect(card.apiRef).toEqual({
-      system: "dnd5eapi",
-      slug: "bag-of-holding",
+      system: "open5e",
+      slug: "srd-2024_bag-of-holding",
       ruleset: "2024",
     });
   });
 
-  test("builds an absolute imageUrl when image is present", () => {
-    const detail = magicItemDetail2024Factory.build({
-      image: "/api/images/magic-items/bag-of-holding.png",
+  test("source is 'api' and imageUrl is undefined (Open5e magicitems has no image field)", () => {
+    const detail = magicItemDetailFactory.build();
+    const card = magicItemDetailToCard(detail);
+    expect(card.source).toBe("api");
+    expect(card.imageUrl).toBeUndefined();
+  });
+
+  test("weapon non-null → header includes damage tag with lowercased damage type", () => {
+    const detail = magicItemDetailFactory.build({
+      weapon: { damage_dice: "1d12", damage_type: { name: "Slashing" } },
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.imageUrl).toBe("https://www.dnd5eapi.co/api/images/magic-items/bag-of-holding.png");
+    expect(card.headerTags).toContain("1d12 slashing");
   });
 
-  test("strips metadata header from body", () => {
-    const detail = magicItemDetail2024Factory.build({
-      desc: "Wondrous Item  \nWhile you hold this bag, you can use it to store items.",
+  test("heavy armor (no dex bonus) → 'AC X'", () => {
+    const detail = magicItemDetailFactory.build({
+      armor: { ac_base: 18, ac_add_dexmod: false, ac_cap_dexmod: null },
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.body).not.toMatch(/^Wondrous Item/);
-    expect(card.body).toContain("While you hold this bag");
+    expect(card.headerTags).toContain("AC 18");
   });
 
-  test("leaves desc unchanged when first line does not match a known type prefix", () => {
-    const detail = magicItemDetail2024Factory.build({
-      desc: "Unknown format\nSome body text.",
+  test("medium armor (dex bonus capped) → 'AC X + dex mod (max N)'", () => {
+    const detail = magicItemDetailFactory.build({
+      armor: { ac_base: 14, ac_add_dexmod: true, ac_cap_dexmod: 2 },
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.body).toBe("Unknown format\nSome body text.");
-  });
-});
-
-describe("magicItemDetailToCard — 2014", () => {
-  test("output is a valid ItemCard", () => {
-    const detail = magicItemDetail2014Factory.build();
-    const card = magicItemDetailToCard(detail);
-    expect(itemCardSchema.safeParse(card).success).toBe(true);
+    expect(card.headerTags).toContain("AC 14 + dex mod (max 2)");
   });
 
-  test("strips metadata header (desc[0]) and joins remaining lines for body", () => {
-    const detail = magicItemDetail2014Factory.build({
-      desc: ["Weapon (any sword), rare (requires attunement)", "line B", "line C"],
+  test("light armor (uncapped dex bonus) → 'AC X + dex mod'", () => {
+    const detail = magicItemDetailFactory.build({
+      armor: { ac_base: 11, ac_add_dexmod: true, ac_cap_dexmod: null },
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.body).not.toContain("Weapon (any sword)");
-    expect(card.body).toBe("line B\n\nline C");
+    expect(card.headerTags).toContain("AC 11 + dex mod");
   });
 
-  test("detects requires-attunement from desc[0]", () => {
-    const detail = magicItemDetail2014Factory.build({
-      equipment_category: { index: "rings", name: "Rings", url: "" },
-      rarity: { name: "Rare" },
-      desc: ["Ring, rare (requires attunement)", "body"],
+  test("weight > 0 → footer includes weight tag with trailing zeros stripped", () => {
+    const detail = magicItemDetailFactory.build({
+      weight: "7.000",
+      weight_unit: "lb",
     });
     const card = magicItemDetailToCard(detail);
-    expect(card.headerTags).toEqual(["Rings", "requires attunement"]);
-    expect(card.footerTags).toEqual(["rare"]);
-  });
-});
-
-describe("magicItemDetailToCard — enrichment", () => {
-  const sunBladeLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-    name: "Sun Blade",
-    equipment_category: { index: "weapon", name: "Weapon", url: "" },
-    rarity: { name: "Rare" },
-    desc: ["Weapon (longsword), rare (requires attunement)", "..."],
-  });
-  const dwarvenPlateLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-    equipment_category: { index: "armor", name: "Armor", url: "" },
-    rarity: { name: "Very Rare" },
-    desc: ["Armor (plate), very rare", "..."],
-  });
-  const longsword: EquipmentDetail = {
-    index: "longsword",
-    name: "Longsword",
-    damage: { damage_dice: "1d8", damage_type: { name: "Slashing" } },
-    weight: 3,
-  };
-  const plate: EquipmentDetail = {
-    index: "plate-armor",
-    name: "Plate Armor",
-    armor_class: { base: 18 },
-    weight: 65,
-  };
-
-  test("splices weapon damage into header and weight into footer", () => {
-    const card = magicItemDetailToCard(sunBladeLike, longsword);
-    expect(card.headerTags).toEqual(["Weapon", "1d8 slashing", "requires attunement"]);
-    expect(card.footerTags).toEqual(["rare", "3 lb"]);
+    expect(card.footerTags).toContain("7 lb");
   });
 
-  test("splices armor AC into header and weight into footer", () => {
-    const card = magicItemDetailToCard(dwarvenPlateLike, plate);
-    expect(card.headerTags).toEqual(["Armor", "AC 18"]);
-    expect(card.footerTags).toEqual(["very rare", "65 lb"]);
+  test("weight = '0.000' → no weight tag in footer", () => {
+    const detail = magicItemDetailFactory.build({ weight: "0.000" });
+    const card = magicItemDetailToCard(detail);
+    expect(card.footerTags).toHaveLength(1);
   });
 
-  test("omits header insert when enrichment has neither damage nor AC", () => {
-    const empty: EquipmentDetail = { index: "x", name: "X" };
-    const card = magicItemDetailToCard(sunBladeLike, empty);
-    expect(card.headerTags).toEqual(["Weapon", "requires attunement"]);
-    expect(card.footerTags).toEqual(["rare"]);
-  });
-
-  test("works without enrichment (existing behavior)", () => {
-    const card = magicItemDetailToCard(sunBladeLike);
-    expect(card.headerTags).toEqual(["Weapon", "requires attunement"]);
-    expect(card.footerTags).toEqual(["rare"]);
-  });
-});
-
-describe("magicItemDetailToCard — composeName", () => {
-  const trident: EquipmentDetail = {
-    index: "trident",
-    name: "Trident",
-    damage: { damage_dice: "1d6", damage_type: { name: "Piercing" } },
-    weight: 4,
-  };
-  const longsword: EquipmentDetail = {
-    index: "longsword",
-    name: "Longsword",
-    damage: { damage_dice: "1d8", damage_type: { name: "Slashing" } },
-    weight: 3,
-  };
-
-  test("appends base name when hint is 'any' and enrichment is supplied (2014)", () => {
-    const flameTongueLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-      name: "Flame Tongue",
-      equipment_category: { index: "weapon", name: "Weapon", url: "" },
-      rarity: { name: "Rare" },
-      desc: ["Weapon (any melee weapon), rare (requires attunement)", "While ablaze..."],
+  test("weapon + attunement → [category, damage, attunement] order", () => {
+    const detail = magicItemDetailFactory.build({
+      category: { name: "Weapon" },
+      weapon: { damage_dice: "1d12", damage_type: { name: "Slashing" } },
+      requires_attunement: true,
+      attunement_detail: null,
     });
-    const card = magicItemDetailToCard(flameTongueLike, trident);
-    expect(card.name).toBe("Flame Tongue (Trident)");
+    const card = magicItemDetailToCard(detail);
+    expect(card.headerTags).toEqual(["Weapon", "1d12 slashing", "requires attunement"]);
   });
 
-  test("appends base name when hint is 'any' and enrichment is supplied (2024)", () => {
-    const holyAvengerLike: MagicItemDetail2024 = magicItemDetail2024Factory.build({
-      name: "Holy Avenger",
-      equipment_category: { index: "weapon", name: "Weapon", url: "" },
-      rarity: { name: "Legendary" },
-      attunement: true,
-      desc: "Weapon (Any Simple or Martial)  \nYou gain a +3 bonus to attack rolls...",
+  test("armor + weight → AC in header, weight in footer", () => {
+    const detail = magicItemDetailFactory.build({
+      category: { name: "Armor" },
+      armor: { ac_base: 14, ac_add_dexmod: true, ac_cap_dexmod: 2 },
+      weight: "20.000",
+      weight_unit: "lb",
     });
-    const card = magicItemDetailToCard(holyAvengerLike, longsword);
-    expect(card.name).toBe("Holy Avenger (Longsword)");
-  });
-
-  test("does NOT append base name when hint is 'specific' and enrichment is supplied (2014)", () => {
-    const sunBladeLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-      name: "Sun Blade",
-      equipment_category: { index: "weapon", name: "Weapon", url: "" },
-      rarity: { name: "Rare" },
-      desc: ["Weapon (longsword), rare (requires attunement)", "..."],
-    });
-    const card = magicItemDetailToCard(sunBladeLike, longsword);
-    expect(card.name).toBe("Sun Blade");
-  });
-
-  test("does NOT append base name when no enrichment is supplied", () => {
-    const flameTongueLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-      name: "Flame Tongue",
-      equipment_category: { index: "weapon", name: "Weapon", url: "" },
-      rarity: { name: "Rare" },
-      desc: ["Weapon (any melee weapon), rare (requires attunement)", "While ablaze..."],
-    });
-    const card = magicItemDetailToCard(flameTongueLike);
-    expect(card.name).toBe("Flame Tongue");
-  });
-
-  test("does NOT append base name for non-weapon/armor items (hint is 'none') with enrichment", () => {
-    const bagOfHoldingLike: MagicItemDetail2014 = magicItemDetail2014Factory.build({
-      name: "Bag of Holding",
-      equipment_category: { index: "wondrous-items", name: "Wondrous Items", url: "" },
-      rarity: { name: "Uncommon" },
-      desc: ["Wondrous item, uncommon", "This bag has an interior space..."],
-    });
-    const card = magicItemDetailToCard(bagOfHoldingLike);
-    expect(card.name).toBe("Bag of Holding");
+    const card = magicItemDetailToCard(detail);
+    expect(card.headerTags).toEqual(["Armor", "AC 14 + dex mod (max 2)"]);
+    expect(card.footerTags).toContain("20 lb");
   });
 });

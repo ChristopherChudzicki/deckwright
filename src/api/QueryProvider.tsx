@@ -1,9 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { DAY_MS } from "./timing";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const client = new QueryClient({
+const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: DAY_MS,
@@ -15,5 +14,5 @@ const client = new QueryClient({
 });
 
 export function QueryProvider({ children }: { children: ReactNode }) {
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

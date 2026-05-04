@@ -79,8 +79,9 @@
 }
 
 .headerTag + .headerTag::before {
-  content: " · ";
+  content: " | ";
   white-space: pre;
+  font-style: normal;
 }
 
 .divider {
@@ -126,6 +127,6 @@
 }
 
 .footerTag + .footerTag::before {
-  content: " · ";
+  content: " | ";
   white-space: pre;
 }
