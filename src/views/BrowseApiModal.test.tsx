@@ -143,5 +143,4 @@ describe("<BrowseApiModal>", () => {
 
     expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
   });
-
 });

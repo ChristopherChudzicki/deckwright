@@ -63,6 +63,8 @@ const documentKey = (ruleset: Ruleset): string => (ruleset === "2024" ? "srd-202
 export const magicItemIndexHandler = (ruleset: Ruleset, body: MagicItemIndex) =>
   http.get(`https://api.open5e.com/v2/magicitems/`, ({ request }) => {
     const url = new URL(request.url);
+    // Returning undefined lets MSW fall through to the next matching handler,
+    // so two index handlers can be registered for the same URL and dispatch by ?document=.
     if (url.searchParams.get("document") !== documentKey(ruleset)) {
       return;
     }
@@ -81,11 +83,7 @@ export const magicItemIndexHandler = (ruleset: Ruleset, body: MagicItemIndex) =>
     });
   });
 
-export const magicItemDetailHandler = (
-  _ruleset: Ruleset,
-  key: string,
-  body: MagicItemDetail,
-) => {
+export const magicItemDetailHandler = (_ruleset: Ruleset, key: string, body: MagicItemDetail) => {
   const { ruleset: _r, ...rest } = body;
   return http.get(`https://api.open5e.com/v2/magicitems/${key}/`, () => HttpResponse.json(rest));
 };

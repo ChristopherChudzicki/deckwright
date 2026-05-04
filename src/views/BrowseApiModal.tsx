@@ -131,9 +131,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
                   disabled={pickingSlug !== null}
                 >
                   <span className={styles.rowName}>{entry.name}</span>
-                  {pickingSlug === entry.key && (
-                    <span className={styles.rowMeta}>Loading…</span>
-                  )}
+                  {pickingSlug === entry.key && <span className={styles.rowMeta}>Loading…</span>}
                 </button>
               ))}
           </div>

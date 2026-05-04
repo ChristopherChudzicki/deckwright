@@ -1,10 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { Factory } from "fishery";
-import type {
-  MagicItemDetail,
-  MagicItemIndex,
-  MagicItemIndexEntry,
-} from "./endpoints/magicItems";
+import type { MagicItemDetail, MagicItemIndex, MagicItemIndexEntry } from "./endpoints/magicItems";
 
 const rarities = ["Common", "Uncommon", "Rare", "Very Rare", "Legendary"];
 const categories = ["Wondrous Item", "Ring", "Rod", "Weapon", "Armor", "Potion", "Scroll", "Wand"];

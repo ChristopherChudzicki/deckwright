@@ -89,9 +89,7 @@ describe("fetchMagicItemDetail", () => {
       requires_attunement: false,
       attunement_detail: null,
     };
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify(raw), { status: 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(raw), { status: 200 }));
     globalThis.fetch = fetchMock as typeof fetch;
 
     const result = await fetchMagicItemDetail("2024", "srd-2024_bag-of-holding");
