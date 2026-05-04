@@ -4,10 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { magicItemDetailFactory, magicItemIndexEntryFactory } from "../api/factories";
+import type { MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
+import { magicItemIndexEntryFactory } from "../api/factories";
 import * as paginateModule from "../cards/paginate";
 import { makeCardRow } from "../test/factories";
-import { magicItemDetailHandler, magicItemIndexHandler, SB_URL as SB, server } from "../test/msw";
+import { SB_URL as SB, server } from "../test/msw";
 import { EditorView } from "./EditorView";
 
 const navigate = vi.fn();
@@ -17,8 +18,9 @@ vi.mock("@tanstack/react-router", async () => {
   return { ...actual, useNavigate: () => navigate };
 });
 
-function wrap(ui: ReactNode) {
+function wrap(ui: ReactNode, seed?: { ruleset: Ruleset; body: MagicItemIndex }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  if (seed) client.setQueryData(["magic-items", seed.ruleset, "index"], seed.body);
   return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
 }
 
@@ -107,16 +109,12 @@ describe("EditorView", () => {
 
   it("navigates to the imported card's editor after picking from the modal", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
-    const detail = magicItemDetailFactory.build({
-      key: entry.key,
-      name: entry.name,
-      category: { name: "Wondrous Item" },
-    });
-    server.use(
-      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
-      magicItemDetailHandler("2024", entry.key, detail),
+    render(
+      wrap(<EditorView deckId="d1" cardId="new" />, {
+        ruleset: "2024",
+        body: { count: 1, results: [entry] },
+      }),
     );
-    render(wrap(<EditorView deckId="d1" cardId="new" />));
     const hint = await screen.findByTestId("import-hint");
     await userEvent.click(within(hint).getByRole("button", { name: /browse items/i }));
     await userEvent.click(await screen.findByRole("button", { name: "Bag of Holding" }));

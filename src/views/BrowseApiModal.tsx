@@ -1,10 +1,8 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { TextField } from "react-aria-components";
-import { fetchMagicItemDetail, type Ruleset } from "../api/endpoints/magicItems";
+import type { Ruleset } from "../api/endpoints/magicItems";
 import { useMagicItemIndex } from "../api/hooks";
 import { magicItemDetailToCard } from "../api/mappers/magicItems";
-import { DAY_MS } from "../api/timing";
 import { useSaveCard } from "../decks/mutations";
 import { Button } from "../lib/ui/Button";
 import { DialogHeader } from "../lib/ui/DialogHeader";
@@ -28,7 +26,6 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
   const [pickError, setPickError] = useState<string | null>(null);
 
   const index = useMagicItemIndex(ruleset);
-  const queryClient = useQueryClient();
   const saveCard = useSaveCard();
 
   const filtered = useMemo(() => {
@@ -40,15 +37,12 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
 
   const handlePick = async (slug: string) => {
     if (pickingSlug !== null) return;
+    const entry = filtered.find((e) => e.key === slug);
+    if (!entry) return;
     setPickingSlug(slug);
     setPickError(null);
     try {
-      const detail = await queryClient.fetchQuery({
-        queryKey: ["magic-items", ruleset, "detail", slug],
-        queryFn: () => fetchMagicItemDetail(ruleset, slug),
-        staleTime: DAY_MS,
-      });
-      const card = magicItemDetailToCard(detail);
+      const card = magicItemDetailToCard({ ...entry, ruleset });
       await saveCard.mutateAsync({ card, deckId, isNew: true });
       onSelected(card.id);
     } catch (err) {

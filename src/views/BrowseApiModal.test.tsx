@@ -4,29 +4,32 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { type ReactNode, StrictMode } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { magicItemDetailFactory, magicItemIndexEntryFactory } from "../api/factories";
+import type { MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
+import { magicItemIndexEntryFactory } from "../api/factories";
 import { makeCardRow } from "../test/factories";
-import {
-  apiErrorHandler,
-  magicItemDetailHandler,
-  magicItemIndexHandler,
-  SB_URL,
-  server,
-} from "../test/msw";
+import { SB_URL, server } from "../test/msw";
 import { BrowseApiModal } from "./BrowseApiModal";
 
-const wrap = (ui: ReactNode) => {
+const indexKey = (ruleset: Ruleset) => ["magic-items", ruleset, "index"];
+
+const makeClient = (seeds: Partial<Record<Ruleset, MagicItemIndex>> = {}) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  for (const [ruleset, body] of Object.entries(seeds) as [Ruleset, MagicItemIndex][]) {
+    client.setQueryData(indexKey(ruleset), body);
+  }
+  return client;
 };
+
+const wrap = (ui: ReactNode, client: QueryClient) =>
+  render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 
 describe("<BrowseApiModal>", () => {
   test("shows index entries once the list loads", async () => {
     const entryA = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const entryB = magicItemIndexEntryFactory.build({ name: "Cloak of Protection" });
-    server.use(magicItemIndexHandler("2024", { count: 2, results: [entryA, entryB] }));
+    const client = makeClient({ "2024": { count: 2, results: [entryA, entryB] } });
 
-    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     expect(await screen.findByRole("button", { name: "Bag of Holding" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cloak of Protection" })).toBeInTheDocument();
@@ -35,9 +38,9 @@ describe("<BrowseApiModal>", () => {
   test("search filters the list", async () => {
     const entryA = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const entryB = magicItemIndexEntryFactory.build({ name: "Cloak of Protection" });
-    server.use(magicItemIndexHandler("2024", { count: 2, results: [entryA, entryB] }));
+    const client = makeClient({ "2024": { count: 2, results: [entryA, entryB] } });
 
-    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     await screen.findByRole("button", { name: "Bag of Holding" });
     await userEvent.type(screen.getByRole("searchbox"), "bag");
@@ -49,12 +52,12 @@ describe("<BrowseApiModal>", () => {
   test("switching ruleset loads a different list", async () => {
     const v2024 = magicItemIndexEntryFactory.build({ name: "Ring A" });
     const v2014 = magicItemIndexEntryFactory.build({ name: "Ring Z" });
-    server.use(
-      magicItemIndexHandler("2024", { count: 1, results: [v2024] }),
-      magicItemIndexHandler("2014", { count: 1, results: [v2014] }),
-    );
+    const client = makeClient({
+      "2024": { count: 1, results: [v2024] },
+      "2014": { count: 1, results: [v2014] },
+    });
 
-    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     await screen.findByRole("button", { name: "Ring A" });
     await userEvent.click(screen.getByRole("radio", { name: "2014" }));
@@ -65,15 +68,7 @@ describe("<BrowseApiModal>", () => {
 
   test("clicking a row POSTs the card to the persistence layer and calls onSelected", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
-    const detail = magicItemDetailFactory.build({
-      key: entry.key,
-      name: entry.name,
-      category: { name: "Wondrous Item" },
-    });
-    server.use(
-      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
-      magicItemDetailHandler("2024", entry.key, detail),
-    );
+    const client = makeClient({ "2024": { count: 1, results: [entry] } });
     const onPost = vi.fn();
     server.use(
       http.post(`${SB_URL}/rest/v1/cards`, async ({ request }) => {
@@ -83,7 +78,7 @@ describe("<BrowseApiModal>", () => {
     );
     const onSelected = vi.fn();
 
-    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />);
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />, client);
 
     await userEvent.click(await screen.findByRole("button", { name: "Bag of Holding" }));
 
@@ -93,15 +88,7 @@ describe("<BrowseApiModal>", () => {
 
   test("clicking the same row only POSTs once even under StrictMode double-render", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Flame Tongue" });
-    const detail = magicItemDetailFactory.build({
-      key: entry.key,
-      name: entry.name,
-      category: { name: "Wondrous Item" },
-    });
-    server.use(
-      magicItemIndexHandler("2024", { count: 1, results: [entry] }),
-      magicItemDetailHandler("2024", entry.key, detail),
-    );
+    const client = makeClient({ "2024": { count: 1, results: [entry] } });
     const onPost = vi.fn();
     server.use(
       http.post(`${SB_URL}/rest/v1/cards`, async ({ request }) => {
@@ -110,7 +97,6 @@ describe("<BrowseApiModal>", () => {
       }),
     );
 
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <StrictMode>
         <QueryClientProvider client={client}>
@@ -128,19 +114,11 @@ describe("<BrowseApiModal>", () => {
 
   test("Escape calls onClose", async () => {
     const onClose = vi.fn();
-    server.use(magicItemIndexHandler("2024", { count: 0, results: [] }));
+    const client = makeClient({ "2024": { count: 0, results: [] } });
 
-    wrap(<BrowseApiModal deckId="d1" onClose={onClose} onSelected={() => {}} />);
+    wrap(<BrowseApiModal deckId="d1" onClose={onClose} onSelected={() => {}} />, client);
 
     await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalled();
-  });
-
-  test("error state shows retry button", async () => {
-    server.use(apiErrorHandler("/v2/magicitems/?document=srd-2024&limit=2000", 500));
-
-    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
-
-    expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
   });
 });

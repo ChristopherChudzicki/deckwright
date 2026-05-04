@@ -1,6 +1,5 @@
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
-import type { MagicItemDetail, MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
 import { SB_URL, TEST_USER_ID } from "./constants";
 
 export { SB_URL };
@@ -57,29 +56,3 @@ export const supabaseDefaultHandlers = [
 // Pass the defaults to setupServer so they survive `server.resetHandlers()`
 // (which removes runtime handlers but keeps the initial set).
 export const server = setupServer(...supabaseDefaultHandlers);
-
-const documentKey = (ruleset: Ruleset): string => (ruleset === "2024" ? "srd-2024" : "srd-2014");
-
-export const magicItemIndexHandler = (ruleset: Ruleset, body: MagicItemIndex) =>
-  http.get(`https://api.open5e.com/v2/magicitems/`, ({ request }) => {
-    const url = new URL(request.url);
-    // Returning undefined lets MSW fall through to the next matching handler,
-    // so two index handlers can be registered for the same URL and dispatch by ?document=.
-    if (url.searchParams.get("document") !== documentKey(ruleset)) {
-      return;
-    }
-    return HttpResponse.json({
-      count: body.count,
-      next: null,
-      previous: null,
-      results: body.results,
-    });
-  });
-
-export const magicItemDetailHandler = (_ruleset: Ruleset, key: string, body: MagicItemDetail) => {
-  const { ruleset: _r, ...rest } = body;
-  return http.get(`https://api.open5e.com/v2/magicitems/${key}/`, () => HttpResponse.json(rest));
-};
-
-export const apiErrorHandler = (path: string, status: number) =>
-  http.get(`https://api.open5e.com${path}`, () => new HttpResponse(null, { status }));
