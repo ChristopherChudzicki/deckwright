@@ -192,6 +192,28 @@ describe("spellDetailToCard", () => {
     expect(spellDetailToCard(detail).footerTags[1]).toBe("Cleric");
   });
 
+  test("no V/S/M components → empty components tag is dropped", () => {
+    const detail = spellDetailFactory.build({
+      verbal: false,
+      somatic: false,
+      material: false,
+      material_specified: "",
+      classes: [{ name: "Cleric" }],
+    });
+    expect(spellDetailToCard(detail).footerTags).toEqual(["Cleric"]);
+  });
+
+  test("empty classes → empty classes tag is dropped", () => {
+    const detail = spellDetailFactory.build({
+      verbal: true,
+      somatic: false,
+      material: false,
+      material_specified: "",
+      classes: [],
+    });
+    expect(spellDetailToCard(detail).footerTags).toEqual(["V"]);
+  });
+
   // --- Body ---
   test("body is desc verbatim when higher_level is empty", () => {
     const detail = spellDetailFactory.build({ desc: "A bright streak.", higher_level: "" });

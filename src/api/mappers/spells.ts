@@ -100,7 +100,7 @@ export const spellDetailToCard = (detail: SpellDetail): SpellCard => {
   const footerTags: string[] = [
     componentsTag(detail.verbal, detail.somatic, detail.material, detail.material_specified),
     classesTag(detail.classes),
-  ];
+  ].filter((t) => t !== ""); // some spells have no V/S/M components, or empty classes (e.g. 2014 Branding Smite)
   return {
     id: newId(),
     kind: "spell",
