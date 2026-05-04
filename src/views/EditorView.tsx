@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "../cards/Card";
-import { ItemEditor } from "../cards/ItemEditor";
+import { CardEditor } from "../cards/CardEditor";
 import type { ItemCard } from "../cards/types";
 import { useExpandedCards } from "../cards/useExpandedCards";
 import { useDeleteCard, useSaveCard } from "../decks/mutations";
@@ -139,7 +139,7 @@ export function EditorView({ deckId, cardId }: Props) {
             </Button>
           </div>
         )}
-        <ItemEditor card={draft} onChange={setDraft} />
+        <CardEditor card={draft} onChange={(next) => setDraft(next as ItemCard)} />
         <div className={styles.formActions}>
           <Button
             variant="primary"

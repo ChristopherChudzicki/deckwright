@@ -5,18 +5,18 @@ import { IconPreview } from "../lib/ui/IconPreview";
 import { Input } from "../lib/ui/Input";
 import { TagInput } from "../lib/ui/TagInput";
 import { Textarea } from "../lib/ui/Textarea";
-import styles from "./ItemEditor.module.css";
+import styles from "./CardEditor.module.css";
 import { FALLBACK_ICON_KEY, pickIconKey } from "./iconRules";
-import type { ItemCard } from "./types";
+import type { RenderableCard } from "./types";
 
 type Props = {
-  card: ItemCard;
-  onChange: (next: ItemCard) => void;
+  card: RenderableCard;
+  onChange: (next: RenderableCard) => void;
 };
 
 type EditableField = "name" | "body" | "imageUrl";
 
-export function ItemEditor({ card, onChange }: Props) {
+export function CardEditor({ card, onChange }: Props) {
   const handle =
     (field: EditableField) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       onChange({ ...card, [field]: e.target.value, updatedAt: nowIso() });

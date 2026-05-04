@@ -99,4 +99,4 @@ const id = `${idBase}-name`;
 </label>
 ```
 
-Both forms are spec-valid; we use the explicit form purely to satisfy the linter. See `src/cards/ItemEditor.tsx` for a full multi-field example.
+Both forms are spec-valid; we use the explicit form purely to satisfy the linter. See `src/cards/CardEditor.tsx` for a full multi-field example.

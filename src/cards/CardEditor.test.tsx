@@ -2,9 +2,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, test, vi } from "vitest";
+import { CardEditor } from "./CardEditor";
 import { itemCardFactory } from "./factories";
-import { ItemEditor } from "./ItemEditor";
-import type { ItemCard } from "./types";
+import type { ItemCard, RenderableCard, SpellCard } from "./types";
 
 type HarnessProps = {
   initial: ItemCard;
@@ -12,19 +12,19 @@ type HarnessProps = {
 };
 
 function Harness({ initial, onEach }: HarnessProps) {
-  const [card, setCard] = useState(initial);
+  const [card, setCard] = useState<ItemCard>(initial);
   return (
-    <ItemEditor
+    <CardEditor
       card={card}
       onChange={(next) => {
-        setCard(next);
-        onEach?.(next);
+        setCard(next as ItemCard);
+        onEach?.(next as ItemCard);
       }}
     />
   );
 }
 
-describe("<ItemEditor>", () => {
+describe("<CardEditor>", () => {
   test("typing in the name field updates the rendered value", async () => {
     const card = itemCardFactory.build({ name: "" });
     render(<Harness initial={card} />);
@@ -177,5 +177,48 @@ describe("<ItemEditor>", () => {
     expect(iconField).not.toBeNull();
     expect(nameField?.parentElement).toBe(iconField?.parentElement);
     expect(nameField?.parentElement?.tagName).toBe("DIV");
+  });
+});
+
+describe("<CardEditor> with a spell card", () => {
+  const buildSpell = (): SpellCard => ({
+    id: "spell-1",
+    kind: "spell",
+    name: "Fireball",
+    headerTags: ["3rd-level evocation", "1 action", "150 feet", "Instantaneous"],
+    body: "A bright streak flashes…",
+    footerTags: ["V, S, M (a tiny ball of bat guano and sulfur)", "Sorcerer, Wizard"],
+    source: "api",
+    createdAt: "2026-05-04T00:00:00.000Z",
+    updatedAt: "2026-05-04T00:00:00.000Z",
+  });
+
+  test("renders name, body, headerTags, and footerTags from a spell", () => {
+    const spell = buildSpell();
+    render(<CardEditor card={spell} onChange={() => {}} />);
+    expect(screen.getByLabelText(/name/i)).toHaveValue("Fireball");
+    expect(screen.getByLabelText(/body/i)).toHaveValue("A bright streak flashes…");
+    expect(screen.getByRole("button", { name: /remove 3rd-level evocation/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /remove sorcerer, wizard/i })).toBeInTheDocument();
+  });
+
+  test("editing the body of a spell propagates the spell kind", async () => {
+    const spell = buildSpell();
+    const seen: RenderableCard[] = [];
+    const Wrapper = () => {
+      const [c, setC] = useState<RenderableCard>(spell);
+      return (
+        <CardEditor
+          card={c}
+          onChange={(n) => {
+            setC(n);
+            seen.push(n);
+          }}
+        />
+      );
+    };
+    render(<Wrapper />);
+    await userEvent.type(screen.getByLabelText(/body/i), "X");
+    expect(seen[seen.length - 1]?.kind).toBe("spell");
   });
 });
