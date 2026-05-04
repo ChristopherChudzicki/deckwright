@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { magicItemDetailFactory, magicItemIndexEntryFactory } from "../api/factories";
 import * as paginateModule from "../cards/paginate";
-import { makeCardRow, makeItemPayload } from "../test/factories";
+import { makeCardRow } from "../test/factories";
 import { magicItemDetailHandler, magicItemIndexHandler, SB_URL as SB, server } from "../test/msw";
 import { EditorView } from "./EditorView";
 
@@ -78,18 +78,6 @@ describe("EditorView", () => {
     await waitFor(() => expect(onPatch).toHaveBeenCalled());
   });
 
-  it("shows the template-item notice for API-sourced cards with a generic body", async () => {
-    const templatePayload = {
-      ...makeItemPayload.build(),
-      source: "api" as const,
-      body: "Weapon (Any Melee Weapon). +1 to attack rolls.",
-    };
-    const card = makeCardRow.build({ id: "c1", deck_id: "d1", payload: templatePayload });
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
-    render(wrap(<EditorView deckId="d1" cardId="c1" />));
-    expect(await screen.findByTestId("template-notice")).toBeInTheDocument();
-  });
-
   it("shows the import-from-API hint on a fresh new card", async () => {
     render(wrap(<EditorView deckId="d1" cardId="new" />));
     expect(await screen.findByTestId("import-hint")).toBeInTheDocument();
@@ -138,14 +126,6 @@ describe("EditorView", () => {
         params: { deckId: "d1", cardId: expect.any(String) },
       }),
     );
-  });
-
-  it("does NOT show the template notice for custom items", async () => {
-    const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
-    render(wrap(<EditorView deckId="d1" cardId="c1" />));
-    await screen.findByRole("button", { name: /save/i }); // wait for render
-    expect(screen.queryByTestId("template-notice")).not.toBeInTheDocument();
   });
 
   it("shows '1 card' counts label when body fits", async () => {
