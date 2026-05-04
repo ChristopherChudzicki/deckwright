@@ -128,14 +128,16 @@ describe("<BrowseApiModal>", () => {
         return HttpResponse.json([makeCardRow.build()], { status: 201 });
       }),
     );
+    const onSelected = vi.fn();
 
-    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />, client);
 
     await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
     await userEvent.click(await screen.findByRole("button", { name: "Fireball" }));
 
     await waitFor(() => expect(onPost).toHaveBeenCalled());
     expect(onPost.mock.calls[0]?.[0]?.payload?.kind).toBe("spell");
+    expect(onSelected).toHaveBeenCalledWith(expect.any(String));
   });
 
   test("clicking the same row only POSTs once even under StrictMode double-render", async () => {
