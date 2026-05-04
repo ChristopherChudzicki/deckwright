@@ -4,21 +4,21 @@ import { useState } from "react";
 import { describe, expect, test, vi } from "vitest";
 import { CardEditor } from "./CardEditor";
 import { itemCardFactory } from "./factories";
-import type { ItemCard, RenderableCard, SpellCard } from "./types";
+import type { RenderableCard, SpellCard } from "./types";
 
 type HarnessProps = {
-  initial: ItemCard;
-  onEach?: (next: ItemCard) => void;
+  initial: RenderableCard;
+  onEach?: (next: RenderableCard) => void;
 };
 
 function Harness({ initial, onEach }: HarnessProps) {
-  const [card, setCard] = useState<ItemCard>(initial);
+  const [card, setCard] = useState<RenderableCard>(initial);
   return (
     <CardEditor
       card={card}
       onChange={(next) => {
-        setCard(next as ItemCard);
-        onEach?.(next as ItemCard);
+        setCard(next);
+        onEach?.(next);
       }}
     />
   );
@@ -44,7 +44,7 @@ describe("<CardEditor>", () => {
 
   test("onChange is called with the updated card on body edits", async () => {
     const card = itemCardFactory.build({ body: "" });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     await userEvent.type(screen.getByLabelText(/body/i), "hi");
@@ -54,7 +54,7 @@ describe("<CardEditor>", () => {
 
   test("updates updatedAt on every change", async () => {
     const card = itemCardFactory.build({ updatedAt: "2000-01-01T00:00:00.000Z" });
-    const onEach = vi.fn<(c: ItemCard) => void>();
+    const onEach = vi.fn<(c: RenderableCard) => void>();
     render(<Harness initial={card} onEach={onEach} />);
 
     await userEvent.type(screen.getByLabelText(/name/i), "x");
@@ -80,7 +80,7 @@ describe("<CardEditor>", () => {
 
   test("Selecting an icon updates the card's iconKey", async () => {
     const card = itemCardFactory.build({ iconKey: undefined });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
@@ -91,7 +91,7 @@ describe("<CardEditor>", () => {
 
   test("Selecting Auto clears the iconKey", async () => {
     const card = itemCardFactory.build({ iconKey: "trident" });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
@@ -128,7 +128,7 @@ describe("<CardEditor>", () => {
 
   test("typing a tag and pressing Enter adds it to headerTags; clicking remove drops it", async () => {
     const card = itemCardFactory.build({ headerTags: [] });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     const input = screen.getByRole("textbox", { name: /header tags/i });
@@ -142,7 +142,7 @@ describe("<CardEditor>", () => {
 
   test("typing a tag and pressing Enter adds it to footerTags; clicking remove drops it", async () => {
     const card = itemCardFactory.build({ footerTags: [] });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     const input = screen.getByRole("textbox", { name: /footer tags/i });
