@@ -94,7 +94,8 @@ export function EditorView({ deckId, cardId }: Props) {
 
   if (cardsQuery.isLoading && !isNew) return <LoadingState />;
   if (!isNew && !existing) return <p>Card not found.</p>;
-  if (existing && existing.kind !== "item") return <p>Only item cards are supported in v1.</p>;
+  if (existing && existing.kind !== "item" && existing.kind !== "spell")
+    return <p>This card kind isn't editable yet.</p>;
   if (!draft) return null;
 
   const handleSave = async () => {
@@ -135,7 +136,7 @@ export function EditorView({ deckId, cardId }: Props) {
               ? Browse the catalog instead.
             </span>
             <Button variant="secondary" onPress={() => setBrowseOpen(true)}>
-              Browse Items
+              Browse Catalog
             </Button>
           </div>
         )}

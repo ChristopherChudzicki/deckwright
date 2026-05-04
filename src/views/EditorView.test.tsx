@@ -103,8 +103,8 @@ describe("EditorView", () => {
   it("opens BrowseApiModal when the hint button is pressed", async () => {
     render(wrap(<EditorView deckId="d1" cardId="new" />));
     const hint = await screen.findByTestId("import-hint");
-    await userEvent.click(within(hint).getByRole("button", { name: /browse items/i }));
-    expect(await screen.findByRole("dialog", { name: /browse magic items/i })).toBeInTheDocument();
+    await userEvent.click(within(hint).getByRole("button", { name: /browse catalog/i }));
+    expect(await screen.findByRole("dialog", { name: /browse srd/i })).toBeInTheDocument();
   });
 
   it("navigates to the imported card's editor after picking from the modal", async () => {
@@ -116,7 +116,7 @@ describe("EditorView", () => {
       }),
     );
     const hint = await screen.findByTestId("import-hint");
-    await userEvent.click(within(hint).getByRole("button", { name: /browse items/i }));
+    await userEvent.click(within(hint).getByRole("button", { name: /browse catalog/i }));
     await userEvent.click(await screen.findByRole("button", { name: "Bag of Holding" }));
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith({
