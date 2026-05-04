@@ -1,8 +1,8 @@
 -- 20260504120000_hoist_tags_to_base.sql
 -- Re-add cards_payload_valid after hoisting headerTags/footerTags into the
--- base card schema. Spell + ability variants now require those fields with a
--- default of [] — existing rows missing those keys are accepted via the
--- default.
+-- base card schema. Spell + ability variants now require those fields, so we
+-- backfill any pre-existing rows with empty arrays before re-adding the CHECK.
+-- Item rows were already backfilled by earlier migrations.
 --
 -- The embedded JSON Schema below is generated from src/decks/schema.ts via
 -- `npm run gen:schema`. To update it, regenerate the JSON file and write a
@@ -12,6 +12,19 @@
 create extension if not exists pg_jsonschema;
 
 alter table public.cards drop constraint if exists cards_payload_valid;
+
+-- Backfill spell + ability rows that predate the headerTags/footerTags hoist.
+-- The new CHECK requires both fields on all kinds; JSON Schema's default keyword
+-- is annotation-only and does NOT fill in missing keys at validation time.
+update public.cards
+set payload = payload || jsonb_build_object('headerTags', '[]'::jsonb)
+where payload->>'kind' in ('spell', 'ability')
+  and not (payload ? 'headerTags');
+
+update public.cards
+set payload = payload || jsonb_build_object('footerTags', '[]'::jsonb)
+where payload->>'kind' in ('spell', 'ability')
+  and not (payload ? 'footerTags');
 
 alter table public.cards
   add constraint cards_payload_valid
