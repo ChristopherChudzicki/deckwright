@@ -88,7 +88,7 @@ export function DeckView({ deckId }: Props) {
                 ) : (
                   <strong>{card.name}</strong>
                 )}
-                {card.kind === "item" && card.headerTags.length > 0 && (
+                {card.headerTags.length > 0 && (
                   <span className={styles.headerTags}>{card.headerTags.join(" | ")}</span>
                 )}
               </div>
