@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { describe, expect, test } from "vitest";
 import { magicItemDetailHandler, magicItemIndexHandler, server } from "../test/msw";
 import {
-  magicItemDetail2024Factory,
+  magicItemDetailFactory,
   magicItemIndexEntryFactory,
   magicItemIndexFactory,
 } from "./factories";
@@ -36,13 +36,13 @@ describe("useMagicItemDetail", () => {
 
   test("fetches when slug is supplied", async () => {
     const indexEntry = magicItemIndexEntryFactory.build();
-    const detail = magicItemDetail2024Factory.build({
-      index: indexEntry.index,
+    const detail = magicItemDetailFactory.build({
+      key: indexEntry.key,
       name: indexEntry.name,
     });
-    server.use(magicItemDetailHandler("2024", indexEntry.index, detail));
+    server.use(magicItemDetailHandler("2024", indexEntry.key, detail));
 
-    const { result } = renderHook(() => useMagicItemDetail("2024", indexEntry.index), { wrapper });
+    const { result } = renderHook(() => useMagicItemDetail("2024", indexEntry.key), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.name).toBe(indexEntry.name);
   });

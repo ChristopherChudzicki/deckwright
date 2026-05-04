@@ -58,15 +58,37 @@ export const supabaseDefaultHandlers = [
 // (which removes runtime handlers but keeps the initial set).
 export const server = setupServer(...supabaseDefaultHandlers);
 
-export const magicItemIndexHandler = (ruleset: Ruleset, body: MagicItemIndex) =>
-  http.get(`https://www.dnd5eapi.co/api/${ruleset}/magic-items`, () => HttpResponse.json(body));
+const documentKey = (ruleset: Ruleset): string => (ruleset === "2024" ? "srd-2024" : "srd-2014");
 
-export const magicItemDetailHandler = (ruleset: Ruleset, slug: string, body: MagicItemDetail) => {
-  const { ruleset: _ruleset, ...rest } = body as MagicItemDetail & { ruleset: Ruleset };
-  return http.get(`https://www.dnd5eapi.co/api/${ruleset}/magic-items/${slug}`, () =>
-    HttpResponse.json(rest),
-  );
+export const magicItemIndexHandler = (ruleset: Ruleset, body: MagicItemIndex) =>
+  http.get(`https://api.open5e.com/v2/magicitems/`, ({ request }) => {
+    const url = new URL(request.url);
+    if (url.searchParams.get("document") !== documentKey(ruleset)) {
+      return;
+    }
+    return HttpResponse.json({
+      count: body.count,
+      next: null,
+      previous: null,
+      results: body.results.map((r) => ({
+        ...r,
+        desc: "",
+        category: { name: "" },
+        rarity: { name: "" },
+        requires_attunement: false,
+        attunement_detail: null,
+      })),
+    });
+  });
+
+export const magicItemDetailHandler = (
+  _ruleset: Ruleset,
+  key: string,
+  body: MagicItemDetail,
+) => {
+  const { ruleset: _r, ...rest } = body;
+  return http.get(`https://api.open5e.com/v2/magicitems/${key}/`, () => HttpResponse.json(rest));
 };
 
 export const apiErrorHandler = (path: string, status: number) =>
-  http.get(`https://www.dnd5eapi.co${path}`, () => new HttpResponse(null, { status }));
+  http.get(`https://api.open5e.com${path}`, () => new HttpResponse(null, { status }));

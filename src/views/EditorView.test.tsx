@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { magicItemDetail2024Factory, magicItemIndexEntryFactory } from "../api/factories";
+import { magicItemDetailFactory, magicItemIndexEntryFactory } from "../api/factories";
 import * as paginateModule from "../cards/paginate";
 import { makeCardRow, makeItemPayload } from "../test/factories";
 import { magicItemDetailHandler, magicItemIndexHandler, SB_URL as SB, server } from "../test/msw";
@@ -119,14 +119,14 @@ describe("EditorView", () => {
 
   it("navigates to the imported card's editor after picking from the modal", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
-    const detail = magicItemDetail2024Factory.build({
-      index: entry.index,
+    const detail = magicItemDetailFactory.build({
+      key: entry.key,
       name: entry.name,
-      equipment_category: { index: "wondrous-items", name: "Wondrous Items", url: "" },
+      category: { name: "Wondrous Item" },
     });
     server.use(
       magicItemIndexHandler("2024", { count: 1, results: [entry] }),
-      magicItemDetailHandler("2024", entry.index, detail),
+      magicItemDetailHandler("2024", entry.key, detail),
     );
     render(wrap(<EditorView deckId="d1" cardId="new" />));
     const hint = await screen.findByTestId("import-hint");

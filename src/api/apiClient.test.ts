@@ -9,16 +9,16 @@ afterEach(() => {
 });
 
 describe("apiGet", () => {
-  test("calls the dnd5eapi base URL", async () => {
+  test("calls the Open5e base URL", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     globalThis.fetch = fetchMock as typeof fetch;
 
-    await apiGet("/api/2024/magic-items");
+    await apiGet("/v2/magicitems/test");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://www.dnd5eapi.co/api/2024/magic-items",
+      "https://api.open5e.com/v2/magicitems/test",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });

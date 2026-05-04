@@ -8,54 +8,96 @@ afterEach(() => {
 });
 
 describe("fetchMagicItemIndex", () => {
-  test("hits /api/2024/magic-items when ruleset is 2024", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ count: 0, results: [] }), { status: 200 }));
+  test("hits Open5e magicitems with srd-2024 filter when ruleset is 2024", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ count: 0, next: null, previous: null, results: [] }), {
+        status: 200,
+      }),
+    );
     globalThis.fetch = fetchMock as typeof fetch;
 
     await fetchMagicItemIndex("2024");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://www.dnd5eapi.co/api/2024/magic-items",
+      "https://api.open5e.com/v2/magicitems/?document=srd-2024&limit=2000",
       expect.anything(),
     );
   });
 
-  test("hits /api/2014/magic-items when ruleset is 2014", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ count: 0, results: [] }), { status: 200 }));
+  test("hits Open5e magicitems with srd-2014 filter when ruleset is 2014", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ count: 0, next: null, previous: null, results: [] }), {
+        status: 200,
+      }),
+    );
     globalThis.fetch = fetchMock as typeof fetch;
 
     await fetchMagicItemIndex("2014");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://www.dnd5eapi.co/api/2014/magic-items",
+      "https://api.open5e.com/v2/magicitems/?document=srd-2014&limit=2000",
       expect.anything(),
     );
+  });
+
+  test("throws when the SRD has more items than the fetch limit", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ count: 3000, next: "x", previous: null, results: [] }), {
+        status: 200,
+      }),
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(fetchMagicItemIndex("2024")).rejects.toThrow(/exceeding the 2000-row limit/);
+  });
+
+  test("returns only key+name from each result", async () => {
+    const raw = {
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        {
+          key: "srd-2024_bag-of-holding",
+          name: "Bag of Holding",
+          desc: "...",
+          category: { name: "Wondrous Item" },
+          rarity: { name: "Uncommon" },
+          requires_attunement: false,
+          attunement_detail: null,
+        },
+      ],
+    };
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(raw), { status: 200 })) as typeof fetch;
+
+    const result = await fetchMagicItemIndex("2024");
+
+    expect(result.results).toEqual([{ key: "srd-2024_bag-of-holding", name: "Bag of Holding" }]);
   });
 });
 
 describe("fetchMagicItemDetail", () => {
   test("hits the right path and tags response with ruleset", async () => {
     const raw = {
-      index: "bag-of-holding",
+      key: "srd-2024_bag-of-holding",
       name: "Bag of Holding",
-      equipment_category: { index: "wondrous-items", name: "Wondrous Items", url: "" },
+      desc: "A big bag.",
+      category: { name: "Wondrous Item" },
       rarity: { name: "Uncommon" },
-      attunement: false,
-      desc: "Wondrous Item  \n A big bag.",
-      variants: [],
-      variant: false,
+      requires_attunement: false,
+      attunement_detail: null,
     };
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(raw), { status: 200 }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(raw), { status: 200 }));
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await fetchMagicItemDetail("2024", "bag-of-holding");
+    const result = await fetchMagicItemDetail("2024", "srd-2024_bag-of-holding");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://www.dnd5eapi.co/api/2024/magic-items/bag-of-holding",
+      "https://api.open5e.com/v2/magicitems/srd-2024_bag-of-holding/",
       expect.anything(),
     );
     expect(result.ruleset).toBe("2024");

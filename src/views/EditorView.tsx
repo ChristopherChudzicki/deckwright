@@ -126,7 +126,7 @@ export function EditorView({ deckId, cardId }: Props) {
       <div className={styles.form}>
         {isTemplateItem(draft) && (
           <div className={styles.templateNotice} data-testid="template-notice">
-            <strong>Template item.</strong> The dnd5eapi entry is weapon-type-agnostic (e.g.
+            <strong>Template item.</strong> The Open5e entry is weapon-type-agnostic (e.g.
             &ldquo;Any melee weapon&rdquo;). Rename and edit the description to match your specific
             weapon or armor.
           </div>

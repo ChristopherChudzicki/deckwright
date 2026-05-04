@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { type ReactNode, StrictMode } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { magicItemDetail2024Factory, magicItemIndexEntryFactory } from "../api/factories";
+import { magicItemDetailFactory, magicItemIndexEntryFactory } from "../api/factories";
 import { makeCardRow } from "../test/factories";
 import {
   apiErrorHandler,
@@ -65,18 +65,14 @@ describe("<BrowseApiModal>", () => {
 
   test("clicking a row POSTs the card to the persistence layer and calls onSelected", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
-    const detail = magicItemDetail2024Factory.build({
-      index: entry.index,
+    const detail = magicItemDetailFactory.build({
+      key: entry.key,
       name: entry.name,
-      equipment_category: {
-        index: "wondrous-items",
-        name: "Wondrous Items",
-        url: "",
-      },
+      category: { name: "Wondrous Item" },
     });
     server.use(
       magicItemIndexHandler("2024", { count: 1, results: [entry] }),
-      magicItemDetailHandler("2024", entry.index, detail),
+      magicItemDetailHandler("2024", entry.key, detail),
     );
     const onPost = vi.fn();
     server.use(
@@ -97,18 +93,14 @@ describe("<BrowseApiModal>", () => {
 
   test("clicking the same row only POSTs once even under StrictMode double-render", async () => {
     const entry = magicItemIndexEntryFactory.build({ name: "Flame Tongue" });
-    const detail = magicItemDetail2024Factory.build({
-      index: entry.index,
+    const detail = magicItemDetailFactory.build({
+      key: entry.key,
       name: entry.name,
-      equipment_category: {
-        index: "wondrous-items",
-        name: "Wondrous Items",
-        url: "",
-      },
+      category: { name: "Wondrous Item" },
     });
     server.use(
       magicItemIndexHandler("2024", { count: 1, results: [entry] }),
-      magicItemDetailHandler("2024", entry.index, detail),
+      magicItemDetailHandler("2024", entry.key, detail),
     );
     const onPost = vi.fn();
     server.use(
@@ -145,7 +137,7 @@ describe("<BrowseApiModal>", () => {
   });
 
   test("error state shows retry button", async () => {
-    server.use(apiErrorHandler("/api/2024/magic-items", 500));
+    server.use(apiErrorHandler("/v2/magicitems/?document=srd-2024&limit=2000", 500));
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />);
 

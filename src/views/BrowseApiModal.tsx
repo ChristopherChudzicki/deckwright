@@ -124,14 +124,14 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
             {index.isSuccess &&
               filtered.map((entry) => (
                 <button
-                  key={entry.index}
+                  key={entry.key}
                   type="button"
                   className={styles.row}
-                  onClick={() => handlePick(entry.index)}
+                  onClick={() => handlePick(entry.key)}
                   disabled={pickingSlug !== null}
                 >
                   <span className={styles.rowName}>{entry.name}</span>
-                  {pickingSlug === entry.index && (
+                  {pickingSlug === entry.key && (
                     <span className={styles.rowMeta}>Loading…</span>
                   )}
                 </button>

@@ -1,4 +1,4 @@
-const BASE_URL = "https://www.dnd5eapi.co";
+const BASE_URL = "https://api.open5e.com";
 const TIMEOUT_MS = 10_000;
 
 export type ApiError = {

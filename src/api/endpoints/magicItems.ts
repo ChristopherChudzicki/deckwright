@@ -2,10 +2,11 @@ import { apiGet } from "../apiClient";
 
 export type Ruleset = "2014" | "2024";
 
+const documentKey = (ruleset: Ruleset): string => (ruleset === "2024" ? "srd-2024" : "srd-2014");
+
 export type MagicItemIndexEntry = {
-  index: string;
+  key: string;
   name: string;
-  url: string;
 };
 
 export type MagicItemIndex = {
@@ -13,50 +14,54 @@ export type MagicItemIndex = {
   results: MagicItemIndexEntry[];
 };
 
-export type EquipmentCategoryRef = {
-  index: string;
+export type MagicItemDetail = {
+  key: string;
   name: string;
-  url: string;
-};
-
-type MagicItemDetail2024Raw = {
-  index: string;
-  name: string;
-  equipment_category: EquipmentCategoryRef;
-  rarity: { name: string };
-  attunement: boolean;
   desc: string;
-  image?: string;
-  variants: unknown[];
-  variant: boolean;
-};
-
-type MagicItemDetail2014Raw = {
-  index: string;
-  name: string;
-  equipment_category: EquipmentCategoryRef;
+  category: { name: string };
   rarity: { name: string };
-  desc: string[];
-  image?: string;
-  variants: unknown[];
-  variant: boolean;
+  requires_attunement: boolean;
+  attunement_detail: string | null;
+  ruleset: Ruleset;
 };
 
-export type MagicItemDetail2024 = MagicItemDetail2024Raw & { ruleset: "2024" };
-export type MagicItemDetail2014 = MagicItemDetail2014Raw & { ruleset: "2014" };
-export type MagicItemDetail = MagicItemDetail2014 | MagicItemDetail2024;
+type Open5ePage<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
 
-export const fetchMagicItemIndex = (ruleset: Ruleset): Promise<MagicItemIndex> =>
-  apiGet<MagicItemIndex>(`/api/${ruleset}/magic-items`);
+type RawMagicItem = {
+  key: string;
+  name: string;
+  desc: string;
+  category: { name: string };
+  rarity: { name: string };
+  requires_attunement: boolean;
+  attunement_detail: string | null;
+};
+
+const FETCH_LIMIT = 2000;
+
+export const fetchMagicItemIndex = async (ruleset: Ruleset): Promise<MagicItemIndex> => {
+  const path = `/v2/magicitems/?document=${documentKey(ruleset)}&limit=${FETCH_LIMIT}`;
+  const page = await apiGet<Open5ePage<RawMagicItem>>(path);
+  if (page.count > page.results.length) {
+    throw new Error(
+      `fetchMagicItemIndex: SRD ${ruleset} has ${page.count} magic items, exceeding the ${FETCH_LIMIT}-row limit. Pagination needs to be added.`,
+    );
+  }
+  return {
+    count: page.count,
+    results: page.results.map(({ key, name }) => ({ key, name })),
+  };
+};
 
 export const fetchMagicItemDetail = async (
   ruleset: Ruleset,
-  slug: string,
+  key: string,
 ): Promise<MagicItemDetail> => {
-  if (ruleset === "2024") {
-    const raw = await apiGet<MagicItemDetail2024Raw>(`/api/2024/magic-items/${slug}`);
-    return { ...raw, ruleset: "2024" };
-  }
-  const raw = await apiGet<MagicItemDetail2014Raw>(`/api/2014/magic-items/${slug}`);
-  return { ...raw, ruleset: "2014" };
+  const raw = await apiGet<RawMagicItem>(`/v2/magicitems/${key}/`);
+  return { ...raw, ruleset };
 };
