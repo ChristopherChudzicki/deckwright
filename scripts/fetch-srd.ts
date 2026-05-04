@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { magicItemListSchema } from "../src/data/srd-schema";
@@ -36,13 +36,35 @@ const writeJson = (path: string, value: unknown) => {
   console.log(`Wrote ${path}`);
 };
 
+const previousCount = (path: string): number | null => {
+  if (!existsSync(path)) return null;
+  const json = JSON.parse(readFileSync(path, "utf8")) as unknown;
+  return Array.isArray(json) ? json.length : null;
+};
+
+const CATASTROPHIC_SHRINK = 0.1;
+
 for (const ruleset of RULESETS) {
+  const slimPath = resolve(__dirname, `../src/data/srd-${ruleset}-magicitems.json`);
+  const previous = previousCount(slimPath);
+
   const raw = await fetchRuleset(ruleset);
   // Parse first so a malformed Open5e payload throws before any file is written.
   const slim = magicItemListSchema.parse(raw.results);
 
+  if (previous !== null && slim.length < previous) {
+    const lost = previous - slim.length;
+    const fraction = lost / previous;
+    if (fraction > CATASTROPHIC_SHRINK) {
+      throw new Error(
+        `SRD ${ruleset} shrank from ${previous} to ${slim.length} (${(fraction * 100).toFixed(1)}% loss). Investigate before committing.`,
+      );
+    }
+    console.warn(`  WARN: SRD ${ruleset} shrank from ${previous} to ${slim.length} (-${lost})`);
+  }
+
   writeJson(resolve(__dirname, `../data/srd-${ruleset}-magicitems.raw.json`), raw);
-  writeJson(resolve(__dirname, `../src/data/srd-${ruleset}-magicitems.json`), slim);
+  writeJson(slimPath, slim);
 
   console.log(`  ${ruleset}: ${slim.length} items`);
 }
