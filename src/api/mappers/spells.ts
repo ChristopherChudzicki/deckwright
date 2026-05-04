@@ -79,7 +79,10 @@ const componentsTag = (
 };
 
 const classesTag = (classes: { name: string }[]): string =>
-  [...classes.map((c) => c.name)].sort((a, b) => a.localeCompare(b)).join(", ");
+  classes
+    .map((c) => c.name)
+    .sort((a, b) => a.localeCompare(b))
+    .join(", ");
 
 const buildBody = (desc: string, higherLevel: string): string => {
   if (higherLevel.trim() === "") return desc;
@@ -93,7 +96,7 @@ export const spellDetailToCard = (detail: SpellDetail): SpellCard => {
     castingTimeTag(detail.casting_time, detail.ritual),
     detail.range_text,
     durationTag(detail.duration, detail.concentration),
-  ].filter((t) => t !== "");
+  ].filter((t) => t !== ""); // duration may be "" on some 2024 spells
   const footerTags: string[] = [
     componentsTag(detail.verbal, detail.somatic, detail.material, detail.material_specified),
     classesTag(detail.classes),
