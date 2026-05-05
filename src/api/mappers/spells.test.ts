@@ -152,11 +152,8 @@ describe("spellDetailToCard", () => {
       verbal: true,
       somatic: true,
       material: true,
-      material_specified: "a tiny ball of bat guano and sulfur",
     });
-    expect(spellDetailToCard(detail).footerTags[0]).toBe(
-      "V, S, M (a tiny ball of bat guano and sulfur)",
-    );
+    expect(spellDetailToCard(detail).footerTags[0]).toBe("V, S, M");
   });
 
   test("only V + S → 'V, S'", () => {
@@ -164,17 +161,16 @@ describe("spellDetailToCard", () => {
       verbal: true,
       somatic: true,
       material: false,
-      material_specified: "",
     });
     expect(spellDetailToCard(detail).footerTags[0]).toBe("V, S");
   });
 
-  test("material true with empty material_specified → 'M' without parens", () => {
+  test("material true → 'M' regardless of material_specified", () => {
     const detail = spellDetailFactory.build({
       verbal: false,
       somatic: false,
       material: true,
-      material_specified: "",
+      material_specified: "a tiny ball of bat guano and sulfur",
     });
     expect(spellDetailToCard(detail).footerTags[0]).toBe("M");
   });
@@ -253,10 +249,7 @@ describe("spellDetailToCard", () => {
       "150 feet",
       "Instantaneous",
     ]);
-    expect(card.footerTags).toEqual([
-      "V, S, M (a tiny ball of bat guano and sulfur)",
-      "Sorcerer, Wizard",
-    ]);
+    expect(card.footerTags).toEqual(["V, S, M", "Sorcerer, Wizard"]);
   });
 
   // --- Guidance-shaped (concentration cantrip) ---

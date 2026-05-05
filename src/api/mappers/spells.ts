@@ -63,18 +63,11 @@ const durationTag = (duration: string, concentration: boolean): string => {
   return `Concentration, up to ${formatted.toLowerCase()}`;
 };
 
-const componentsTag = (
-  verbal: boolean,
-  somatic: boolean,
-  material: boolean,
-  materialSpecified: string,
-): string => {
+const componentsTag = (verbal: boolean, somatic: boolean, material: boolean): string => {
   const pieces: string[] = [];
   if (verbal) pieces.push("V");
   if (somatic) pieces.push("S");
-  if (material) {
-    pieces.push(materialSpecified.length > 0 ? `M (${materialSpecified})` : "M");
-  }
+  if (material) pieces.push("M");
   return pieces.join(", ");
 };
 
@@ -98,7 +91,7 @@ export const spellDetailToCard = (detail: SpellDetail): SpellCard => {
     durationTag(detail.duration, detail.concentration),
   ].filter((t) => t !== ""); // duration may be "" on some 2024 spells
   const footerTags: string[] = [
-    componentsTag(detail.verbal, detail.somatic, detail.material, detail.material_specified),
+    componentsTag(detail.verbal, detail.somatic, detail.material),
     classesTag(detail.classes),
   ].filter((t) => t !== ""); // some spells have no V/S/M components, or empty classes (e.g. 2014 Branding Smite)
   return {
