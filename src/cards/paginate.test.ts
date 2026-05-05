@@ -168,6 +168,7 @@ describe("paginateBody", () => {
       measureFirst: fitsUpTo(14),
       measureContinuation: fitsUpTo(14),
     });
+    expect(result.length).toBeGreaterThan(1);
     // Each chunk must start at an item boundary and contain only whole items.
     for (const chunk of result) {
       expect(chunk.startsWith("- ") || chunk.startsWith("* ") || /^\d+\.\s/.test(chunk)).toBe(true);
@@ -200,6 +201,7 @@ describe("paginateBody", () => {
       measureFirst: fitsUpTo(25),
       measureContinuation: fitsUpTo(25),
     });
+    expect(result.length).toBeGreaterThan(1);
     // Reconstruction (joined with \n) must equal the original.
     expect(result.join("\n")).toBe(body);
     // The nested line must appear in the same chunk as its parent.
