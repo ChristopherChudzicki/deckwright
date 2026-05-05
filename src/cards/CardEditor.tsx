@@ -45,6 +45,7 @@ export function CardEditor({ card, onChange }: Props) {
     headerTagsHelp: `${idBase}-headerTagsHelp`,
     icon: `${idBase}-icon`,
     body: `${idBase}-body`,
+    bodyHelp: `${idBase}-bodyHelp`,
     footerTags: `${idBase}-footerTags`,
     footerTagsLabel: `${idBase}-footerTagsLabel`,
     footerTagsHelp: `${idBase}-footerTagsHelp`,
@@ -90,7 +91,16 @@ export function CardEditor({ card, onChange }: Props) {
       </div>
       <label className={styles.field} htmlFor={ids.body}>
         <span className={styles.label}>Body</span>
-        <Textarea id={ids.body} value={card.body} onChange={handle("body")} rows={8} />
+        <Textarea
+          id={ids.body}
+          aria-describedby={ids.bodyHelp}
+          value={card.body}
+          onChange={handle("body")}
+          rows={8}
+        />
+        <span id={ids.bodyHelp} className={styles.help}>
+          Supports Markdown — bold, italic, lists, tables.
+        </span>
       </label>
       <div className={styles.field}>
         <span className={styles.label} id={ids.footerTagsLabel}>

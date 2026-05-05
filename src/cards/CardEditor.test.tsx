@@ -155,6 +155,12 @@ describe("<CardEditor>", () => {
     expect(seen[seen.length - 1]?.footerTags).toEqual(["10 lb"]);
   });
 
+  test("renders body markdown help text", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+    expect(screen.getByText(/supports markdown/i)).toBeInTheDocument();
+  });
+
   test("renders header tag help text", () => {
     const card = itemCardFactory.build();
     render(<Harness initial={card} />);

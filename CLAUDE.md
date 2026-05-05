@@ -18,6 +18,7 @@ See README's "Design system" section for the full picture. Short version:
 - Use `react-aria-components` for new interactive primitives. **No** emotion / styled-components / MUI / Tailwind / shadcn.
 - Shared UI primitives live in `src/lib/ui/`. Before hand-rolling any input, button, dialog, switch, or toggle, check `src/lib/ui/README.md` — there's almost certainly an existing primitive.
 - The card preview shown in the editor renders the same `<Card>` component as `PrintView`, so screen preview matches print output exactly.
+- Card bodies render as Markdown via `src/cards/renderBody.ts` (`marked` → DOMPurify with a strict allowlist). Both `<Card>` and the offscreen `measurer.ts` call this helper. Don't bypass it or expand the allowlist without thinking through pagination + XSS.
 
 ## Tests
 
