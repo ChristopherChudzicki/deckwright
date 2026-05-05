@@ -159,6 +159,32 @@ describe("<Card> with pagination", () => {
   });
 });
 
+describe("<Card> with markdown body", () => {
+  test("renders bold and italic", () => {
+    const card = itemCardFactory.build({ body: "**Curse**. _italic_ text." });
+    render(<Card card={card} cardsPerPage={4} />);
+    expect(screen.getByText("Curse")).toHaveProperty("tagName", "STRONG");
+    expect(screen.getByText("italic")).toHaveProperty("tagName", "EM");
+  });
+
+  test("renders bullet lists", () => {
+    const card = itemCardFactory.build({ body: "- alpha\n- beta" });
+    render(<Card card={card} cardsPerPage={4} />);
+    expect(screen.getByRole("list")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  test("renders GFM tables", () => {
+    const card = itemCardFactory.build({
+      body: "| a | b |\n|---|---|\n| 1 | 2 |",
+    });
+    render(<Card card={card} cardsPerPage={4} />);
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "a" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "1" })).toBeInTheDocument();
+  });
+});
+
 describe("<Card> with title autofit", () => {
   const LINE_HEIGHT_PX = 20;
   let titleHeights: Record<string, number> = {};

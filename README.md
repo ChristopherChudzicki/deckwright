@@ -60,6 +60,10 @@ UI styling is driven by CSS custom-property tokens defined in [`src/index.css`](
 
 For rationale, see the [UI refinement spec](docs/superpowers/specs/2026-04-29-ui-refinement-design.md).
 
+## Card body markdown
+
+Item and spell bodies render as Markdown (CommonMark + GFM tables) and are sanitized with DOMPurify before injection. Supported: paragraphs, **bold**, _italic_, `inline code`, bullet/numbered lists, tables. The single chokepoint is [`src/cards/renderBody.ts`](src/cards/renderBody.ts) — both the on-screen card and the offscreen pagination measurer call it, so what's measured for cross-card pagination is byte-identical to what prints.
+
 ## Project docs
 
 - Design: [`docs/superpowers/specs/2026-04-19-dnd-cards-design.md`](docs/superpowers/specs/2026-04-19-dnd-cards-design.md)
