@@ -169,7 +169,7 @@ describe("paginateBody", () => {
       measureContinuation: fitsUpTo(14),
     });
     expect(result.length).toBeGreaterThan(1);
-    // Each chunk must start at an item boundary and contain only whole items.
+    // Each chunk must start at an item boundary.
     for (const chunk of result) {
       expect(chunk.startsWith("- ") || chunk.startsWith("* ") || /^\d+\.\s/.test(chunk)).toBe(true);
     }
@@ -188,9 +188,8 @@ describe("paginateBody", () => {
     expect(result[0]?.startsWith("1.")).toBe(true);
     expect(result.length).toBeGreaterThan(1);
     const second = result[1] ?? "";
-    expect(/^\d+\.\s/.test(second)).toBe(true);
     // Numbers in source are preserved (we don't re-emit from 1).
-    expect(second).toMatch(/^[2-9]\./);
+    expect(second.startsWith("3.")).toBe(true);
   });
 
   test("does not split between a parent item and its nested children", () => {
