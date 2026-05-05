@@ -115,4 +115,48 @@ describe("paginateBody", () => {
     // Whole body fits → single chunk including trailing whitespace untouched.
     expect(result).toEqual(["alpha beta   "]);
   });
+
+  test("splits at block boundary before falling back to word-fit", () => {
+    // Three paragraph blocks; budget fits exactly one block.
+    expect(
+      paginateBody({
+        body: "alpha\n\nbeta\n\ngamma",
+        measureFirst: fitsUpTo(5),
+        measureContinuation: fitsUpTo(5),
+      }),
+    ).toEqual(["alpha", "beta", "gamma"]);
+  });
+
+  test("packs as many blocks as fit per card", () => {
+    // Joined text "alpha\n\nbeta" length 11; "alpha\n\nbeta\n\ngamma" length 18.
+    expect(
+      paginateBody({
+        body: "alpha\n\nbeta\n\ngamma",
+        measureFirst: fitsUpTo(11),
+        measureContinuation: fitsUpTo(11),
+      }),
+    ).toEqual(["alpha\n\nbeta", "gamma"]);
+  });
+
+  test("treats a list block as atomic when it cannot share a card", () => {
+    // List block "- a\n- b\n- c" length 11; fits if measured alone, doesn't share with the paragraph.
+    expect(
+      paginateBody({
+        body: "intro\n\n- a\n- b\n- c",
+        measureFirst: fitsUpTo(11),
+        measureContinuation: fitsUpTo(11),
+      }),
+    ).toEqual(["intro", "- a\n- b\n- c"]);
+  });
+
+  test("treats a table block as atomic and accepts overflow", () => {
+    const table = "| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |";
+    // Budget too small for the whole table, but it's atomic.
+    const result = paginateBody({
+      body: table,
+      measureFirst: fitsUpTo(5),
+      measureContinuation: fitsUpTo(5),
+    });
+    expect(result).toEqual([table]);
+  });
 });
