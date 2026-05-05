@@ -1,18 +1,24 @@
 import { useMemo, useState } from "react";
 import { TextField } from "react-aria-components";
 import type { Ruleset } from "../api/endpoints/magicItems";
-import { useMagicItemIndex } from "../api/hooks";
+import { useMagicItemIndex, useSpellIndex } from "../api/hooks";
 import { magicItemDetailToCard } from "../api/mappers/magicItems";
-import type { MagicItem } from "../data/srd-schema";
+import { spellDetailToCard } from "../api/mappers/spells";
+import type { MagicItem, Spell } from "../data/srd-schema";
 import { useSaveCard } from "../decks/mutations";
 import { Button } from "../lib/ui/Button";
 import { DialogHeader } from "../lib/ui/DialogHeader";
 import { DialogShell } from "../lib/ui/DialogShell";
 import { Input } from "../lib/ui/Input";
+import { Link } from "../lib/ui/Link";
 import { LoadingState } from "../lib/ui/LoadingState";
 import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import styles from "./BrowseApiModal.module.css";
+
+type Kind = "items" | "spells";
+
+type Pickable = { kind: "items"; entry: MagicItem } | { kind: "spells"; entry: Spell };
 
 type Props = {
   deckId: string;
@@ -21,27 +27,39 @@ type Props = {
 };
 
 export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
+  const [kind, setKind] = useState<Kind>("items");
   const [ruleset, setRuleset] = useState<Ruleset>("2024");
   const [query, setQuery] = useState("");
-  const [pickingSlug, setPickingSlug] = useState<string | null>(null);
+  const [pickingKey, setPickingKey] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
 
-  const index = useMagicItemIndex(ruleset);
+  const itemIndex = useMagicItemIndex(ruleset);
+  const spellIndex = useSpellIndex(ruleset);
+  const index = kind === "items" ? itemIndex : spellIndex;
   const saveCard = useSaveCard();
 
-  const filtered = useMemo(() => {
-    const all = index.data?.results ?? [];
-    if (query.trim() === "") return all;
-    const q = query.toLowerCase();
-    return all.filter((e) => e.name.toLowerCase().includes(q));
-  }, [index.data, query]);
+  const filtered = useMemo<Pickable[]>(() => {
+    const q = query.trim().toLowerCase();
+    const matches = (name: string) => q === "" || name.toLowerCase().includes(q);
+    if (kind === "items") {
+      return (itemIndex.data?.results ?? [])
+        .filter((e) => matches(e.name))
+        .map((entry) => ({ kind: "items", entry }));
+    }
+    return (spellIndex.data?.results ?? [])
+      .filter((e) => matches(e.name))
+      .map((entry) => ({ kind: "spells", entry }));
+  }, [kind, itemIndex.data, spellIndex.data, query]);
 
-  const handlePick = async (entry: MagicItem) => {
-    if (pickingSlug !== null) return;
-    setPickingSlug(entry.key);
+  const handlePick = async (item: Pickable) => {
+    if (pickingKey !== null) return;
+    setPickingKey(item.entry.key);
     setPickError(null);
     try {
-      const card = magicItemDetailToCard({ ...entry, ruleset });
+      const card =
+        item.kind === "items"
+          ? magicItemDetailToCard({ ...item.entry, ruleset })
+          : spellDetailToCard({ ...item.entry, ruleset });
       await saveCard.mutateAsync({ card, deckId, isNew: true });
       onSelected(card.id);
     } catch (err) {
@@ -49,9 +67,14 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
         err instanceof Error ? err.message : "Couldn't add this card. Please try again.",
       );
     } finally {
-      setPickingSlug(null);
+      setPickingKey(null);
     }
   };
+
+  const placeholder = kind === "items" ? "Search items…" : "Search spells…";
+  const emptyMessage =
+    kind === "items" ? "No items match your search." : "No spells match your search.";
+  const errorMessage = "Couldn't load the list.";
 
   return (
     <DialogShell
@@ -59,34 +82,61 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      aria-label="Browse magic items"
+      aria-label="Browse SRD"
       size="md"
       height={{ fixed: "min(70vh, 640px)" }}
       bleed
     >
       {() => (
         <>
-          <DialogHeader title="Browse magic items" onClose={onClose}>
-            <ToggleButtonGroup
-              aria-label="Magic items ruleset"
-              selectionMode="single"
-              disallowEmptySelection
-              selectedKeys={[ruleset]}
-              onSelectionChange={(keys) => {
-                const next = Array.from(keys)[0];
-                if (next === "2014" || next === "2024") setRuleset(next);
-              }}
-            >
-              <ToggleButton id="2014">2014</ToggleButton>
-              <ToggleButton id="2024">2024</ToggleButton>
-            </ToggleButtonGroup>
+          <DialogHeader title="Browse SRD" onClose={onClose}>
+            <div className={styles.toggles}>
+              <ToggleButtonGroup
+                aria-label="Browse kind"
+                selectionMode="single"
+                disallowEmptySelection
+                selectedKeys={[kind]}
+                onSelectionChange={(keys) => {
+                  const next = Array.from(keys)[0];
+                  if (next === "items" || next === "spells") setKind(next);
+                }}
+              >
+                <ToggleButton id="items">Items</ToggleButton>
+                <ToggleButton id="spells">Spells</ToggleButton>
+              </ToggleButtonGroup>
+              <ToggleButtonGroup
+                aria-label="Ruleset"
+                selectionMode="single"
+                disallowEmptySelection
+                selectedKeys={[ruleset]}
+                onSelectionChange={(keys) => {
+                  const next = Array.from(keys)[0];
+                  if (next === "2014" || next === "2024") setRuleset(next);
+                }}
+              >
+                <ToggleButton id="2014">2014</ToggleButton>
+                <ToggleButton id="2024">2024</ToggleButton>
+              </ToggleButtonGroup>
+            </div>
           </DialogHeader>
 
+          <p className={styles.notice}>
+            Only SRD spells and items are available here. See the{" "}
+            <Link
+              href="https://en.wikipedia.org/wiki/System_Reference_Document"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              SRD
+            </Link>{" "}
+            for what's covered.
+          </p>
+
           <div className={styles.searchRow}>
-            <TextField aria-label="Search magic items" className={styles.searchField}>
+            <TextField aria-label={placeholder} className={styles.searchField}>
               <Input
                 type="search"
-                placeholder="Search magic items…"
+                placeholder={placeholder}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 autoFocus
@@ -98,7 +148,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
             {index.isLoading && <LoadingState />}
             {index.isError && (
               <div className={styles.state} role="alert">
-                Couldn't load the magic-items list.
+                {errorMessage}
                 <div className={styles.errorActions}>
                   <Button variant="secondary" size="sm" onPress={() => index.refetch()}>
                     Retry
@@ -107,7 +157,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
               </div>
             )}
             {index.isSuccess && filtered.length === 0 && (
-              <div className={styles.state}>No items match your search.</div>
+              <div className={styles.state}>{emptyMessage}</div>
             )}
             {pickError && (
               <div className={styles.state} role="alert">
@@ -115,16 +165,18 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
               </div>
             )}
             {index.isSuccess &&
-              filtered.map((entry) => (
+              filtered.map((item) => (
                 <button
-                  key={entry.key}
+                  key={item.entry.key}
                   type="button"
                   className={styles.row}
-                  onClick={() => handlePick(entry)}
-                  disabled={pickingSlug !== null}
+                  onClick={() => handlePick(item)}
+                  disabled={pickingKey !== null}
                 >
-                  <span className={styles.rowName}>{entry.name}</span>
-                  {pickingSlug === entry.key && <span className={styles.rowMeta}>Loading…</span>}
+                  <span className={styles.rowName}>{item.entry.name}</span>
+                  {pickingKey === item.entry.key && (
+                    <span className={styles.rowMeta}>Loading…</span>
+                  )}
                 </button>
               ))}
           </div>

@@ -1,3 +1,35 @@
+-- 20260504120000_hoist_tags_to_base.sql
+-- Re-add cards_payload_valid after hoisting headerTags/footerTags into the
+-- base card schema. Spell + ability variants now require those fields, so we
+-- backfill any pre-existing rows with empty arrays before re-adding the CHECK.
+-- Item rows were already backfilled by earlier migrations.
+--
+-- The embedded JSON Schema below is generated from src/decks/schema.ts via
+-- `npm run gen:schema`. To update it, regenerate the JSON file and write a
+-- NEW migration that follows the same drop-then-add pattern below — never
+-- edit this file in place.
+
+create extension if not exists pg_jsonschema;
+
+alter table public.cards drop constraint if exists cards_payload_valid;
+
+-- Backfill spell + ability rows that predate the headerTags/footerTags hoist.
+-- The new CHECK requires both fields on all kinds; JSON Schema's default keyword
+-- is annotation-only and does NOT fill in missing keys at validation time.
+update public.cards
+set payload = payload || jsonb_build_object('headerTags', '[]'::jsonb)
+where payload->>'kind' in ('spell', 'ability')
+  and not (payload ? 'headerTags');
+
+update public.cards
+set payload = payload || jsonb_build_object('footerTags', '[]'::jsonb)
+where payload->>'kind' in ('spell', 'ability')
+  and not (payload ? 'footerTags');
+
+alter table public.cards
+  add constraint cards_payload_valid
+  check (jsonb_matches_schema(
+    $cardpayload$
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "oneOf": [
@@ -255,3 +287,9 @@
     }
   ]
 }
+    $cardpayload$::json,
+    payload
+  ));
+
+comment on constraint cards_payload_valid on public.cards is
+  'JSON Schema validation generated from src/decks/schema.ts via npm run gen:schema. Regen requires a new migration that drops + re-adds this constraint.';

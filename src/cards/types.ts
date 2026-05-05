@@ -10,18 +10,20 @@ export type BaseCard = {
   createdAt: string;
   updatedAt: string;
   iconKey?: string;
-};
-
-export type ItemCard = BaseCard & {
-  kind: "item";
   headerTags: string[];
   footerTags: string[];
 };
 
+export type ItemCard = BaseCard & { kind: "item" };
 export type SpellCard = BaseCard & { kind: "spell" };
 export type AbilityCard = BaseCard & { kind: "ability" };
 
 export type Card = ItemCard | SpellCard | AbilityCard;
+
+export type RenderableCard = ItemCard | SpellCard;
+
+export const isRenderableCard = (card: Card): card is RenderableCard =>
+  card.kind === "item" || card.kind === "spell";
 
 export type Deck = {
   version: 1;

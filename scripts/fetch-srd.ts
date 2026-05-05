@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { magicItemListSchema } from "../src/data/srd-schema";
+import type { z } from "zod";
+import { magicItemListSchema, spellListSchema } from "../src/data/srd-schema";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -9,22 +10,48 @@ const RULESETS = ["2014", "2024"] as const;
 type Ruleset = (typeof RULESETS)[number];
 
 const FETCH_LIMIT = 2000;
+const CATASTROPHIC_SHRINK = 0.1;
 const documentKey = (ruleset: Ruleset): string => (ruleset === "2024" ? "srd-2024" : "srd-2014");
 
-type Open5eMagicItemsResponse = {
-  count: number;
-  results: unknown[];
+type ResourceConfig = {
+  name: string;
+  url: (ruleset: Ruleset) => string;
+  schema: z.ZodType<unknown[]>;
 };
 
-const fetchRuleset = async (ruleset: Ruleset): Promise<Open5eMagicItemsResponse> => {
-  const url = `https://api.open5e.com/v2/magicitems/?document=${documentKey(ruleset)}&limit=${FETCH_LIMIT}`;
-  const res = await fetch(url);
+const RESOURCES: ResourceConfig[] = [
+  {
+    name: "magicitems",
+    url: (r) =>
+      `https://api.open5e.com/v2/magicitems/?document=${documentKey(r)}&limit=${FETCH_LIMIT}`,
+    schema: magicItemListSchema,
+  },
+  {
+    name: "spells",
+    // Spells use the Django-ORM-style `document__key=` lookup; the bare
+    // `document=` filter on /v2/spells/ does NOT filter and returns
+    // third-party content. See handoff Quirk 1.
+    url: (r) =>
+      `https://api.open5e.com/v2/spells/?document__key=${documentKey(r)}&limit=${FETCH_LIMIT}`,
+    schema: spellListSchema,
+  },
+];
+
+type Open5eListResponse = { count: number; results: unknown[] };
+
+const fetchResource = async (
+  resource: ResourceConfig,
+  ruleset: Ruleset,
+): Promise<Open5eListResponse> => {
+  const res = await fetch(resource.url(ruleset));
   if (!res.ok)
-    throw new Error(`Open5e fetch failed for ${ruleset}: ${res.status} ${res.statusText}`);
-  const json = (await res.json()) as Open5eMagicItemsResponse;
+    throw new Error(
+      `Open5e fetch failed for ${resource.name} ${ruleset}: ${res.status} ${res.statusText}`,
+    );
+  const json = (await res.json()) as Open5eListResponse;
   if (json.count > json.results.length) {
     throw new Error(
-      `SRD ${ruleset} has ${json.count} items, exceeding the ${FETCH_LIMIT}-row limit. Add pagination.`,
+      `SRD ${resource.name} ${ruleset} has ${json.count} rows, exceeding the ${FETCH_LIMIT}-row limit. Add pagination.`,
     );
   }
   return json;
@@ -42,29 +69,31 @@ const previousCount = (path: string): number | null => {
   return Array.isArray(json) ? json.length : null;
 };
 
-const CATASTROPHIC_SHRINK = 0.1;
+for (const resource of RESOURCES) {
+  for (const ruleset of RULESETS) {
+    const slimPath = resolve(__dirname, `../src/data/srd-${ruleset}-${resource.name}.json`);
+    const rawPath = resolve(__dirname, `../data/srd-${ruleset}-${resource.name}.raw.json`);
+    const previous = previousCount(slimPath);
 
-for (const ruleset of RULESETS) {
-  const slimPath = resolve(__dirname, `../src/data/srd-${ruleset}-magicitems.json`);
-  const previous = previousCount(slimPath);
+    const raw = await fetchResource(resource, ruleset);
+    const slim = resource.schema.parse(raw.results);
 
-  const raw = await fetchRuleset(ruleset);
-  // Parse first so a malformed Open5e payload throws before any file is written.
-  const slim = magicItemListSchema.parse(raw.results);
-
-  if (previous !== null && slim.length < previous) {
-    const lost = previous - slim.length;
-    const fraction = lost / previous;
-    if (fraction > CATASTROPHIC_SHRINK) {
-      throw new Error(
-        `SRD ${ruleset} shrank from ${previous} to ${slim.length} (${(fraction * 100).toFixed(1)}% loss). Investigate before committing.`,
+    if (previous !== null && slim.length < previous) {
+      const lost = previous - slim.length;
+      const fraction = lost / previous;
+      if (fraction > CATASTROPHIC_SHRINK) {
+        throw new Error(
+          `SRD ${resource.name} ${ruleset} shrank from ${previous} to ${slim.length} (${(fraction * 100).toFixed(1)}% loss). Investigate before committing.`,
+        );
+      }
+      console.warn(
+        `  WARN: SRD ${resource.name} ${ruleset} shrank from ${previous} to ${slim.length} (-${lost})`,
       );
     }
-    console.warn(`  WARN: SRD ${ruleset} shrank from ${previous} to ${slim.length} (-${lost})`);
+
+    writeJson(rawPath, raw);
+    writeJson(slimPath, slim);
+
+    console.log(`  ${resource.name} ${ruleset}: ${slim.length} rows`);
   }
-
-  writeJson(resolve(__dirname, `../data/srd-${ruleset}-magicitems.raw.json`), raw);
-  writeJson(slimPath, slim);
-
-  console.log(`  ${ruleset}: ${slim.length} items`);
 }

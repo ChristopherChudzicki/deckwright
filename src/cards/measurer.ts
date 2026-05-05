@@ -1,10 +1,10 @@
 import type { CardsPerPage } from "./Card";
 import cardStyles from "./Card.module.css";
-import type { ItemCard } from "./types";
+import type { RenderableCard } from "./types";
 
 export type CardMeasurer = {
-  measureFirst: (card: ItemCard, chunk: string) => boolean;
-  measureContinuation: (card: ItemCard, chunk: string) => boolean;
+  measureFirst: (card: RenderableCard, chunk: string) => boolean;
+  measureContinuation: (card: RenderableCard, chunk: string) => boolean;
 };
 
 const SENTINEL_PAGINATION = "Card 9 of 9";

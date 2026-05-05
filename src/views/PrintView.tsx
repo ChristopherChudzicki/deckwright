@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, type CardsPerPage } from "../cards/Card";
-import type { ItemCard } from "../cards/types";
+import { isRenderableCard } from "../cards/types";
 import { useExpandedCards } from "../cards/useExpandedCards";
 import { useDeckCards } from "../decks/queries";
 import { Button } from "../lib/ui/Button";
@@ -20,8 +20,8 @@ export function PrintView({ deckId }: Props) {
   const [perPage, setPerPage] = useState<CardsPerPage>(4);
 
   const cards = cardsQuery.data ?? [];
-  const items = cards.filter((c): c is ItemCard => c.kind === "item");
-  const { physicalCards } = useExpandedCards(items, perPage);
+  const printable = cards.filter(isRenderableCard);
+  const { physicalCards } = useExpandedCards(printable, perPage);
 
   if (cardsQuery.isLoading) return <LoadingState />;
 
@@ -38,7 +38,11 @@ export function PrintView({ deckId }: Props) {
           <option value={4}>4 per page (portrait)</option>
           <option value={2}>2 per page (landscape)</option>
         </select>
-        <Button variant="primary" onPress={() => window.print()} isDisabled={items.length === 0}>
+        <Button
+          variant="primary"
+          onPress={() => window.print()}
+          isDisabled={printable.length === 0}
+        >
           Print
         </Button>
         <span className={styles.tip}>
@@ -47,7 +51,7 @@ export function PrintView({ deckId }: Props) {
         </span>
       </div>
 
-      {items.length === 0 && <p>No item cards in this deck yet.</p>}
+      {printable.length === 0 && <p>No printable cards in this deck yet.</p>}
 
       <div className={styles.sheet}>
         {pages.map((pageCards) => (

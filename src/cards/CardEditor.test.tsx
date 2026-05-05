@@ -2,19 +2,20 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, test, vi } from "vitest";
+import { makeSpellPayload } from "../test/factories";
+import { CardEditor } from "./CardEditor";
 import { itemCardFactory } from "./factories";
-import { ItemEditor } from "./ItemEditor";
-import type { ItemCard } from "./types";
+import type { RenderableCard, SpellCard } from "./types";
 
 type HarnessProps = {
-  initial: ItemCard;
-  onEach?: (next: ItemCard) => void;
+  initial: RenderableCard;
+  onEach?: (next: RenderableCard) => void;
 };
 
 function Harness({ initial, onEach }: HarnessProps) {
-  const [card, setCard] = useState(initial);
+  const [card, setCard] = useState<RenderableCard>(initial);
   return (
-    <ItemEditor
+    <CardEditor
       card={card}
       onChange={(next) => {
         setCard(next);
@@ -24,7 +25,7 @@ function Harness({ initial, onEach }: HarnessProps) {
   );
 }
 
-describe("<ItemEditor>", () => {
+describe("<CardEditor>", () => {
   test("typing in the name field updates the rendered value", async () => {
     const card = itemCardFactory.build({ name: "" });
     render(<Harness initial={card} />);
@@ -44,7 +45,7 @@ describe("<ItemEditor>", () => {
 
   test("onChange is called with the updated card on body edits", async () => {
     const card = itemCardFactory.build({ body: "" });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     await userEvent.type(screen.getByLabelText(/body/i), "hi");
@@ -54,7 +55,7 @@ describe("<ItemEditor>", () => {
 
   test("updates updatedAt on every change", async () => {
     const card = itemCardFactory.build({ updatedAt: "2000-01-01T00:00:00.000Z" });
-    const onEach = vi.fn<(c: ItemCard) => void>();
+    const onEach = vi.fn<(c: RenderableCard) => void>();
     render(<Harness initial={card} onEach={onEach} />);
 
     await userEvent.type(screen.getByLabelText(/name/i), "x");
@@ -80,7 +81,7 @@ describe("<ItemEditor>", () => {
 
   test("Selecting an icon updates the card's iconKey", async () => {
     const card = itemCardFactory.build({ iconKey: undefined });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
@@ -91,7 +92,7 @@ describe("<ItemEditor>", () => {
 
   test("Selecting Auto clears the iconKey", async () => {
     const card = itemCardFactory.build({ iconKey: "trident" });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
@@ -128,7 +129,7 @@ describe("<ItemEditor>", () => {
 
   test("typing a tag and pressing Enter adds it to headerTags; clicking remove drops it", async () => {
     const card = itemCardFactory.build({ headerTags: [] });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     const input = screen.getByRole("textbox", { name: /header tags/i });
@@ -142,7 +143,7 @@ describe("<ItemEditor>", () => {
 
   test("typing a tag and pressing Enter adds it to footerTags; clicking remove drops it", async () => {
     const card = itemCardFactory.build({ footerTags: [] });
-    const seen: ItemCard[] = [];
+    const seen: RenderableCard[] = [];
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     const input = screen.getByRole("textbox", { name: /footer tags/i });
@@ -177,5 +178,45 @@ describe("<ItemEditor>", () => {
     expect(iconField).not.toBeNull();
     expect(nameField?.parentElement).toBe(iconField?.parentElement);
     expect(nameField?.parentElement?.tagName).toBe("DIV");
+  });
+});
+
+describe("<CardEditor> with a spell card", () => {
+  const buildSpell = (overrides: Partial<Omit<SpellCard, "id">> = {}): SpellCard => ({
+    id: "spell-1",
+    ...makeSpellPayload.build(overrides),
+  });
+
+  test("renders name, body, headerTags, and footerTags from a spell", () => {
+    const spell = buildSpell({
+      name: "Fireball",
+      body: "A bright streak flashes…",
+      headerTags: ["3rd-level evocation"],
+      footerTags: ["Sorcerer, Wizard"],
+    });
+    render(<CardEditor card={spell} onChange={() => {}} />);
+    expect(screen.getByLabelText(/name/i)).toHaveValue("Fireball");
+    expect(screen.getByLabelText(/body/i)).toHaveValue("A bright streak flashes…");
+    expect(screen.getByRole("button", { name: /remove 3rd-level evocation/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /remove sorcerer, wizard/i })).toBeInTheDocument();
+  });
+
+  test("editing the body of a spell propagates the spell kind", async () => {
+    const seen: RenderableCard[] = [];
+    const Wrapper = () => {
+      const [c, setC] = useState<RenderableCard>(buildSpell());
+      return (
+        <CardEditor
+          card={c}
+          onChange={(n) => {
+            setC(n);
+            seen.push(n);
+          }}
+        />
+      );
+    };
+    render(<Wrapper />);
+    await userEvent.type(screen.getByLabelText(/body/i), "X");
+    expect(seen[seen.length - 1]?.kind).toBe("spell");
   });
 });

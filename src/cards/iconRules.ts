@@ -1,4 +1,4 @@
-import type { ItemCard } from "./types";
+import type { RenderableCard } from "./types";
 
 export type IconRule = {
   pattern: RegExp;
@@ -72,7 +72,7 @@ export const ICON_RULES: readonly IconRule[] = [
 
 export const FALLBACK_ICON_KEY = "perspective-dice-six-faces-random";
 
-export function pickIconKey(card: ItemCard): string {
+export function pickIconKey(card: RenderableCard): string {
   const haystack = `${card.name} ${card.headerTags.join(" ")}`;
   for (const rule of ICON_RULES) {
     if (rule.pattern.test(haystack)) return rule.iconKey;

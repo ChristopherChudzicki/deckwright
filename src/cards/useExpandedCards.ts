@@ -2,7 +2,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import type { CardsPerPage } from "./Card";
 import { expandCard, type PhysicalCard } from "./expandCard";
 import { getMeasurer } from "./measurer";
-import type { ItemCard } from "./types";
+import type { RenderableCard } from "./types";
 
 export type { PhysicalCard };
 
@@ -14,7 +14,7 @@ export type { PhysicalCard };
 const subscribe = () => () => {};
 
 export function useExpandedCards(
-  items: ItemCard[],
+  items: RenderableCard[],
   cardsPerPage: CardsPerPage,
 ): { physicalCards: PhysicalCard[] } {
   const measurer = useSyncExternalStore(subscribe, () => getMeasurer(cardsPerPage));

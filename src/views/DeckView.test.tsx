@@ -63,7 +63,7 @@ describe("DeckView (logged-out)", () => {
     expect(
       screen.queryByRole("button", { name: `Delete ${card.payload.name}` }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /browse items/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /browse catalog/i })).not.toBeInTheDocument();
     // Print is read-only and should be available to anyone viewing the deck.
     expect(screen.getByRole("link", { name: /print/i })).toBeInTheDocument();
   });
@@ -100,6 +100,6 @@ describe("DeckView (owner)", () => {
     await userEvent.click(del);
     await waitFor(() => expect(onDelete).toHaveBeenCalled());
     expect(screen.getByRole("link", { name: /new card/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /browse items/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /browse catalog/i })).toBeInTheDocument();
   });
 });

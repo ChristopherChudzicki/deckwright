@@ -1,8 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "../cards/Card";
-import { ItemEditor } from "../cards/ItemEditor";
-import type { ItemCard } from "../cards/types";
+import { CardEditor } from "../cards/CardEditor";
+import { type ItemCard, isRenderableCard, type RenderableCard } from "../cards/types";
 import { useExpandedCards } from "../cards/useExpandedCards";
 import { useDeleteCard, useSaveCard } from "../decks/mutations";
 import { useDeckCards } from "../decks/queries";
@@ -66,16 +66,16 @@ export function EditorView({ deckId, cardId }: Props) {
   const existing = cardsQuery.data?.find((c) => c.id === cardId) ?? null;
   const initial = isNew ? stub : existing;
 
-  const [draft, setDraft] = useState<ItemCard | null>(
-    initial && initial.kind === "item" ? initial : null,
+  const [draft, setDraft] = useState<RenderableCard | null>(
+    initial && isRenderableCard(initial) ? initial : null,
   );
 
   useEffect(() => {
-    if (initial && initial.kind === "item") setDraft(initial);
+    if (initial && isRenderableCard(initial)) setDraft(initial);
   }, [initial]);
 
   const debouncedBody = useDebouncedValue(draft?.body ?? "", 200);
-  const measurementCard = useMemo<ItemCard | null>(
+  const measurementCard = useMemo<RenderableCard | null>(
     () => (draft ? { ...draft, body: debouncedBody } : null),
     [draft, debouncedBody],
   );
@@ -94,7 +94,7 @@ export function EditorView({ deckId, cardId }: Props) {
 
   if (cardsQuery.isLoading && !isNew) return <LoadingState />;
   if (!isNew && !existing) return <p>Card not found.</p>;
-  if (existing && existing.kind !== "item") return <p>Only item cards are supported in v1.</p>;
+  if (existing && !isRenderableCard(existing)) return <p>This card kind isn't editable yet.</p>;
   if (!draft) return null;
 
   const handleSave = async () => {
@@ -135,11 +135,11 @@ export function EditorView({ deckId, cardId }: Props) {
               ? Browse the catalog instead.
             </span>
             <Button variant="secondary" onPress={() => setBrowseOpen(true)}>
-              Browse Items
+              Browse Catalog
             </Button>
           </div>
         )}
-        <ItemEditor card={draft} onChange={setDraft} />
+        <CardEditor card={draft} onChange={setDraft} />
         <div className={styles.formActions}>
           <Button
             variant="primary"
