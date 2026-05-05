@@ -159,4 +159,52 @@ describe("paginateBody", () => {
     });
     expect(result).toEqual([table]);
   });
+
+  test("splits a too-tall list at item boundaries", () => {
+    // Five items, ~6 chars each ("- alpha"=7, "- beta"=6, ...). Budget 14 fits ~2 items per card.
+    const body = "- alpha\n- beta\n- gamma\n- delta\n- eps";
+    const result = paginateBody({
+      body,
+      measureFirst: fitsUpTo(14),
+      measureContinuation: fitsUpTo(14),
+    });
+    // Each chunk must start at an item boundary and contain only whole items.
+    for (const chunk of result) {
+      expect(chunk.startsWith("- ") || chunk.startsWith("* ") || /^\d+\.\s/.test(chunk)).toBe(true);
+    }
+    expect(result.join("\n")).toBe(body);
+  });
+
+  test("preserves ordered-list numbering across a split", () => {
+    // 1.-5. items; budget forces a split partway through.
+    const body = "1. one\n2. two\n3. three\n4. four\n5. five";
+    const result = paginateBody({
+      body,
+      measureFirst: fitsUpTo(14),
+      measureContinuation: fitsUpTo(40),
+    });
+    // First chunk starts at "1.", continuation chunk starts at the next un-fit number ("3." here, given the budget).
+    expect(result[0]?.startsWith("1.")).toBe(true);
+    expect(result.length).toBeGreaterThan(1);
+    const second = result[1] ?? "";
+    expect(/^\d+\.\s/.test(second)).toBe(true);
+    // Numbers in source are preserved (we don't re-emit from 1).
+    expect(second).toMatch(/^[2-9]\./);
+  });
+
+  test("does not split between a parent item and its nested children", () => {
+    // Item 1 has a nested bullet that must travel with it.
+    const body = "- parent one\n  - nested\n- parent two\n- parent three";
+    const result = paginateBody({
+      body,
+      measureFirst: fitsUpTo(25),
+      measureContinuation: fitsUpTo(25),
+    });
+    // Reconstruction (joined with \n) must equal the original.
+    expect(result.join("\n")).toBe(body);
+    // The nested line must appear in the same chunk as its parent.
+    const chunkWithParent = result.find((c) => c.includes("parent one"));
+    expect(chunkWithParent).toBeDefined();
+    expect(chunkWithParent).toContain("nested");
+  });
 });

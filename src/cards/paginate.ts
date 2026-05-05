@@ -93,7 +93,10 @@ function subPaginateBlock(
     const rest = block.text.slice(fitted.length).replace(/^\s+/, "");
     return { fitted, rest };
   }
-  // list / table: atomic — emit the whole block and accept overflow.
+  if (block.kind === "list") {
+    return splitListAtItem(block.text, measure);
+  }
+  // table: atomic.
   return { fitted: block.text, rest: "" };
 }
 
@@ -143,4 +146,62 @@ function characterFit(text: string, measure: PaginateMeasurer): string {
     }
   }
   return text.slice(0, Math.max(best, 1));
+}
+
+function splitListAtItem(
+  text: string,
+  measure: PaginateMeasurer,
+): { fitted: string; rest: string } {
+  const itemStarts = topLevelItemStarts(text);
+  // Single item (possibly with nested children) — atomic fallback.
+  if (itemStarts.length <= 1) return { fitted: text, rest: "" };
+
+  const cutAt = (k: number): number =>
+    k >= itemStarts.length ? text.length : (itemStarts[k] ?? text.length);
+
+  // Largest k in [1, itemStarts.length] whose prefix (items 0..k-1) fits.
+  let lo = 1;
+  let hi = itemStarts.length;
+  let best = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const candidate = text.slice(0, cutAt(mid)).replace(/\n+$/, "");
+    if (measure(candidate)) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  // If nothing fits, accept overflow of the first item alone (rare).
+  const k = best === 0 ? 1 : best;
+  const cut = cutAt(k);
+  return {
+    fitted: text.slice(0, cut).replace(/\n+$/, ""),
+    rest: text.slice(cut).replace(/^\n+/, ""),
+  };
+}
+
+function topLevelItemStarts(text: string): number[] {
+  // Indices in `text` where a top-level list item begins.
+  // A top-level item starts at the beginning of a line whose leading whitespace
+  // matches the leading whitespace of the very first item.
+  const lines = text.split("\n");
+  if (lines.length === 0) return [];
+  const firstMatch = LIST_ITEM.exec(lines[0] ?? "");
+  if (!firstMatch) return [0];
+  const baseIndent = (firstMatch[0].match(/^\s*/)?.[0] ?? "").length;
+
+  const starts: number[] = [];
+  let offset = 0;
+  for (const line of lines) {
+    const m = LIST_ITEM.exec(line);
+    if (m) {
+      const indent = (m[0].match(/^\s*/)?.[0] ?? "").length;
+      if (indent === baseIndent) starts.push(offset);
+    }
+    offset += line.length + 1; // +1 for the consumed "\n"
+  }
+  return starts;
 }
