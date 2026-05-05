@@ -112,4 +112,24 @@ describe("measurer", () => {
     const b = getMeasurer(4);
     expect(a).toBe(b);
   });
+
+  test("renders bold/italic markdown into the body slot", () => {
+    const measurer = getMeasurer(4);
+    const card = itemCardFactory.build();
+    measurer.measureFirst(card, "**bold** and _italic_");
+
+    const bodyEl = document.querySelector<HTMLElement>('[data-shape="first"] [data-slot="body"]');
+    expect(bodyEl?.querySelector("strong")?.textContent).toBe("bold");
+    expect(bodyEl?.querySelector("em")?.textContent).toBe("italic");
+  });
+
+  test("renders GFM tables into the body slot", () => {
+    const measurer = getMeasurer(4);
+    const card = itemCardFactory.build();
+    measurer.measureFirst(card, "| a | b |\n|---|---|\n| 1 | 2 |");
+
+    const bodyEl = document.querySelector<HTMLElement>('[data-shape="first"] [data-slot="body"]');
+    expect(bodyEl?.querySelector("table")).not.toBeNull();
+    expect(bodyEl?.querySelector("th")?.textContent).toBe("a");
+  });
 });

@@ -1,5 +1,6 @@
 import type { CardsPerPage } from "./Card";
 import cardStyles from "./Card.module.css";
+import { renderBody } from "./renderBody";
 import type { RenderableCard } from "./types";
 
 export type CardMeasurer = {
@@ -70,17 +71,7 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
   const contFooter = find("continuation", "footer");
 
   const setBodyContent = (el: HTMLElement, text: string) => {
-    el.replaceChildren(
-      ...text
-        .split(/\n\s*\n/)
-        .map((p) => p.trim())
-        .filter(Boolean)
-        .map((p) => {
-          const node = document.createElement("p");
-          node.textContent = p;
-          return node;
-        }),
-    );
+    el.innerHTML = renderBody(text);
   };
 
   const setHeaderTags = (el: HTMLElement, headerTags: string[]) => {
