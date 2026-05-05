@@ -18,6 +18,8 @@ import styles from "./BrowseApiModal.module.css";
 
 type Kind = "items" | "spells";
 
+type Pickable = { kind: "items"; entry: MagicItem } | { kind: "spells"; entry: Spell };
+
 type Props = {
   deckId: string;
   onClose: () => void;
@@ -36,22 +38,28 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
   const index = kind === "items" ? itemIndex : spellIndex;
   const saveCard = useSaveCard();
 
-  const filtered = useMemo(() => {
-    const all = index.data?.results ?? [];
-    if (query.trim() === "") return all;
-    const q = query.toLowerCase();
-    return all.filter((e) => e.name.toLowerCase().includes(q));
-  }, [index.data, query]);
+  const filtered = useMemo<Pickable[]>(() => {
+    const q = query.trim().toLowerCase();
+    const matches = (name: string) => q === "" || name.toLowerCase().includes(q);
+    if (kind === "items") {
+      return (itemIndex.data?.results ?? [])
+        .filter((e) => matches(e.name))
+        .map((entry) => ({ kind: "items", entry }));
+    }
+    return (spellIndex.data?.results ?? [])
+      .filter((e) => matches(e.name))
+      .map((entry) => ({ kind: "spells", entry }));
+  }, [kind, itemIndex.data, spellIndex.data, query]);
 
-  const handlePick = async (entry: MagicItem | Spell) => {
+  const handlePick = async (item: Pickable) => {
     if (pickingKey !== null) return;
-    setPickingKey(entry.key);
+    setPickingKey(item.entry.key);
     setPickError(null);
     try {
       const card =
-        kind === "items"
-          ? magicItemDetailToCard({ ...(entry as MagicItem), ruleset })
-          : spellDetailToCard({ ...(entry as Spell), ruleset });
+        item.kind === "items"
+          ? magicItemDetailToCard({ ...item.entry, ruleset })
+          : spellDetailToCard({ ...item.entry, ruleset });
       await saveCard.mutateAsync({ card, deckId, isNew: true });
       onSelected(card.id);
     } catch (err) {
@@ -63,11 +71,10 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
     }
   };
 
-  const placeholder = kind === "items" ? "Search magic items…" : "Search spells…";
+  const placeholder = kind === "items" ? "Search items…" : "Search spells…";
   const emptyMessage =
     kind === "items" ? "No items match your search." : "No spells match your search.";
-  const errorMessage =
-    kind === "items" ? "Couldn't load the magic-items list." : "Couldn't load the spells list.";
+  const errorMessage = "Couldn't load the list.";
 
   return (
     <DialogShell
@@ -158,16 +165,18 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
               </div>
             )}
             {index.isSuccess &&
-              filtered.map((entry) => (
+              filtered.map((item) => (
                 <button
-                  key={entry.key}
+                  key={item.entry.key}
                   type="button"
                   className={styles.row}
-                  onClick={() => handlePick(entry)}
+                  onClick={() => handlePick(item)}
                   disabled={pickingKey !== null}
                 >
-                  <span className={styles.rowName}>{entry.name}</span>
-                  {pickingKey === entry.key && <span className={styles.rowMeta}>Loading…</span>}
+                  <span className={styles.rowName}>{item.entry.name}</span>
+                  {pickingKey === item.entry.key && (
+                    <span className={styles.rowMeta}>Loading…</span>
+                  )}
                 </button>
               ))}
           </div>

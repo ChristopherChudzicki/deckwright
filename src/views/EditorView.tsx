@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "../cards/Card";
 import { CardEditor } from "../cards/CardEditor";
-import type { ItemCard, RenderableCard } from "../cards/types";
+import { type ItemCard, isRenderableCard, type RenderableCard } from "../cards/types";
 import { useExpandedCards } from "../cards/useExpandedCards";
 import { useDeleteCard, useSaveCard } from "../decks/mutations";
 import { useDeckCards } from "../decks/queries";
@@ -67,11 +67,11 @@ export function EditorView({ deckId, cardId }: Props) {
   const initial = isNew ? stub : existing;
 
   const [draft, setDraft] = useState<RenderableCard | null>(
-    initial && (initial.kind === "item" || initial.kind === "spell") ? initial : null,
+    initial && isRenderableCard(initial) ? initial : null,
   );
 
   useEffect(() => {
-    if (initial && (initial.kind === "item" || initial.kind === "spell")) setDraft(initial);
+    if (initial && isRenderableCard(initial)) setDraft(initial);
   }, [initial]);
 
   const debouncedBody = useDebouncedValue(draft?.body ?? "", 200);
@@ -94,8 +94,7 @@ export function EditorView({ deckId, cardId }: Props) {
 
   if (cardsQuery.isLoading && !isNew) return <LoadingState />;
   if (!isNew && !existing) return <p>Card not found.</p>;
-  if (existing && existing.kind !== "item" && existing.kind !== "spell")
-    return <p>This card kind isn't editable yet.</p>;
+  if (existing && !isRenderableCard(existing)) return <p>This card kind isn't editable yet.</p>;
   if (!draft) return null;
 
   const handleSave = async () => {

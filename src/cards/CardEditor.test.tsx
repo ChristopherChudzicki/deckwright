@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, test, vi } from "vitest";
+import { makeSpellPayload } from "../test/factories";
 import { CardEditor } from "./CardEditor";
 import { itemCardFactory } from "./factories";
 import type { RenderableCard, SpellCard } from "./types";
@@ -181,20 +182,18 @@ describe("<CardEditor>", () => {
 });
 
 describe("<CardEditor> with a spell card", () => {
-  const buildSpell = (): SpellCard => ({
+  const buildSpell = (overrides: Partial<Omit<SpellCard, "id">> = {}): SpellCard => ({
     id: "spell-1",
-    kind: "spell",
-    name: "Fireball",
-    headerTags: ["3rd-level evocation", "1 action", "150 feet", "Instantaneous"],
-    body: "A bright streak flashes…",
-    footerTags: ["V, S, M (a tiny ball of bat guano and sulfur)", "Sorcerer, Wizard"],
-    source: "api",
-    createdAt: "2026-05-04T00:00:00.000Z",
-    updatedAt: "2026-05-04T00:00:00.000Z",
+    ...makeSpellPayload.build(overrides),
   });
 
   test("renders name, body, headerTags, and footerTags from a spell", () => {
-    const spell = buildSpell();
+    const spell = buildSpell({
+      name: "Fireball",
+      body: "A bright streak flashes…",
+      headerTags: ["3rd-level evocation"],
+      footerTags: ["Sorcerer, Wizard"],
+    });
     render(<CardEditor card={spell} onChange={() => {}} />);
     expect(screen.getByLabelText(/name/i)).toHaveValue("Fireball");
     expect(screen.getByLabelText(/body/i)).toHaveValue("A bright streak flashes…");
@@ -203,10 +202,9 @@ describe("<CardEditor> with a spell card", () => {
   });
 
   test("editing the body of a spell propagates the spell kind", async () => {
-    const spell = buildSpell();
     const seen: RenderableCard[] = [];
     const Wrapper = () => {
-      const [c, setC] = useState<RenderableCard>(spell);
+      const [c, setC] = useState<RenderableCard>(buildSpell());
       return (
         <CardEditor
           card={c}

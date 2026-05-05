@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, type CardsPerPage } from "../cards/Card";
-import type { RenderableCard } from "../cards/types";
+import { isRenderableCard } from "../cards/types";
 import { useExpandedCards } from "../cards/useExpandedCards";
 import { useDeckCards } from "../decks/queries";
 import { Button } from "../lib/ui/Button";
@@ -20,9 +20,7 @@ export function PrintView({ deckId }: Props) {
   const [perPage, setPerPage] = useState<CardsPerPage>(4);
 
   const cards = cardsQuery.data ?? [];
-  const printable = cards.filter(
-    (c): c is RenderableCard => c.kind === "item" || c.kind === "spell",
-  );
+  const printable = cards.filter(isRenderableCard);
   const { physicalCards } = useExpandedCards(printable, perPage);
 
   if (cardsQuery.isLoading) return <LoadingState />;
