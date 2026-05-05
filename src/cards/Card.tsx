@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import styles from "./Card.module.css";
 import { pickIconKey } from "./iconRules";
+import { renderBody } from "./renderBody";
 import { ResolvedIcon } from "./resolveIcon";
 import type { RenderableCard } from "./types";
 
@@ -19,12 +20,6 @@ type AutofitState =
   | { kind: "unmeasured" }
   | { kind: "fitted"; scale: 1 | 0.9 | 0.8 }
   | { kind: "gave-up" };
-
-const splitParagraphs = (text: string): string[] =>
-  text
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
 
 export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
   const layoutClass = cardsPerPage === 4 ? styles.perPage4 : styles.perPage2;
@@ -106,11 +101,12 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
         )}
       </div>
       <hr className={styles.divider} />
-      <div className={styles.body} data-role="card-body">
-        {splitParagraphs(bodyText).map((p) => (
-          <p key={p}>{p}</p>
-        ))}
-      </div>
+      <div
+        className={styles.body}
+        data-role="card-body"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized via DOMPurify in renderBody
+        dangerouslySetInnerHTML={{ __html: renderBody(bodyText) }}
+      />
       {showFooter && (
         <div className={styles.footer} data-testid="card-footer">
           {showFooterTags && (
