@@ -103,7 +103,6 @@ export const spellDetailToCard = (detail: SpellDetail): SpellCard => {
     footerTags,
     source: "api",
     apiRef: { system: "open5e", slug: detail.key, ruleset: detail.ruleset },
-    iconKey: "magic-swirl",
     createdAt: now,
     updatedAt: now,
   };

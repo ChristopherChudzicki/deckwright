@@ -16,12 +16,12 @@ describe("spellDetailToCard", () => {
     expect(card.apiRef).toEqual({ system: "open5e", slug: "srd-2024_fireball", ruleset: "2024" });
   });
 
-  test("source is 'api', kind is 'spell', iconKey is 'magic-swirl'", () => {
+  test("source is 'api', kind is 'spell', iconKey is left to the heuristic", () => {
     const detail = spellDetailFactory.build();
     const card = spellDetailToCard(detail);
     expect(card.kind).toBe("spell");
     expect(card.source).toBe("api");
-    expect(card.iconKey).toBe("magic-swirl");
+    expect(card.iconKey).toBeUndefined();
   });
 
   // --- Header tag 1: level + school ---
