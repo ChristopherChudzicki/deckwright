@@ -167,3 +167,173 @@ describe("pickSpellIconKey — school detection", () => {
     expect(pickSpellIconKey(card)).toBe(FALLBACK_ICON_KEY);
   });
 });
+
+describe("pickSpellIconKey — name keyword rules (run before school)", () => {
+  test("Fireball → fire-flower (overrides Evocation school)", () => {
+    const card = spellCardFactory.build({
+      name: "Fireball",
+      headerTags: ["3rd-level evocation", "1 action", "150 feet", "Instantaneous"],
+    });
+    expect(pickSpellIconKey(card)).toBe("fire-flower");
+  });
+
+  test("Lightning Bolt → lightning-arc", () => {
+    const card = spellCardFactory.build({
+      name: "Lightning Bolt",
+      headerTags: ["3rd-level evocation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("lightning-arc");
+  });
+
+  test("Thunderwave → lightning-arc", () => {
+    const card = spellCardFactory.build({
+      name: "Thunderwave",
+      headerTags: ["1st-level evocation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("lightning-arc");
+  });
+
+  test("Cone of Cold → ice-cube", () => {
+    const card = spellCardFactory.build({
+      name: "Cone of Cold",
+      headerTags: ["5th-level evocation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("ice-cube");
+  });
+
+  test("Cloudkill → poison-cloud", () => {
+    const card = spellCardFactory.build({
+      name: "Cloudkill",
+      headerTags: ["5th-level conjuration"],
+    });
+    expect(pickSpellIconKey(card)).toBe("poison-cloud");
+  });
+
+  test("Cure Wounds → caduceus", () => {
+    const card = spellCardFactory.build({
+      name: "Cure Wounds",
+      headerTags: ["1st-level abjuration"],
+    });
+    expect(pickSpellIconKey(card)).toBe("caduceus");
+  });
+
+  test("Bless → holy-symbol", () => {
+    const card = spellCardFactory.build({
+      name: "Bless",
+      headerTags: ["1st-level enchantment"],
+    });
+    expect(pickSpellIconKey(card)).toBe("holy-symbol");
+  });
+
+  test("Shield (the spell) → magic-shield", () => {
+    const card = spellCardFactory.build({
+      name: "Shield",
+      headerTags: ["1st-level abjuration"],
+    });
+    expect(pickSpellIconKey(card)).toBe("magic-shield");
+  });
+
+  test("Fly → feathered-wing", () => {
+    const card = spellCardFactory.build({
+      name: "Fly",
+      headerTags: ["3rd-level transmutation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("feathered-wing");
+  });
+
+  test("Sleep → night-sleep", () => {
+    const card = spellCardFactory.build({
+      name: "Sleep",
+      headerTags: ["1st-level enchantment"],
+    });
+    expect(pickSpellIconKey(card)).toBe("night-sleep");
+  });
+
+  test("Charm Person → charm", () => {
+    const card = spellCardFactory.build({
+      name: "Charm Person",
+      headerTags: ["1st-level enchantment"],
+    });
+    expect(pickSpellIconKey(card)).toBe("charm");
+  });
+
+  test("Hold Person → charm", () => {
+    const card = spellCardFactory.build({
+      name: "Hold Person",
+      headerTags: ["2nd-level enchantment"],
+    });
+    expect(pickSpellIconKey(card)).toBe("charm");
+  });
+
+  test("Cause Fear → evil-eyes", () => {
+    const card = spellCardFactory.build({
+      name: "Cause Fear",
+      headerTags: ["1st-level necromancy"],
+    });
+    expect(pickSpellIconKey(card)).toBe("evil-eyes");
+  });
+
+  test("Bestow Curse → cursed-star", () => {
+    const card = spellCardFactory.build({
+      name: "Bestow Curse",
+      headerTags: ["3rd-level necromancy"],
+    });
+    expect(pickSpellIconKey(card)).toBe("cursed-star");
+  });
+
+  test("Find Familiar → magic-portal", () => {
+    const card = spellCardFactory.build({
+      name: "Find Familiar",
+      headerTags: ["1st-level conjuration"],
+    });
+    expect(pickSpellIconKey(card)).toBe("magic-portal");
+  });
+
+  test("Misty Step → magic-portal", () => {
+    const card = spellCardFactory.build({
+      name: "Misty Step",
+      headerTags: ["2nd-level conjuration"],
+    });
+    expect(pickSpellIconKey(card)).toBe("magic-portal");
+  });
+
+  test("Daylight → sun (and Lightning Bolt is unaffected — order check)", () => {
+    expect(
+      pickSpellIconKey(
+        spellCardFactory.build({ name: "Daylight", headerTags: ["3rd-level evocation"] }),
+      ),
+    ).toBe("sun");
+    expect(
+      pickSpellIconKey(
+        spellCardFactory.build({
+          name: "Lightning Bolt",
+          headerTags: ["3rd-level evocation"],
+        }),
+      ),
+    ).toBe("lightning-arc");
+  });
+
+  test("Moonbeam → moon", () => {
+    const card = spellCardFactory.build({
+      name: "Moonbeam",
+      headerTags: ["2nd-level evocation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("moon");
+  });
+
+  test("Detect Magic → evil-eyes", () => {
+    const card = spellCardFactory.build({
+      name: "Detect Magic",
+      headerTags: ["1st-level divination"],
+    });
+    expect(pickSpellIconKey(card)).toBe("evil-eyes");
+  });
+
+  test("school-only fallback still works (Mage Hand → conjuration → magic-portal)", () => {
+    const card = spellCardFactory.build({
+      name: "Mage Hand",
+      headerTags: ["Conjuration cantrip"],
+    });
+    expect(pickSpellIconKey(card)).toBe("magic-portal");
+  });
+});
