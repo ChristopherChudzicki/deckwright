@@ -1,0 +1,48 @@
+.card {
+  --card-base: 17px;
+
+  font-size: var(--card-base);
+  width: var(--card-width);
+  height: var(--card-height);
+  background: var(--print-color-paper);
+  color: var(--print-color-ink);
+  border: 2px solid var(--print-color-border-strong);
+  border-radius: 0.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  box-shadow: var(--print-shadow-card);
+}
+
+.perPage4 {
+  --card-base: 17px;
+  --card-width: 3.75in;
+  --card-height: 5in;
+}
+
+.perPage2 {
+  --card-base: 24px;
+  --card-width: 5in;
+  --card-height: 7.5in;
+}
+
+.icon {
+  width: 50%;
+  height: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--print-color-ink);
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+@media print {
+  .card {
+    box-shadow: none;
+  }
+}
