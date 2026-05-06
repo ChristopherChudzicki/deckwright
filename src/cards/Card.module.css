@@ -179,3 +179,9 @@
 .body th {
   font-weight: 600;
 }
+
+@media print {
+  .card {
+    box-shadow: none;
+  }
+}
