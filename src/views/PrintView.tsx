@@ -42,35 +42,48 @@ export function PrintView({ deckId }: Props) {
 
   return (
     <div>
-      <div className={styles.controls}>
-        <select
-          aria-label="Cards per page"
-          value={perPage}
-          onChange={(e) => setPerPage(Number(e.target.value) as CardsPerPage)}
-        >
-          <option value={4}>4 per page (portrait)</option>
-          <option value={2}>2 per page (landscape)</option>
-        </select>
-        <Switch isSelected={printBacks} onChange={setPrintBacks}>
-          Print backs
-        </Switch>
-        <Button
-          variant="primary"
-          onPress={() => window.print()}
-          isDisabled={printable.length === 0}
-        >
-          Print
-        </Button>
-        <span className={styles.tip}>
-          Tip: in the print dialog, choose <em>Margins: None</em> and uncheck{" "}
-          <em>Headers and footers</em> for best results.
-        </span>
-        {printBacks && (
+      <div className={styles.panel}>
+        <label className={styles.row}>
+          <span className={styles.rowLabel}>Cards per page</span>
+          <select
+            className={styles.select}
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value) as CardsPerPage)}
+          >
+            <option value={4}>4 per page (portrait)</option>
+            <option value={2}>2 per page (landscape)</option>
+          </select>
+        </label>
+
+        <div className={styles.row}>
+          <Switch isSelected={printBacks} onChange={setPrintBacks}>
+            Print backs
+          </Switch>
+          <div className={styles.helptext}>
+            <p>Adds a second page of card backs for double-sided printing.</p>
+            {printBacks && (
+              <p>
+                In the print dialog, choose <em>Flip on {flipEdge}</em> (sometimes labelled{" "}
+                <em>{flipLabel}</em>).
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.row}>
+          <Button
+            variant="primary"
+            size="lg"
+            onPress={() => window.print()}
+            isDisabled={printable.length === 0}
+          >
+            Print
+          </Button>
           <span className={styles.tip}>
-            For double-sided printing, choose <em>Flip on {flipEdge}</em> in the print dialog
-            (sometimes labelled <em>{flipLabel}</em>).
+            Tip: in the print dialog, choose <em>Margins: None</em> and uncheck{" "}
+            <em>Headers and footers</em> for best results.
           </span>
-        )}
+        </div>
       </div>
 
       {printable.length === 0 && <p>No printable cards in this deck yet.</p>}

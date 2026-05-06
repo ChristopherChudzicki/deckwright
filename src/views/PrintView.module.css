@@ -1,14 +1,28 @@
 /* === Screen-only UI (hidden in @media print) === */
 
-.controls {
+.panel {
   display: flex;
+  flex-direction: column;
   gap: var(--space-4);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.row {
+  display: flex;
   align-items: center;
-  padding: var(--space-3) 0;
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
-.controls select {
+.rowLabel {
+  font-weight: 500;
+}
+
+.select {
   font: inherit;
   padding: var(--space-1) var(--space-3);
   border: 1px solid var(--color-border-strong);
@@ -18,9 +32,27 @@
   cursor: pointer;
 }
 
-.controls select:focus-visible {
+.select:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
+}
+
+.helptext {
+  font-size: var(--fs-sm);
+  color: var(--color-text-faint);
+  flex-basis: 100%;
+  /* Indent under the switch so the helptext visually belongs to the toggle.
+     Switch indicator (~2.4rem) + gap covers the offset. */
+  padding-left: var(--space-6);
+  margin: 0;
+}
+
+.helptext p {
+  margin: 0;
+}
+
+.helptext p + p {
+  margin-top: var(--space-1);
 }
 
 .tip {
@@ -74,7 +106,7 @@
 }
 
 @media print {
-  .controls {
+  .panel {
     display: none;
   }
   .sheet {
