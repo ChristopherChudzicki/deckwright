@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { Card } from "./Card";
-import { itemCardFactory } from "./factories";
+import { itemCardFactory, spellCardFactory } from "./factories";
 
 describe("<Card>", () => {
   test("shows name, header tags, and body", () => {
@@ -95,6 +95,18 @@ describe("<Card>", () => {
       iconKey: "definitely-removed-icon",
     });
     expect(() => render(<Card card={card} cardsPerPage={4} />)).not.toThrow();
+  });
+
+  test("renders the heuristic-picked icon for a spell card with iconKey unset", () => {
+    const card = spellCardFactory.build({
+      name: "Fireball",
+      headerTags: ["3rd-level evocation"],
+      imageUrl: undefined,
+      iconKey: undefined,
+    });
+    render(<Card card={card} cardsPerPage={4} />);
+    const slot = screen.getByTestId("card-icon");
+    expect(slot.querySelector("svg")).not.toBeNull();
   });
 });
 

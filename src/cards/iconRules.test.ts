@@ -147,14 +147,16 @@ describe("pickSpellIconKey — school detection", () => {
     ["transmutation", SCHOOL_ICONS.transmutation],
   ] as const)("%s in headerTags resolves to its school icon", (school, expected) => {
     const card = spellCardFactory.build({
-      headerTags: [`3rd-level ${school}`, "1 action", "60 feet", "Instantaneous"],
+      name: "Mystery Spell",
+      headerTags: [`3rd-level ${school}`],
     });
     expect(pickSpellIconKey(card)).toBe(expected);
   });
 
   test("cantrip form '<School> cantrip' is detected (case-insensitive)", () => {
     const card = spellCardFactory.build({
-      headerTags: ["Divination cantrip", "1 action", "Touch", "Instantaneous"],
+      name: "Mystery Spell",
+      headerTags: ["Divination cantrip"],
     });
     expect(pickSpellIconKey(card)).toBe(SCHOOL_ICONS.divination);
   });
@@ -172,7 +174,7 @@ describe("pickSpellIconKey — name keyword rules (run before school)", () => {
   test("Fireball → fire-flower (overrides Evocation school)", () => {
     const card = spellCardFactory.build({
       name: "Fireball",
-      headerTags: ["3rd-level evocation", "1 action", "150 feet", "Instantaneous"],
+      headerTags: ["3rd-level evocation"],
     });
     expect(pickSpellIconKey(card)).toBe("fire-flower");
   });
@@ -329,12 +331,60 @@ describe("pickSpellIconKey — name keyword rules (run before school)", () => {
     expect(pickSpellIconKey(card)).toBe("evil-eyes");
   });
 
-  test("school-only fallback still works (Mage Hand → conjuration → magic-portal)", () => {
+  test("school-only fallback works when no name keyword matches (Counterspell → abjuration → magic-shield)", () => {
     const card = spellCardFactory.build({
-      name: "Mage Hand",
-      headerTags: ["Conjuration cantrip"],
+      name: "Counterspell",
+      headerTags: ["3rd-level abjuration"],
     });
-    expect(pickSpellIconKey(card)).toBe("magic-portal");
+    expect(pickSpellIconKey(card)).toBe("magic-shield");
+  });
+
+  test("Faerie Fire → sun (override beats fire rule)", () => {
+    const card = spellCardFactory.build({
+      name: "Faerie Fire",
+      headerTags: ["1st-level evocation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("sun");
+  });
+
+  test("Sacred Flame → holy-symbol (override beats fire rule)", () => {
+    const card = spellCardFactory.build({
+      name: "Sacred Flame",
+      headerTags: ["Evocation cantrip"],
+    });
+    expect(pickSpellIconKey(card)).toBe("holy-symbol");
+  });
+
+  test("Power Word Kill → skull-crossed-bones", () => {
+    const card = spellCardFactory.build({
+      name: "Power Word Kill",
+      headerTags: ["9th-level enchantment"],
+    });
+    expect(pickSpellIconKey(card)).toBe("skull-crossed-bones");
+  });
+
+  test("Power Word Heal → caduceus (heal rule wins over power-word)", () => {
+    const card = spellCardFactory.build({
+      name: "Power Word Heal",
+      headerTags: ["9th-level evocation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("caduceus");
+  });
+
+  test("Feather Fall → feathered-wing", () => {
+    const card = spellCardFactory.build({
+      name: "Feather Fall",
+      headerTags: ["1st-level transmutation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("feathered-wing");
+  });
+
+  test("Searing Smite → holy-symbol", () => {
+    const card = spellCardFactory.build({
+      name: "Searing Smite",
+      headerTags: ["1st-level evocation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("holy-symbol");
   });
 });
 

@@ -74,6 +74,16 @@ export const FALLBACK_ICON_KEY = "perspective-dice-six-faces-random";
 
 export const SPELL_NAME_RULES: readonly IconRule[] = [
   {
+    pattern: /\bfaerie\s+fire\b/i,
+    iconKey: "sun",
+    description: "Faerie Fire (override — light/reveal, not flame)",
+  },
+  {
+    pattern: /\bsacred\s+flame\b/i,
+    iconKey: "holy-symbol",
+    description: "Sacred Flame (override — divine cantrip, not flame)",
+  },
+  {
     pattern: /\b(?:fireball|fire|flame|flaming|burning|incendiary|combust|scorching)\b/i,
     iconKey: "fire-flower",
     description: "fire / flame / burning",
@@ -99,9 +109,14 @@ export const SPELL_NAME_RULES: readonly IconRule[] = [
     description: "healing / cure / restore",
   },
   {
-    pattern: /\b(?:bless|prayer|sacred|divine|guidance|sanctuary)\b/i,
+    pattern: /\bpower\s+word\b/i,
+    iconKey: "skull-crossed-bones",
+    description: "power word (kill / stun)",
+  },
+  {
+    pattern: /\b(?:bless|prayer|sacred|divine|guidance|sanctuary|smite)\b/i,
     iconKey: "holy-symbol",
-    description: "bless / divine / prayer",
+    description: "bless / divine / prayer / smite",
   },
   {
     pattern: /\b(?:shield|ward|warding|protection|aid)\b/i,
@@ -109,9 +124,9 @@ export const SPELL_NAME_RULES: readonly IconRule[] = [
     description: "shield / ward / protection",
   },
   {
-    pattern: /\b(?:fly|levitate|jump|leap)\b/i,
+    pattern: /\b(?:fly|levitate|jump|leap|feather)\b/i,
     iconKey: "feathered-wing",
-    description: "fly / levitate / jump",
+    description: "fly / levitate / jump / feather",
   },
   {
     pattern: /\b(?:sleep|dream)\b/i,
@@ -134,8 +149,7 @@ export const SPELL_NAME_RULES: readonly IconRule[] = [
     description: "curse / hex / bane",
   },
   {
-    pattern:
-      /\b(?:summon|conjure|conjuration|familiar|gate|planar|teleport|teleportation|misty|dimension)\b/i,
+    pattern: /\b(?:summon|conjure|familiar|gate|planar|teleport|teleportation|misty|dimension)\b/i,
     iconKey: "magic-portal",
     description: "summon / conjure / teleport",
   },
