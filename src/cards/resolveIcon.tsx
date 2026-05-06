@@ -41,6 +41,7 @@ import iconFangs from "@iconify-icons/game-icons/fangs";
 import iconFeatheredWing from "@iconify-icons/game-icons/feathered-wing";
 import iconFireFlower from "@iconify-icons/game-icons/fire-flower";
 import iconFireSpellCast from "@iconify-icons/game-icons/fire-spell-cast";
+import iconFireball from "@iconify-icons/game-icons/fireball";
 import iconFishingPole from "@iconify-icons/game-icons/fishing-pole";
 import iconFizzingFlask from "@iconify-icons/game-icons/fizzing-flask";
 import iconFlail from "@iconify-icons/game-icons/flail";
@@ -169,6 +170,7 @@ const CURATED: Record<string, IconifyIcon> = {
   "feathered-wing": iconFeatheredWing,
   "fire-flower": iconFireFlower,
   "fire-spell-cast": iconFireSpellCast,
+  fireball: iconFireball,
   "fishing-pole": iconFishingPole,
   "fizzing-flask": iconFizzingFlask,
   flail: iconFlail,

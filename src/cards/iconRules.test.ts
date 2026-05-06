@@ -171,10 +171,18 @@ describe("pickSpellIconKey — school detection", () => {
 });
 
 describe("pickSpellIconKey — name keyword rules (run before school)", () => {
-  test("Fireball → fire-flower (overrides Evocation school)", () => {
+  test("Fireball → fireball (specific icon, overrides generic fire rule)", () => {
     const card = spellCardFactory.build({
       name: "Fireball",
       headerTags: ["3rd-level evocation"],
+    });
+    expect(pickSpellIconKey(card)).toBe("fireball");
+  });
+
+  test("Wall of Fire → fire-flower (generic fire rule still fires for non-Fireball spells)", () => {
+    const card = spellCardFactory.build({
+      name: "Wall of Fire",
+      headerTags: ["4th-level evocation"],
     });
     expect(pickSpellIconKey(card)).toBe("fire-flower");
   });
@@ -389,12 +397,12 @@ describe("pickSpellIconKey — name keyword rules (run before school)", () => {
 });
 
 describe("pickIconKey — kind dispatch", () => {
-  test("spell card routes through pickSpellIconKey (Fireball → fire-flower)", () => {
+  test("spell card routes through pickSpellIconKey (Fireball → fireball)", () => {
     const card = spellCardFactory.build({
       name: "Fireball",
       headerTags: ["3rd-level evocation"],
     });
-    expect(pickIconKey(card)).toBe("fire-flower");
+    expect(pickIconKey(card)).toBe("fireball");
   });
 
   test("item card still uses item rules (Trident → trident)", () => {

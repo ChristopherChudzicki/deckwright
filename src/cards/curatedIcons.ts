@@ -85,6 +85,7 @@ export const CURATED_ICONS: readonly string[] = [
   "sun",
   "snowflake-1",
   "tornado",
+  "fireball",
   "frozen-orb",
   "fire-spell-cast",
   "bolt-spell-cast",

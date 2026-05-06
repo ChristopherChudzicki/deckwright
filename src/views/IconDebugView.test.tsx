@@ -34,11 +34,11 @@ describe("<IconDebugView>", () => {
     );
   });
 
-  test("spell simulator: 'Fireball' resolves to fire-flower", async () => {
+  test("spell simulator: 'Fireball' resolves to fireball", async () => {
     render(<IconDebugView />);
     await userEvent.click(screen.getByRole("radio", { name: /spell/i }));
     await userEvent.type(screen.getByLabelText(/name/i), "Fireball");
-    expect(screen.getByTestId("simulator-result")).toHaveTextContent(/fire-flower/i);
+    expect(screen.getByTestId("simulator-result")).toHaveTextContent(/\bfireball\b/i);
   });
 
   test("spell simulator: only school in headerTags resolves to the school icon", async () => {

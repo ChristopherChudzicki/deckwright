@@ -84,7 +84,12 @@ export const SPELL_NAME_RULES: readonly IconRule[] = [
     description: "Sacred Flame (override — divine cantrip, not flame)",
   },
   {
-    pattern: /\b(?:fireball|fire|flame|flaming|burning|incendiary|combust|scorching)\b/i,
+    pattern: /\bfireball\b/i,
+    iconKey: "fireball",
+    description: "Fireball (specific icon)",
+  },
+  {
+    pattern: /\b(?:fire|flame|flaming|burning|incendiary|combust|scorching)\b/i,
     iconKey: "fire-flower",
     description: "fire / flame / burning",
   },
