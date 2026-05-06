@@ -18,6 +18,7 @@ export function CardBack({ card, cardsPerPage }: Props) {
       data-testid="card-back"
       data-role="card-back-root"
       data-card-id={card.id}
+      data-icon-key={iconKey}
     >
       <div className={styles.icon} aria-hidden="true">
         <ResolvedIcon iconKey={iconKey} />

@@ -4,30 +4,22 @@ import { CardBack } from "./CardBack";
 import { itemCardFactory, spellCardFactory } from "./factories";
 
 describe("<CardBack>", () => {
-  test("renders an icon SVG using the card's explicit iconKey", () => {
+  test("uses the card's explicit iconKey when set", () => {
     const card = itemCardFactory.build({ iconKey: "trident" });
     render(<CardBack card={card} cardsPerPage={4} />);
-    const root = screen.getByTestId("card-back");
-    expect(root.querySelector("svg")).not.toBeNull();
+    expect(screen.getByTestId("card-back")).toHaveAttribute("data-icon-key", "trident");
   });
 
-  test("renders the heuristic-picked icon when iconKey is unset", () => {
-    const card = itemCardFactory.build({
-      name: "Flame Tongue Trident",
-      iconKey: undefined,
-    });
+  test("falls back to the heuristic-picked iconKey for an item card", () => {
+    const card = itemCardFactory.build({ name: "Flame Tongue Trident" });
     render(<CardBack card={card} cardsPerPage={4} />);
-    expect(screen.getByTestId("card-back").querySelector("svg")).not.toBeNull();
+    expect(screen.getByTestId("card-back")).toHaveAttribute("data-icon-key", "trident");
   });
 
-  test("renders the heuristic-picked icon for a spell card with iconKey unset", () => {
-    const card = spellCardFactory.build({
-      name: "Fireball",
-      headerTags: ["3rd-level evocation"],
-      iconKey: undefined,
-    });
+  test("falls back to the heuristic-picked iconKey for a spell card", () => {
+    const card = spellCardFactory.build({ name: "Fireball" });
     render(<CardBack card={card} cardsPerPage={4} />);
-    expect(screen.getByTestId("card-back").querySelector("svg")).not.toBeNull();
+    expect(screen.getByTestId("card-back")).toHaveAttribute("data-icon-key", "fireball");
   });
 
   test("does not crash for a stale or unknown iconKey", () => {
