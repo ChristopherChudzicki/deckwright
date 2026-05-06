@@ -20,6 +20,23 @@ type Kind = "items" | "spells";
 
 type Pickable = { kind: "items"; entry: MagicItem } | { kind: "spells"; entry: Spell };
 
+const ordinal = (n: number): string => {
+  if (n === 1) return "1st";
+  if (n === 2) return "2nd";
+  if (n === 3) return "3rd";
+  return `${n}th`;
+};
+
+const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+
+const itemMeta = (item: MagicItem): string => capitalize(item.rarity.name);
+
+const spellMeta = (spell: Spell): string => {
+  const school = spell.school.name.toLowerCase();
+  if (spell.level === 0) return `${capitalize(school)} cantrip`;
+  return `${ordinal(spell.level)}-level ${school}`;
+};
+
 type Props = {
   deckId: string;
   onClose: () => void;
@@ -120,18 +137,6 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
             </div>
           </DialogHeader>
 
-          <p className={styles.notice}>
-            Only SRD spells and items are available here. See the{" "}
-            <Link
-              href="https://en.wikipedia.org/wiki/System_Reference_Document"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              SRD
-            </Link>{" "}
-            for what's covered.
-          </p>
-
           <div className={styles.searchRow}>
             <TextField aria-label={placeholder} className={styles.searchField}>
               <Input
@@ -165,21 +170,40 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
               </div>
             )}
             {index.isSuccess &&
-              filtered.map((item) => (
-                <button
-                  key={item.entry.key}
-                  type="button"
-                  className={styles.row}
-                  onClick={() => handlePick(item)}
-                  disabled={pickingKey !== null}
-                >
-                  <span className={styles.rowName}>{item.entry.name}</span>
-                  {pickingKey === item.entry.key && (
-                    <span className={styles.rowMeta}>Loading…</span>
-                  )}
-                </button>
-              ))}
+              filtered.map((item) => {
+                const meta = item.kind === "items" ? itemMeta(item.entry) : spellMeta(item.entry);
+                return (
+                  <button
+                    key={item.entry.key}
+                    type="button"
+                    className={styles.row}
+                    onClick={() => handlePick(item)}
+                    disabled={pickingKey !== null}
+                  >
+                    <span className={styles.rowName}>{item.entry.name}</span>
+                    <span className={styles.rowMeta}>
+                      {pickingKey === item.entry.key ? "Loading…" : meta}
+                    </span>
+                  </button>
+                );
+              })}
           </div>
+
+          <p className={styles.footer}>
+            Only{" "}
+            <Link href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">
+              SRD
+            </Link>{" "}
+            spells and items are available — content by Wizards of the Coast, licensed under{" "}
+            <Link
+              href="https://creativecommons.org/licenses/by/4.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              CC BY 4.0
+            </Link>
+            .
+          </p>
         </>
       )}
     </DialogShell>

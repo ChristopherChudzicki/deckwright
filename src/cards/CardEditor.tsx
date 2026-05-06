@@ -3,6 +3,7 @@ import { nowIso } from "../lib/time";
 import { IconPickerDialog } from "../lib/ui/IconPickerDialog";
 import { IconPreview } from "../lib/ui/IconPreview";
 import { Input } from "../lib/ui/Input";
+import { Link } from "../lib/ui/Link";
 import { TagInput } from "../lib/ui/TagInput";
 import { Textarea } from "../lib/ui/Textarea";
 import styles from "./CardEditor.module.css";
@@ -99,7 +100,15 @@ export function CardEditor({ card, onChange }: Props) {
           rows={8}
         />
         <span id={ids.bodyHelp} className={styles.help}>
-          Supports Markdown — bold, italic, lists, tables.
+          Supports{" "}
+          <Link
+            href="https://www.markdownguide.org/cheat-sheet/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Markdown
+          </Link>{" "}
+          — bold, italic, lists, tables.
         </span>
       </label>
       <div className={styles.field}>

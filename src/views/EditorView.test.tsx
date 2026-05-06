@@ -117,7 +117,7 @@ describe("EditorView", () => {
     );
     const hint = await screen.findByTestId("import-hint");
     await userEvent.click(within(hint).getByRole("button", { name: /browse catalog/i }));
-    await userEvent.click(await screen.findByRole("button", { name: "Bag of Holding" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Bag of Holding/ }));
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith({
         to: "/deck/$deckId/edit/$cardId",

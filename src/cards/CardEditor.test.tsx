@@ -155,10 +155,13 @@ describe("<CardEditor>", () => {
     expect(seen[seen.length - 1]?.footerTags).toEqual(["10 lb"]);
   });
 
-  test("renders body markdown help text", () => {
+  test("renders body markdown help text with a reference link", () => {
     const card = itemCardFactory.build();
     render(<Harness initial={card} />);
-    expect(screen.getByText(/supports markdown/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Markdown" })).toHaveAttribute(
+      "href",
+      "https://www.markdownguide.org/cheat-sheet/",
+    );
   });
 
   test("renders header tag help text", () => {
