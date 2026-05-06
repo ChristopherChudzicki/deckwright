@@ -41,8 +41,8 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    expect(await screen.findByRole("button", { name: "Bag of Holding" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cloak of Protection" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Bag of Holding/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Cloak of Protection/ })).toBeInTheDocument();
   });
 
   test("search filters the items list", async () => {
@@ -52,11 +52,11 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await screen.findByRole("button", { name: "Bag of Holding" });
+    await screen.findByRole("button", { name: /Bag of Holding/ });
     await userEvent.type(screen.getByRole("searchbox"), "bag");
 
-    expect(screen.getByRole("button", { name: "Bag of Holding" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cloak of Protection" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Bag of Holding/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Cloak of Protection/ })).not.toBeInTheDocument();
   });
 
   test("switching ruleset loads a different items list", async () => {
@@ -71,11 +71,11 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await screen.findByRole("button", { name: "Ring A" });
+    await screen.findByRole("button", { name: /Ring A/ });
     await userEvent.click(screen.getByRole("radio", { name: "2014" }));
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Ring Z" })).toBeInTheDocument());
-    expect(screen.queryByRole("button", { name: "Ring A" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Ring Z/ })).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: /Ring A/ })).not.toBeInTheDocument();
   });
 
   test("switching kind to Spells swaps the list source", async () => {
@@ -88,13 +88,13 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await screen.findByRole("button", { name: "Bag of Holding" });
+    await screen.findByRole("button", { name: /Bag of Holding/ });
     await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Fireball" })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Fireball/ })).toBeInTheDocument(),
     );
-    expect(screen.queryByRole("button", { name: "Bag of Holding" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Bag of Holding/ })).not.toBeInTheDocument();
   });
 
   test("clicking an item POSTs a card with kind:item", async () => {
@@ -111,7 +111,7 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />, client);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Bag of Holding" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Bag of Holding/ }));
 
     await waitFor(() => expect(onPost).toHaveBeenCalled());
     expect(onPost.mock.calls[0]?.[0]?.payload?.kind).toBe("item");
@@ -133,7 +133,7 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />, client);
 
     await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Fireball" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Fireball/ }));
 
     await waitFor(() => expect(onPost).toHaveBeenCalled());
     expect(onPost.mock.calls[0]?.[0]?.payload?.kind).toBe("spell");
@@ -159,7 +159,7 @@ describe("<BrowseApiModal>", () => {
       </StrictMode>,
     );
 
-    await userEvent.click(await screen.findByRole("button", { name: "Flame Tongue" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Flame Tongue/ }));
 
     await waitFor(() => expect(onPost).toHaveBeenCalledTimes(1));
     await new Promise((r) => setTimeout(r, 50));
@@ -176,12 +176,49 @@ describe("<BrowseApiModal>", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  test("shows rarity in each item row", async () => {
+    const entry = magicItemIndexEntryFactory.build({
+      name: "Bag of Holding",
+      rarity: { name: "Uncommon" },
+    });
+    const client = makeClient({ items: { "2024": { count: 1, results: [entry] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    const row = await screen.findByRole("button", { name: /Bag of Holding/ });
+    expect(row).toHaveTextContent("Uncommon");
+  });
+
+  test("shows level and school in each spell row", async () => {
+    const cantrip = spellIndexEntryFactory.build({
+      name: "Light",
+      level: 0,
+      school: { name: "evocation" },
+    });
+    const leveled = spellIndexEntryFactory.build({
+      name: "Fireball",
+      level: 3,
+      school: { name: "evocation" },
+    });
+    const client = makeClient({
+      spells: { "2024": { count: 2, results: [cantrip, leveled] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
+    const cantripRow = await screen.findByRole("button", { name: /Light/ });
+    expect(cantripRow).toHaveTextContent("Evocation cantrip");
+    const leveledRow = screen.getByRole("button", { name: /Fireball/ });
+    expect(leveledRow).toHaveTextContent("3rd-level evocation");
+  });
+
   test("renders the SRD notice with a link", async () => {
     const client = makeClient({ items: { "2024": { count: 0, results: [] } } });
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
     expect(await screen.findByRole("link", { name: "SRD" })).toHaveAttribute(
       "href",
-      "https://en.wikipedia.org/wiki/System_Reference_Document",
+      "https://www.dndbeyond.com/srd",
     );
   });
 });

@@ -33,6 +33,25 @@
   background: var(--color-surface-2);
 }
 
+.iconLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.iconLink:hover {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+
+.iconLink:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
 .breadcrumb {
   display: flex;
   align-items: center;

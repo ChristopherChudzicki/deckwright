@@ -68,3 +68,7 @@ Item and spell bodies render as Markdown (CommonMark + GFM tables) and are sanit
 
 - Design: [`docs/superpowers/specs/2026-04-19-dnd-cards-design.md`](docs/superpowers/specs/2026-04-19-dnd-cards-design.md)
 - Implementation plan: [`docs/superpowers/plans/2026-04-19-dnd-cards-v1.md`](docs/superpowers/plans/2026-04-19-dnd-cards-v1.md)
+
+## Credits
+
+Spell and magic-item data bundled in this app is derived from the System Reference Document 5.1 and System Reference Document 5.2 by Wizards of the Coast LLC, available at [dndbeyond.com/srd](https://www.dndbeyond.com/srd), licensed under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
