@@ -28,6 +28,11 @@
   font-size: var(--fs-md);
 }
 
+.btn[data-size="lg"] {
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--fs-lg);
+}
+
 .btn[data-variant="secondary"] {
   background: var(--color-surface);
   color: var(--color-text);

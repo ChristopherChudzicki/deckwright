@@ -6,7 +6,7 @@ Thin wrappers around `react-aria-components` (and a couple of native elements) t
 
 | Primitive | Use when |
 |---|---|
-| `Button` | Any button. Variants: `primary`, `secondary`, `danger`. Sizes: `sm`, `md`. |
+| `Button` | Any button. Variants: `primary`, `secondary`, `danger`. Sizes: `sm`, `md`, `lg`. |
 | `IconButton` | An icon-only button. Pass an SVG component as children. |
 | `OAuthButton` | A sign-in button branded for an OAuth provider. |
 | `Input` | A single-line text field. |

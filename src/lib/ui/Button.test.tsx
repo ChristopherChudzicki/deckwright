@@ -29,4 +29,9 @@ describe("<Button>", () => {
     render(<Button variant="primary">Save</Button>);
     expect(screen.getByRole("button", { name: "Save" })).toHaveAttribute("data-variant", "primary");
   });
+
+  it("applies size='lg' via data-size", () => {
+    render(<Button size="lg">Save</Button>);
+    expect(screen.getByRole("button", { name: "Save" })).toHaveAttribute("data-size", "lg");
+  });
 });
