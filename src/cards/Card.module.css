@@ -7,7 +7,7 @@
   padding: 1.15em;
   background: var(--print-color-paper);
   color: var(--print-color-ink);
-  border: 1px solid var(--print-color-border-strong);
+  border: 2px solid var(--print-color-border-strong);
   border-radius: 0.5em;
   display: flex;
   flex-direction: column;
