@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { FALLBACK_ICON_KEY, ICON_RULES } from "../cards/iconRules";
+import { FALLBACK_ICON_KEY, ITEM_RULES } from "../cards/iconRules";
 import { IconPreview } from "../lib/ui/IconPreview";
 import { Input } from "../lib/ui/Input";
 import styles from "./IconDebugView.module.css";
@@ -7,7 +7,7 @@ import styles from "./IconDebugView.module.css";
 function pickRule(name: string, headerTagsText: string) {
   const haystack = `${name} ${headerTagsText}`;
   let index = 0;
-  for (const rule of ICON_RULES) {
+  for (const rule of ITEM_RULES) {
     if (rule.pattern.test(haystack)) {
       return { rule, index };
     }
@@ -76,7 +76,7 @@ export function IconDebugView() {
             </tr>
           </thead>
           <tbody>
-            {ICON_RULES.map((rule, i) => (
+            {ITEM_RULES.map((rule, i) => (
               <tr key={rule.iconKey}>
                 <td>{i}</td>
                 <td className={styles.regex}>{rule.pattern.source}</td>

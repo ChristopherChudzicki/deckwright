@@ -6,7 +6,7 @@ export type IconRule = {
   description: string;
 };
 
-export const ICON_RULES: readonly IconRule[] = [
+export const ITEM_RULES: readonly IconRule[] = [
   {
     pattern: /\b(?:axe|battleaxe|greataxe|handaxe|tomahawk|hatchet)\b/i,
     iconKey: "battle-axe",
@@ -74,7 +74,7 @@ export const FALLBACK_ICON_KEY = "perspective-dice-six-faces-random";
 
 export function pickIconKey(card: RenderableCard): string {
   const haystack = `${card.name} ${card.headerTags.join(" ")}`;
-  for (const rule of ICON_RULES) {
+  for (const rule of ITEM_RULES) {
     if (rule.pattern.test(haystack)) return rule.iconKey;
   }
   return FALLBACK_ICON_KEY;
