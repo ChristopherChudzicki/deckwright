@@ -156,12 +156,17 @@ export const SPELL_NAME_RULES: readonly IconRule[] = [
   },
 ];
 
-export function pickIconKey(card: RenderableCard): string {
+function pickItemIconKey(card: RenderableCard): string {
   const haystack = `${card.name} ${card.headerTags.join(" ")}`;
   for (const rule of ITEM_RULES) {
     if (rule.pattern.test(haystack)) return rule.iconKey;
   }
   return FALLBACK_ICON_KEY;
+}
+
+export function pickIconKey(card: RenderableCard): string {
+  if (card.kind === "spell") return pickSpellIconKey(card);
+  return pickItemIconKey(card);
 }
 
 export const SCHOOL_ICONS = {

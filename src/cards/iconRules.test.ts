@@ -337,3 +337,30 @@ describe("pickSpellIconKey — name keyword rules (run before school)", () => {
     expect(pickSpellIconKey(card)).toBe("magic-portal");
   });
 });
+
+describe("pickIconKey — kind dispatch", () => {
+  test("spell card routes through pickSpellIconKey (Fireball → fire-flower)", () => {
+    const card = spellCardFactory.build({
+      name: "Fireball",
+      headerTags: ["3rd-level evocation"],
+    });
+    expect(pickIconKey(card)).toBe("fire-flower");
+  });
+
+  test("item card still uses item rules (Trident → trident)", () => {
+    const card = itemCardFactory.build({
+      name: "Trident +1",
+      headerTags: ["Weapon", "rare"],
+    });
+    expect(pickIconKey(card)).toBe("trident");
+  });
+
+  test("a spell named 'Spirit Hammer' does NOT pick the warhammer item icon", () => {
+    const card = spellCardFactory.build({
+      name: "Spirit Hammer",
+      headerTags: ["2nd-level evocation"],
+    });
+    // No spell name rule matches "hammer" → falls through to school = evocation
+    expect(pickIconKey(card)).toBe(SCHOOL_ICONS.evocation);
+  });
+});
