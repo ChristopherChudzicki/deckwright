@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { itemCardFactory } from "./factories";
-import { FALLBACK_ICON_KEY, pickIconKey } from "./iconRules";
+import { itemCardFactory, spellCardFactory } from "./factories";
+import { FALLBACK_ICON_KEY, pickIconKey, pickSpellIconKey, SCHOOL_ICONS } from "./iconRules";
 
 describe("pickIconKey", () => {
   test("Trident in the name picks 'trident', not 'broadsword'", () => {
@@ -132,5 +132,38 @@ describe("pickIconKey", () => {
   test("Case-insensitive matching", () => {
     const card = itemCardFactory.build({ name: "POTION OF HEALING", headerTags: [] });
     expect(pickIconKey(card)).toBe("potion-ball");
+  });
+});
+
+describe("pickSpellIconKey — school detection", () => {
+  test.each([
+    ["abjuration", SCHOOL_ICONS.abjuration],
+    ["conjuration", SCHOOL_ICONS.conjuration],
+    ["divination", SCHOOL_ICONS.divination],
+    ["enchantment", SCHOOL_ICONS.enchantment],
+    ["evocation", SCHOOL_ICONS.evocation],
+    ["illusion", SCHOOL_ICONS.illusion],
+    ["necromancy", SCHOOL_ICONS.necromancy],
+    ["transmutation", SCHOOL_ICONS.transmutation],
+  ] as const)("%s in headerTags resolves to its school icon", (school, expected) => {
+    const card = spellCardFactory.build({
+      headerTags: [`3rd-level ${school}`, "1 action", "60 feet", "Instantaneous"],
+    });
+    expect(pickSpellIconKey(card)).toBe(expected);
+  });
+
+  test("cantrip form '<School> cantrip' is detected (case-insensitive)", () => {
+    const card = spellCardFactory.build({
+      headerTags: ["Divination cantrip", "1 action", "Touch", "Instantaneous"],
+    });
+    expect(pickSpellIconKey(card)).toBe(SCHOOL_ICONS.divination);
+  });
+
+  test("custom spell with no school in headerTags falls through to fallback", () => {
+    const card = spellCardFactory.build({
+      name: "Mystery Spell",
+      headerTags: ["1 action"],
+    });
+    expect(pickSpellIconKey(card)).toBe(FALLBACK_ICON_KEY);
   });
 });

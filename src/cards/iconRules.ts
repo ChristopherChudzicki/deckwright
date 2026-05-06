@@ -79,3 +79,28 @@ export function pickIconKey(card: RenderableCard): string {
   }
   return FALLBACK_ICON_KEY;
 }
+
+export const SCHOOL_ICONS = {
+  abjuration: "magic-shield",
+  conjuration: "magic-portal",
+  divination: "crystal-ball",
+  enchantment: "charm",
+  evocation: "magic-swirl",
+  illusion: "drama-masks",
+  necromancy: "skull-crossed-bones",
+  transmutation: "transform",
+} as const satisfies Record<string, string>;
+
+const SCHOOL_NAMES = Object.keys(SCHOOL_ICONS) as (keyof typeof SCHOOL_ICONS)[];
+
+export function pickSpellIconKey(card: RenderableCard): string {
+  for (const tag of card.headerTags) {
+    const lower = tag.toLowerCase();
+    for (const school of SCHOOL_NAMES) {
+      if (new RegExp(`\\b${school}\\b`).test(lower)) {
+        return SCHOOL_ICONS[school];
+      }
+    }
+  }
+  return FALLBACK_ICON_KEY;
+}
