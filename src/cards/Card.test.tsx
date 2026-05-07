@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { Card } from "./Card";
 import { itemCardFactory, spellCardFactory } from "./factories";
@@ -28,13 +28,6 @@ describe("<Card>", () => {
     expect(screen.queryByTestId("card-footer")).not.toBeInTheDocument();
   });
 
-  test("renders image when imageUrl is set", () => {
-    const card = itemCardFactory.build({ imageUrl: "https://example.com/pic.png" });
-    render(<Card card={card} cardsPerPage={4} />);
-    const img = screen.getByTestId("card-image");
-    expect(img).toHaveAttribute("src", card.imageUrl!);
-  });
-
   test("splits body on blank lines into paragraphs", () => {
     const card = itemCardFactory.build({ body: "First paragraph.\n\nSecond paragraph." });
     render(<Card card={card} cardsPerPage={4} />);
@@ -42,34 +35,9 @@ describe("<Card>", () => {
     expect(screen.getByText("Second paragraph.")).toBeInTheDocument();
   });
 
-  test("replaces the image with a fallback icon when the src fails to load", () => {
-    const card = itemCardFactory.build({ imageUrl: "https://example.com/broken.png" });
-    render(<Card card={card} cardsPerPage={4} />);
-    const img = screen.getByTestId("card-image");
-    expect(img).toHaveAttribute("src", card.imageUrl!);
-    fireEvent.error(img);
-    expect(screen.queryByTestId("card-image")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-icon")).toBeInTheDocument();
-  });
-
-  test("treats an empty-string imageUrl as no image and shows the fallback icon", () => {
-    const card = itemCardFactory.build({ imageUrl: "" });
-    render(<Card card={card} cardsPerPage={4} />);
-    expect(screen.queryByTestId("card-image")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-icon")).toBeInTheDocument();
-  });
-
-  test("shows a fallback icon when the card has no imageUrl", () => {
-    const card = itemCardFactory.build({ imageUrl: undefined });
-    render(<Card card={card} cardsPerPage={4} />);
-    expect(screen.queryByTestId("card-image")).not.toBeInTheDocument();
-    expect(screen.getByTestId("card-icon")).toBeInTheDocument();
-  });
-
   test("renders the heuristic-picked icon when iconKey is unset", () => {
     const card = itemCardFactory.build({
       name: "Flame Tongue Trident",
-      imageUrl: undefined,
       iconKey: undefined,
     });
     render(<Card card={card} cardsPerPage={4} />);
@@ -80,7 +48,6 @@ describe("<Card>", () => {
   test("renders the explicit override icon when iconKey is set", () => {
     const card = itemCardFactory.build({
       name: "Anything",
-      imageUrl: undefined,
       iconKey: "trident",
     });
     render(<Card card={card} cardsPerPage={4} />);
@@ -91,7 +58,6 @@ describe("<Card>", () => {
   test("does not crash for a stale or unknown iconKey", () => {
     const card = itemCardFactory.build({
       name: "X",
-      imageUrl: undefined,
       iconKey: "definitely-removed-icon",
     });
     expect(() => render(<Card card={card} cardsPerPage={4} />)).not.toThrow();
@@ -101,7 +67,6 @@ describe("<Card>", () => {
     const card = spellCardFactory.build({
       name: "Fireball",
       headerTags: ["3rd-level evocation"],
-      imageUrl: undefined,
       iconKey: undefined,
     });
     render(<Card card={card} cardsPerPage={4} />);

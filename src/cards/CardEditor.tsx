@@ -15,7 +15,7 @@ type Props = {
   onChange: (next: RenderableCard) => void;
 };
 
-type EditableField = "name" | "body" | "imageUrl";
+type EditableField = "name" | "body";
 
 export function CardEditor({ card, onChange }: Props) {
   const handle =
@@ -50,7 +50,6 @@ export function CardEditor({ card, onChange }: Props) {
     footerTags: `${idBase}-footerTags`,
     footerTagsLabel: `${idBase}-footerTagsLabel`,
     footerTagsHelp: `${idBase}-footerTagsHelp`,
-    imageUrl: `${idBase}-imageUrl`,
   };
 
   return (
@@ -127,15 +126,6 @@ export function CardEditor({ card, onChange }: Props) {
           Suggested order: rarity, cost, weight.
         </span>
       </div>
-      <label className={styles.field} htmlFor={ids.imageUrl}>
-        <span className={styles.label}>Image URL (optional)</span>
-        <Input
-          id={ids.imageUrl}
-          value={card.imageUrl ?? ""}
-          onChange={handle("imageUrl")}
-          placeholder="https://…"
-        />
-      </label>
     </form>
   );
 }
