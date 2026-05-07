@@ -71,10 +71,10 @@ export function CardEditor({ card, onChange }: Props) {
             aria-labelledby={ids.typeLabel}
             selectionMode="single"
             disallowEmptySelection
-            selectedKeys={new Set([card.kind])}
+            selectedKeys={[card.kind]}
             onSelectionChange={(keys) => {
-              const next = [...keys][0] as "item" | "spell";
-              handleKindChange(next);
+              const next = Array.from(keys)[0];
+              if (next === "item" || next === "spell") handleKindChange(next);
             }}
           >
             <ToggleButton id="item">Item</ToggleButton>
