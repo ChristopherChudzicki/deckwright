@@ -24,6 +24,7 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
   const bodyText = bodyOverride ?? card.body;
   const showFooterTags = isFirstPage && card.footerTags.length > 0;
   const showFooter = showFooterTags || pagination !== undefined;
+  const isSpell = card.kind === "spell";
 
   return (
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
@@ -34,9 +35,9 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
             viewBox="0 0 100 100"
             aria-hidden="true"
             data-testid="card-icon-frame"
-            data-frame={card.kind === "spell" ? "hex" : "square"}
+            data-frame={isSpell ? "hex" : "square"}
           >
-            {card.kind === "spell" ? (
+            {isSpell ? (
               <polygon
                 points="20,8 80,8 96,50 80,92 20,92 4,50"
                 fill="none"
