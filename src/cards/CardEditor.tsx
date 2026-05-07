@@ -45,8 +45,8 @@ export function CardEditor({ card, onChange }: Props) {
   const resolvedKey = card.iconKey ?? pickIconKey(card);
   const autoHint =
     resolvedKey === FALLBACK_ICON_KEY
-      ? "No matching icon yet — auto is using the fallback. Pick one to override."
-      : `Auto chose “${resolvedKey}” based on the card’s name and tags.`;
+      ? "Auto: fallback (no match yet — pick one to override)"
+      : `Auto: ${resolvedKey} (based on the card’s name and tags)`;
 
   const idBase = useId();
   const ids = {
