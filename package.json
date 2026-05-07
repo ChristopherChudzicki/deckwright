@@ -17,7 +17,8 @@
     "typecheck": "tsc -b --noEmit",
     "gen:schema": "tsx scripts/gen-card-schema.ts",
     "check:schema": "tsx scripts/gen-card-schema.ts --check",
-    "fetch:srd": "tsx scripts/fetch-srd.ts"
+    "fetch:srd": "tsx scripts/fetch-srd.ts",
+    "gen:og": "tsx scripts/generate-og.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
