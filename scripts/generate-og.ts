@@ -185,9 +185,9 @@ const html = `<!doctype html>
   </div>
   <div class="text">
     <h1>Readable D&amp;D Cards</h1>
-    <p class="tagline">Browse the SRD. Print clean cards for your table.</p>
+    <p class="tagline">Browse magic items and spells. Print clean cards for your table.</p>
     <ul>
-      <li>Magic items + spells from the 5.1 / 5.2 SRD</li>
+      <li>Includes the open 5.1 and 5.2 content</li>
       <li>Edit, paginate, and print 2 or 4 per page</li>
     </ul>
   </div>
