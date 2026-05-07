@@ -1,8 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="4" y="4" width="56" height="56" rx="6" fill="#fffdf8" stroke="#7a3530" stroke-width="2.5" />
-  <g transform="translate(32 32)" stroke="#fffdf8" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none">
-    <polygon points="0,-15 13,-7.5 13,7.5 0,15 -13,7.5 -13,-7.5" fill="#7a3530" stroke="#7a3530" />
-    <polygon points="0,-15 13,7.5 -13,7.5" />
-    <polygon points="13,-7.5 -13,-7.5 0,15" />
+  <defs>
+    <g id="sword">
+      <circle cx="0" cy="-19" r="2.5" />
+      <rect x="-1.2" y="-17" width="2.4" height="6.5" />
+      <rect x="-8" y="-12" width="16" height="4" rx="1.2" />
+      <polygon points="-2.6,-8.5 2.6,-8.5 2.2,15 0,20 -2.2,15" />
+    </g>
+  </defs>
+  <g fill="#fffdf8" stroke="#7a3530" stroke-width="3.5" stroke-linejoin="round">
+    <rect x="10" y="14" width="34" height="46" rx="4" />
+    <rect x="20" y="4" width="34" height="46" rx="4" />
+  </g>
+  <g transform="translate(37 27) scale(0.78)" fill="#7a3530">
+    <use href="#sword" transform="rotate(45)" />
+    <use href="#sword" transform="rotate(-45)" />
   </g>
 </svg>
