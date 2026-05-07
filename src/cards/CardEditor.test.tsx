@@ -176,6 +176,26 @@ describe("<CardEditor>", () => {
     expect(screen.getByText(/suggested order: rarity, cost, weight/i)).toBeInTheDocument();
   });
 
+  test("switching Type from Item to Spell updates kind without losing other fields", async () => {
+    const card = itemCardFactory.build();
+    const seen: RenderableCard[] = [];
+    render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
+
+    const itemRadio = screen.getByRole("radio", { name: "Item" });
+    const spellRadio = screen.getByRole("radio", { name: "Spell" });
+    expect(itemRadio).toBeChecked();
+    expect(spellRadio).not.toBeChecked();
+
+    await userEvent.click(spellRadio);
+
+    const last = seen[seen.length - 1];
+    expect(last?.kind).toBe("spell");
+    expect(last?.name).toBe(card.name);
+    expect(last?.body).toBe(card.body);
+    expect(last?.iconKey).toBe(card.iconKey);
+    expect(spellRadio).toBeChecked();
+  });
+
   test("Name and Icon controls share a row container", () => {
     const card = itemCardFactory.build();
     render(<Harness initial={card} />);

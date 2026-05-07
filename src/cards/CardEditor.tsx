@@ -6,6 +6,8 @@ import { Input } from "../lib/ui/Input";
 import { Link } from "../lib/ui/Link";
 import { TagInput } from "../lib/ui/TagInput";
 import { Textarea } from "../lib/ui/Textarea";
+import { ToggleButton } from "../lib/ui/ToggleButton";
+import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import styles from "./CardEditor.module.css";
 import { FALLBACK_ICON_KEY, pickIconKey } from "./iconRules";
 import type { RenderableCard } from "./types";
@@ -35,6 +37,11 @@ export function CardEditor({ card, onChange }: Props) {
     onChange({ ...card, footerTags: next, updatedAt: nowIso() });
   };
 
+  const handleKindChange = (next: "item" | "spell") => {
+    if (next === card.kind) return;
+    onChange({ ...card, kind: next, updatedAt: nowIso() } as RenderableCard);
+  };
+
   const resolvedKey = card.iconKey ?? pickIconKey(card);
   const showHint = card.iconKey === undefined && resolvedKey !== FALLBACK_ICON_KEY;
 
@@ -50,12 +57,31 @@ export function CardEditor({ card, onChange }: Props) {
     footerTags: `${idBase}-footerTags`,
     footerTagsLabel: `${idBase}-footerTagsLabel`,
     footerTagsHelp: `${idBase}-footerTagsHelp`,
+    typeLabel: `${idBase}-typeLabel`,
   };
 
   return (
     <form className={styles.form} onSubmit={(e) => e.preventDefault()}>
       <div className={styles.row}>
-        <label className={styles.field} htmlFor={ids.name}>
+        <div className={styles.field}>
+          <span className={styles.label} id={ids.typeLabel}>
+            Type
+          </span>
+          <ToggleButtonGroup
+            aria-labelledby={ids.typeLabel}
+            selectionMode="single"
+            disallowEmptySelection
+            selectedKeys={new Set([card.kind])}
+            onSelectionChange={(keys) => {
+              const next = [...keys][0] as "item" | "spell";
+              handleKindChange(next);
+            }}
+          >
+            <ToggleButton id="item">Item</ToggleButton>
+            <ToggleButton id="spell">Spell</ToggleButton>
+          </ToggleButtonGroup>
+        </div>
+        <label className={`${styles.field} ${styles.nameField}`} htmlFor={ids.name}>
           <span className={styles.label}>Name</span>
           <Input
             id={ids.name}
