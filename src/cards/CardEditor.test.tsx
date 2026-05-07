@@ -193,13 +193,16 @@ describe("<CardEditor>", () => {
     expect(last?.name).toBe(card.name);
     expect(last?.body).toBe(card.body);
     expect(last?.iconKey).toBe(card.iconKey);
+    expect(last?.headerTags).toEqual(card.headerTags);
+    expect(last?.footerTags).toEqual(card.footerTags);
     expect(spellRadio).toBeChecked();
   });
 
-  test("Name and Icon controls share a row container", () => {
+  test("Type, Name, and Icon controls share a row container", () => {
     const card = itemCardFactory.build();
     render(<Harness initial={card} />);
 
+    const typeRadio = screen.getByRole("radio", { name: "Item" });
     const nameField = screen.getByLabelText(/name/i).closest("label");
     const iconField = screen.getByRole("button", { name: /pick icon/i }).closest("label");
 
@@ -207,6 +210,7 @@ describe("<CardEditor>", () => {
     expect(iconField).not.toBeNull();
     expect(nameField?.parentElement).toBe(iconField?.parentElement);
     expect(nameField?.parentElement?.tagName).toBe("DIV");
+    expect(nameField?.parentElement?.contains(typeRadio)).toBe(true);
   });
 });
 
