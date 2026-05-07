@@ -1,15 +1,24 @@
 // Generates public/og.png for social-media link previews.
 //
 // HEADS-UP: this is a hand-rolled facsimile of <Card>. The HTML/CSS below
-// mirrors src/cards/Card.module.css visually but does NOT import it — running
-// in node + Playwright via setContent() avoids the dev-server / Supabase
-// auth / route-mocking dance, but means the OG card will drift if Card's
-// styling changes (border, divider, typography, spacing, footer layout) or if
-// the design tokens move. When you redesign cards, eyeball this against the
-// current <Card> output and update the inline CSS to match. Card body text
-// is verbatim 2024 SRD (data/srd-2024-spells.raw.json -> Fireball).
+// mirrors src/cards/Card.module.css (and uses the same --print-color-* values
+// from src/index.css) but does NOT import any of it. Running in node +
+// Playwright via setContent() avoids the dev-server / Supabase auth /
+// route-mocking dance, but means the OG card will drift if the print tokens
+// move or if Card's structure changes. When you redesign cards, eyeball this
+// against the running <Card> and update inline values to match.
 //
-// Run: npx tsx scripts/generate-og.ts
+// What's faithful to a real card: print-token colors (#fff paper, #111 ink,
+// #555/#666 muted ink, #ddd/#222 borders), header tags + footer tags shape
+// derived as spellDetailToCard() would (4 header tags joined by " | "; V/S/M
+// + classes in the footer), and body text via the project's
+// `***At Higher Levels.***` formatter from src/api/mappers/spells.ts.
+// What's stylized for OG: card width is 320px (instead of the real 3.75in
+// print size), title/tag fonts are scaled up for hero-shot legibility, and
+// one descriptive clause was removed from the body for layout fit. Card body
+// text otherwise comes verbatim from data/srd-2024-spells.raw.json -> Fireball.
+//
+// Run: npx tsx scripts/generate-og.ts (or `npm run gen:og`).
 
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -20,9 +29,7 @@ import { chromium } from "@playwright/test";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const out = resolve(__dirname, "../public/og.png");
 
-const iconWidth = iconFireball.width ?? 512;
-const iconHeight = iconFireball.height ?? 512;
-const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${iconWidth} ${iconHeight}" fill="currentColor">${iconFireball.body}</svg>`;
+const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${iconFireball.width} ${iconFireball.height}" fill="currentColor">${iconFireball.body}</svg>`;
 
 const html = `<!doctype html>
 <html lang="en">
@@ -59,9 +66,9 @@ const html = `<!doctype html>
     height: 440px;
     padding: 24px;
     box-sizing: border-box;
-    background: #fffdf8;
-    color: #1a1410;
-    border: 2px solid #b8a888;
+    background: #fff;
+    color: #111;
+    border: 2px solid #222;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
@@ -73,49 +80,53 @@ const html = `<!doctype html>
     margin: 0 0 -2px 8px;
     width: 60px;
     height: 60px;
-    color: #1a1410;
+    color: #111;
   }
   .card .icon svg { width: 100%; height: 100%; display: block; }
   .card .title {
     margin: 0 0 4px;
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
     line-height: 1.15;
   }
   .card .header-tags {
     display: block;
-    font-size: 15px;
-    font-style: italic;
-    color: #6a5a45;
-    line-height: 1.2;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.25;
+  }
+  .card .header-tag { font-style: italic; }
+  .card .header-tag + .header-tag::before {
+    content: " | ";
+    white-space: pre;
+    font-style: normal;
   }
   .card .divider {
     border: 0;
-    border-top: 1px solid #d9cfc1;
-    margin: 14px 0;
+    border-top: 1px solid #ddd;
+    margin: 12px 0;
   }
   .card .body {
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.4;
-    color: #1a1410;
+    color: #111;
     flex: 1;
     overflow: hidden;
   }
-  .card .body p { margin: 0 0 10px; }
+  .card .body p { margin: 0 0 8px; }
   .card .body p:last-child { margin-bottom: 0; }
-  .card .body em { font-style: italic; }
   .card .footer {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #d9cfc1;
-    font-size: 13px;
-    color: #8a7a65;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #ddd;
+    font-size: 12px;
+    color: #666;
     flex-shrink: 0;
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
   }
-  .card .footer-right { margin-left: auto; }
+  .card .footer-tag + .footer-tag::before {
+    content: " | ";
+    white-space: pre;
+  }
 
   .text { flex: 1; color: #1a1410; }
   .text h1 {
@@ -160,7 +171,7 @@ const html = `<!doctype html>
       <div class="header">
         <div class="icon">${iconSvg}</div>
         <h3 class="title">Fireball</h3>
-        <span class="header-tags">3rd-level evocation</span>
+        <span class="header-tags"><span class="header-tag">3rd-level evocation</span><span class="header-tag">1 action</span><span class="header-tag">150 feet</span><span class="header-tag">Instantaneous</span></span>
       </div>
       <hr class="divider" />
       <div class="body">
@@ -168,7 +179,7 @@ const html = `<!doctype html>
         <p><strong><em>At Higher Levels.</em></strong> The damage increases by 1d6 for each spell slot level above 3.</p>
       </div>
       <div class="footer">
-        <span>150 ft. range</span>
+        <span class="footer-tag">V, S, M</span><span class="footer-tag">Sorcerer, Wizard</span>
       </div>
     </div>
   </div>
