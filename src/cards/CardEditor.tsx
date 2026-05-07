@@ -43,11 +43,10 @@ export function CardEditor({ card, onChange }: Props) {
   };
 
   const resolvedKey = card.iconKey ?? pickIconKey(card);
-  const showHint = card.iconKey === undefined;
-  const hintText =
+  const autoHint =
     resolvedKey === FALLBACK_ICON_KEY
-      ? "No matching icon — pick one to override."
-      : `Currently auto-picking: ${resolvedKey}`;
+      ? "No matching icon yet — auto is using the fallback. Pick one to override."
+      : `Auto chose “${resolvedKey}” based on the card’s name and tags.`;
 
   const idBase = useId();
   const ids = {
@@ -98,9 +97,13 @@ export function CardEditor({ card, onChange }: Props) {
           <span className={styles.label}>Icon</span>
           <div className={styles.iconRow}>
             <IconPreview iconKey={resolvedKey} label={resolvedKey} size="md" />
-            <IconPickerDialog id={ids.icon} value={card.iconKey} onChange={handleIconChange} />
+            <IconPickerDialog
+              id={ids.icon}
+              value={card.iconKey}
+              autoHint={autoHint}
+              onChange={handleIconChange}
+            />
           </div>
-          {showHint && <div className={styles.iconHint}>{hintText}</div>}
         </label>
       </div>
       <div className={styles.field}>

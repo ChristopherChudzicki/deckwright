@@ -4,11 +4,11 @@ import { useState } from "react";
 import { describe, expect, test } from "vitest";
 import { IconPickerDialog } from "./IconPickerDialog";
 
-function Harness({ initial }: { initial: string | undefined }) {
+function Harness({ initial, autoHint }: { initial: string | undefined; autoHint?: string }) {
   const [value, setValue] = useState<string | undefined>(initial);
   return (
     <>
-      <IconPickerDialog value={value} onChange={setValue} />
+      <IconPickerDialog value={value} autoHint={autoHint} onChange={setValue} />
       <div data-testid="value">{value === undefined ? "<auto>" : value}</div>
     </>
   );
@@ -82,5 +82,31 @@ describe("<IconPickerDialog>", () => {
     await screen.findByRole("tooltip");
     await userEvent.unhover(tile("trident"));
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  test("pre-selects the Auto tile when value is undefined", async () => {
+    render(<Harness initial={undefined} />);
+    await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
+    expect(tile(/auto/i)).toHaveAttribute("data-selected", "true");
+    expect(tile("trident")).not.toHaveAttribute("data-selected", "true");
+  });
+
+  test("pre-selects the chosen tile when value is set", async () => {
+    render(<Harness initial="trident" />);
+    await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
+    expect(tile("trident")).toHaveAttribute("data-selected", "true");
+    expect(tile(/auto/i)).not.toHaveAttribute("data-selected", "true");
+  });
+
+  test("shows autoHint inside the dialog when value is undefined", async () => {
+    render(<Harness initial={undefined} autoHint="Auto chose fireball based on name." />);
+    await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
+    expect(screen.getByText(/Auto chose fireball based on name\./)).toBeInTheDocument();
+  });
+
+  test("hides autoHint when value is set", async () => {
+    render(<Harness initial="trident" autoHint="Auto chose fireball based on name." />);
+    await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
+    expect(screen.queryByText(/Auto chose fireball/)).not.toBeInTheDocument();
   });
 });

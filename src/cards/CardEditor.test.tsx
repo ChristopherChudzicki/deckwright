@@ -101,32 +101,6 @@ describe("<CardEditor>", () => {
     expect(seen[seen.length - 1]?.iconKey).toBeUndefined();
   });
 
-  test("Auto-pick hint shows the heuristic key when iconKey is unset and rule matches", () => {
-    const card = itemCardFactory.build({
-      name: "Trident of Fish Command",
-      headerTags: ["Weapon", "rare"],
-      iconKey: undefined,
-    });
-    render(<Harness initial={card} />);
-    expect(screen.getByText(/auto-picking.*trident/i)).toBeInTheDocument();
-  });
-
-  test("Auto-pick hint hides when iconKey is set", () => {
-    const card = itemCardFactory.build({ iconKey: "broadsword" });
-    render(<Harness initial={card} />);
-    expect(screen.queryByText(/auto-picking/i)).not.toBeInTheDocument();
-  });
-
-  test("Auto-pick hint shows fallback message when the heuristic doesn't match", () => {
-    const card = itemCardFactory.build({
-      name: "Mystery Object",
-      headerTags: ["Wondrous Items", "uncommon"],
-      iconKey: undefined,
-    });
-    render(<Harness initial={card} />);
-    expect(screen.getByText(/no matching icon/i)).toBeInTheDocument();
-  });
-
   test("typing a tag and pressing Enter adds it to headerTags; clicking remove drops it", async () => {
     const card = itemCardFactory.build({ headerTags: [] });
     const seen: RenderableCard[] = [];

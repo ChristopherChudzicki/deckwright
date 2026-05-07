@@ -25,9 +25,10 @@ type Props = {
   value: string | undefined;
   onChange: (next: string | undefined) => void;
   id?: string;
+  autoHint?: string;
 };
 
-export function IconPickerDialog({ value, onChange, id }: Props) {
+export function IconPickerDialog({ value, onChange, id, autoHint }: Props) {
   const triggerLabel = value ?? "Auto";
   return (
     <DialogTrigger>
@@ -35,13 +36,17 @@ export function IconPickerDialog({ value, onChange, id }: Props) {
         id={id}
         variant="secondary"
         size="sm"
+        className={styles.trigger}
         aria-label={`Pick icon (currently ${triggerLabel})`}
       >
-        {triggerLabel} ▾
+        <span className={styles.triggerLabel}>{triggerLabel}</span>
+        <span aria-hidden="true">▾</span>
       </Button>
       <DialogShell aria-label="Pick an icon" size="lg" bleed>
         {({ close }) => (
           <PickerBody
+            value={value}
+            autoHint={autoHint}
             onChange={(next) => {
               onChange(next);
               close();
@@ -55,13 +60,16 @@ export function IconPickerDialog({ value, onChange, id }: Props) {
 }
 
 type BodyProps = {
+  value: string | undefined;
+  autoHint: string | undefined;
   onChange: (next: string | undefined) => void;
   onCancel: () => void;
 };
 
 type Hovered = { label: string; top: number; left: number };
 
-function PickerBody({ onChange, onCancel }: BodyProps) {
+function PickerBody({ value, autoHint, onChange, onCancel }: BodyProps) {
+  const selectedKey = value ?? AUTO_ID;
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [fullSetKeys, setFullSetKeys] = useState<readonly string[] | null>(null);
@@ -145,6 +153,7 @@ function PickerBody({ onChange, onCancel }: BodyProps) {
           Show all
         </Switch>
       </div>
+      {value === undefined && autoHint && <div className={styles.autoHint}>{autoHint}</div>}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: Event delegation for tile tooltip; display:contents removes the wrapper from layout entirely. */}
       <div
         className={styles.tooltipDelegationWrapper}
@@ -161,6 +170,8 @@ function PickerBody({ onChange, onCancel }: BodyProps) {
             items={items}
             layout="grid"
             selectionMode="single"
+            selectionBehavior="replace"
+            defaultSelectedKeys={[selectedKey]}
             onAction={handleAction}
           >
             {(item) => (
