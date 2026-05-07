@@ -2,9 +2,10 @@
 
 .root {
   display: grid;
-  grid-template-columns: 14rem 1fr;
+  grid-template-columns: 16rem max-content;
   gap: var(--space-5);
   align-items: start;
+  justify-content: start;
 }
 
 .sidebar {
@@ -79,7 +80,7 @@
   color: var(--color-text-muted);
 }
 
-@media (max-width: 1299px) {
+@media (max-width: 1399px) {
   .root {
     grid-template-columns: 1fr;
   }
