@@ -29,7 +29,38 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
       <div className={styles.header}>
         <div className={styles.icon} data-testid="card-icon" aria-hidden="true">
-          <ResolvedIcon iconKey={iconKey} />
+          <svg
+            className={styles.iconFrame}
+            viewBox="0 0 100 100"
+            aria-hidden="true"
+            data-testid="card-icon-frame"
+            data-frame={card.kind === "spell" ? "hex" : "square"}
+          >
+            {card.kind === "spell" ? (
+              <polygon
+                points="20,8 80,8 96,50 80,92 20,92 4,50"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinejoin="round"
+              />
+            ) : (
+              <rect
+                x="3"
+                y="3"
+                width="94"
+                height="94"
+                rx="14"
+                ry="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+              />
+            )}
+          </svg>
+          <div className={styles.iconGlyph}>
+            <ResolvedIcon iconKey={iconKey} />
+          </div>
         </div>
         <h3 className={styles.title}>{card.name}</h3>
         {isFirstPage && card.headerTags.length > 0 && (

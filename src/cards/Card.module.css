@@ -39,6 +39,23 @@
   justify-content: center;
   background: var(--print-color-paper);
   color: var(--print-color-ink);
+  position: relative;
+}
+
+.iconFrame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.iconGlyph {
+  position: absolute;
+  inset: 14%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .icon svg {
