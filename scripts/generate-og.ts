@@ -81,8 +81,22 @@ const html = `<!doctype html>
     width: 60px;
     height: 60px;
     color: #111;
+    position: relative;
   }
-  .card .icon svg { width: 100%; height: 100%; display: block; }
+  .card .icon-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .card .icon-glyph {
+    position: absolute;
+    inset: 20%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card .icon-glyph svg { width: 100%; height: 100%; display: block; }
   .card .title {
     margin: 0 0 4px;
     font-size: 24px;
@@ -169,7 +183,12 @@ const html = `<!doctype html>
   <div class="card-wrap">
     <div class="card">
       <div class="header">
-        <div class="icon">${iconSvg}</div>
+        <div class="icon">
+          <svg class="icon-frame" viewBox="0 0 100 100">
+            <polygon points="20,8 80,8 96,50 80,92 20,92 4,50" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" />
+          </svg>
+          <div class="icon-glyph">${iconSvg}</div>
+        </div>
         <h3 class="title">Fireball</h3>
         <span class="header-tags"><span class="header-tag">3rd-level evocation</span><span class="header-tag">1 action</span><span class="header-tag">150 feet</span><span class="header-tag">Instantaneous</span></span>
       </div>

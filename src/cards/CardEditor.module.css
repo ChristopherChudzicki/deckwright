@@ -22,12 +22,6 @@
   gap: var(--space-3);
 }
 
-.iconHint {
-  font-size: var(--fs-sm);
-  color: var(--color-text-muted);
-  margin-top: var(--space-1);
-}
-
 .help {
   font-size: var(--fs-xs);
   color: var(--color-text-muted);
@@ -38,9 +32,10 @@
   display: flex;
   gap: var(--space-4);
   align-items: flex-start;
+  flex-wrap: wrap;
 }
 
-.row > .field:first-child {
+.row > .nameField {
   flex: 1;
   min-width: 0;
 }

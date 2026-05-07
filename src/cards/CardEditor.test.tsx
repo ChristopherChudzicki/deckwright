@@ -101,32 +101,6 @@ describe("<CardEditor>", () => {
     expect(seen[seen.length - 1]?.iconKey).toBeUndefined();
   });
 
-  test("Auto-pick hint shows the heuristic key when iconKey is unset and rule matches", () => {
-    const card = itemCardFactory.build({
-      name: "Trident of Fish Command",
-      headerTags: ["Weapon", "rare"],
-      iconKey: undefined,
-    });
-    render(<Harness initial={card} />);
-    expect(screen.getByText(/auto-picking.*trident/i)).toBeInTheDocument();
-  });
-
-  test("Auto-pick hint hides when iconKey is set", () => {
-    const card = itemCardFactory.build({ iconKey: "broadsword" });
-    render(<Harness initial={card} />);
-    expect(screen.queryByText(/auto-picking/i)).not.toBeInTheDocument();
-  });
-
-  test("Auto-pick hint hides when the heuristic falls back (no meaningful match)", () => {
-    const card = itemCardFactory.build({
-      name: "Mystery Object",
-      headerTags: ["Wondrous Items", "uncommon"],
-      iconKey: undefined,
-    });
-    render(<Harness initial={card} />);
-    expect(screen.queryByText(/auto-picking/i)).not.toBeInTheDocument();
-  });
-
   test("typing a tag and pressing Enter adds it to headerTags; clicking remove drops it", async () => {
     const card = itemCardFactory.build({ headerTags: [] });
     const seen: RenderableCard[] = [];
@@ -176,10 +150,33 @@ describe("<CardEditor>", () => {
     expect(screen.getByText(/suggested order: rarity, cost, weight/i)).toBeInTheDocument();
   });
 
-  test("Name and Icon controls share a row container", () => {
+  test("switching Type from Item to Spell updates kind without losing other fields", async () => {
+    const card = itemCardFactory.build();
+    const seen: RenderableCard[] = [];
+    render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
+
+    const itemRadio = screen.getByRole("radio", { name: "Item" });
+    const spellRadio = screen.getByRole("radio", { name: "Spell" });
+    expect(itemRadio).toBeChecked();
+    expect(spellRadio).not.toBeChecked();
+
+    await userEvent.click(spellRadio);
+
+    const last = seen[seen.length - 1];
+    expect(last?.kind).toBe("spell");
+    expect(last?.name).toBe(card.name);
+    expect(last?.body).toBe(card.body);
+    expect(last?.iconKey).toBe(card.iconKey);
+    expect(last?.headerTags).toEqual(card.headerTags);
+    expect(last?.footerTags).toEqual(card.footerTags);
+    expect(spellRadio).toBeChecked();
+  });
+
+  test("Type, Name, and Icon controls share a row container", () => {
     const card = itemCardFactory.build();
     render(<Harness initial={card} />);
 
+    const typeRadio = screen.getByRole("radio", { name: "Item" });
     const nameField = screen.getByLabelText(/name/i).closest("label");
     const iconField = screen.getByRole("button", { name: /pick icon/i }).closest("label");
 
@@ -187,6 +184,7 @@ describe("<CardEditor>", () => {
     expect(iconField).not.toBeNull();
     expect(nameField?.parentElement).toBe(iconField?.parentElement);
     expect(nameField?.parentElement?.tagName).toBe("DIV");
+    expect(nameField?.parentElement?.contains(typeRadio)).toBe(true);
   });
 });
 

@@ -1,7 +1,7 @@
 import styles from "./Card.module.css";
+import { FramedIcon } from "./FramedIcon";
 import { pickIconKey } from "./iconRules";
 import { renderBody } from "./renderBody";
-import { ResolvedIcon } from "./resolveIcon";
 import type { RenderableCard } from "./types";
 
 export type CardsPerPage = 2 | 4;
@@ -29,7 +29,7 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
       <div className={styles.header}>
         <div className={styles.icon} data-testid="card-icon" aria-hidden="true">
-          <ResolvedIcon iconKey={iconKey} />
+          <FramedIcon kind={card.kind} iconKey={iconKey} />
         </div>
         <h3 className={styles.title}>{card.name}</h3>
         {isFirstPage && card.headerTags.length > 0 && (

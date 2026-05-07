@@ -1,7 +1,7 @@
 import type { CardsPerPage } from "./Card";
 import styles from "./CardBack.module.css";
+import { FramedIcon } from "./FramedIcon";
 import { pickIconKey } from "./iconRules";
-import { ResolvedIcon } from "./resolveIcon";
 import type { RenderableCard } from "./types";
 
 type Props = {
@@ -21,7 +21,7 @@ export function CardBack({ card, cardsPerPage }: Props) {
       data-icon-key={iconKey}
     >
       <div className={styles.icon} aria-hidden="true">
-        <ResolvedIcon iconKey={iconKey} />
+        <FramedIcon kind={card.kind} iconKey={iconKey} />
       </div>
     </div>
   );

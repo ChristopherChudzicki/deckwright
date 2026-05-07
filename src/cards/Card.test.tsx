@@ -73,6 +73,22 @@ describe("<Card>", () => {
     const slot = screen.getByTestId("card-icon");
     expect(slot.querySelector("svg")).not.toBeNull();
   });
+
+  test("renders a rounded-square frame for an item card", () => {
+    const card = itemCardFactory.build();
+    render(<Card card={card} cardsPerPage={4} />);
+    const frame = screen.getByTestId("card-icon-frame");
+    expect(frame).toHaveAttribute("data-frame", "square");
+    expect(frame.querySelector("rect")).not.toBeNull();
+  });
+
+  test("renders a hexagon frame for a spell card", () => {
+    const card = spellCardFactory.build();
+    render(<Card card={card} cardsPerPage={4} />);
+    const frame = screen.getByTestId("card-icon-frame");
+    expect(frame).toHaveAttribute("data-frame", "hex");
+    expect(frame.querySelector("polygon")).not.toBeNull();
+  });
 });
 
 describe("<Card> with pagination", () => {

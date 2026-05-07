@@ -39,6 +39,7 @@
   justify-content: center;
   background: var(--print-color-paper);
   color: var(--print-color-ink);
+  position: relative;
 }
 
 .icon svg {
