@@ -96,7 +96,12 @@ export function CardEditor({ card, onChange }: Props) {
             <IconPreview iconKey={resolvedKey} label={resolvedKey} size="md" />
             <IconPickerDialog id={ids.icon} value={card.iconKey} onChange={handleIconChange} />
           </div>
-          {showHint && <div className={styles.iconHint}>Currently auto-picking: {resolvedKey}</div>}
+          <div
+            className={`${styles.iconHint} ${showHint ? "" : styles.iconHintHidden}`}
+            aria-hidden={!showHint}
+          >
+            Currently auto-picking: {resolvedKey}
+          </div>
         </label>
       </div>
       <div className={styles.field}>

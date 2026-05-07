@@ -108,13 +108,14 @@ describe("<CardEditor>", () => {
       iconKey: undefined,
     });
     render(<Harness initial={card} />);
-    expect(screen.getByText(/auto-picking.*trident/i)).toBeInTheDocument();
+    const hint = screen.getByText(/auto-picking.*trident/i);
+    expect(hint).toHaveAttribute("aria-hidden", "false");
   });
 
   test("Auto-pick hint hides when iconKey is set", () => {
     const card = itemCardFactory.build({ iconKey: "broadsword" });
     render(<Harness initial={card} />);
-    expect(screen.queryByText(/auto-picking/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/auto-picking/i)).toHaveAttribute("aria-hidden", "true");
   });
 
   test("Auto-pick hint hides when the heuristic falls back (no meaningful match)", () => {
@@ -124,7 +125,7 @@ describe("<CardEditor>", () => {
       iconKey: undefined,
     });
     render(<Harness initial={card} />);
-    expect(screen.queryByText(/auto-picking/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/auto-picking/i)).toHaveAttribute("aria-hidden", "true");
   });
 
   test("typing a tag and pressing Enter adds it to headerTags; clicking remove drops it", async () => {
