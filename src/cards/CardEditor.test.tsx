@@ -108,24 +108,23 @@ describe("<CardEditor>", () => {
       iconKey: undefined,
     });
     render(<Harness initial={card} />);
-    const hint = screen.getByText(/auto-picking.*trident/i);
-    expect(hint).toHaveAttribute("aria-hidden", "false");
+    expect(screen.getByText(/auto-picking.*trident/i)).toBeInTheDocument();
   });
 
   test("Auto-pick hint hides when iconKey is set", () => {
     const card = itemCardFactory.build({ iconKey: "broadsword" });
     render(<Harness initial={card} />);
-    expect(screen.getByText(/auto-picking/i)).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText(/auto-picking/i)).not.toBeInTheDocument();
   });
 
-  test("Auto-pick hint hides when the heuristic falls back (no meaningful match)", () => {
+  test("Auto-pick hint shows fallback message when the heuristic doesn't match", () => {
     const card = itemCardFactory.build({
       name: "Mystery Object",
       headerTags: ["Wondrous Items", "uncommon"],
       iconKey: undefined,
     });
     render(<Harness initial={card} />);
-    expect(screen.getByText(/auto-picking/i)).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText(/no matching icon/i)).toBeInTheDocument();
   });
 
   test("typing a tag and pressing Enter adds it to headerTags; clicking remove drops it", async () => {

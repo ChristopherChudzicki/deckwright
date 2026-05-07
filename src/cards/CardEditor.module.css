@@ -28,10 +28,6 @@
   margin-top: var(--space-1);
 }
 
-.iconHintHidden {
-  visibility: hidden;
-}
-
 .help {
   font-size: var(--fs-xs);
   color: var(--color-text-muted);

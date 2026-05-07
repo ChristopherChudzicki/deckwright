@@ -43,7 +43,11 @@ export function CardEditor({ card, onChange }: Props) {
   };
 
   const resolvedKey = card.iconKey ?? pickIconKey(card);
-  const showHint = card.iconKey === undefined && resolvedKey !== FALLBACK_ICON_KEY;
+  const showHint = card.iconKey === undefined;
+  const hintText =
+    resolvedKey === FALLBACK_ICON_KEY
+      ? "No matching icon — pick one to override."
+      : `Currently auto-picking: ${resolvedKey}`;
 
   const idBase = useId();
   const ids = {
@@ -96,12 +100,7 @@ export function CardEditor({ card, onChange }: Props) {
             <IconPreview iconKey={resolvedKey} label={resolvedKey} size="md" />
             <IconPickerDialog id={ids.icon} value={card.iconKey} onChange={handleIconChange} />
           </div>
-          <div
-            className={`${styles.iconHint} ${showHint ? "" : styles.iconHintHidden}`}
-            aria-hidden={!showHint}
-          >
-            Currently auto-picking: {resolvedKey}
-          </div>
+          {showHint && <div className={styles.iconHint}>{hintText}</div>}
         </label>
       </div>
       <div className={styles.field}>
