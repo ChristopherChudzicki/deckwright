@@ -94,6 +94,10 @@
   margin: 0 auto;
 }
 
+.main:has([data-print-view]) {
+  max-width: 1400px;
+}
+
 @media print {
   .header {
     display: none;
