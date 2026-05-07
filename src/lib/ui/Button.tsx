@@ -2,7 +2,7 @@ import { Button as RACButton, type ButtonProps as RACButtonProps } from "react-a
 import styles from "./Button.module.css";
 
 export type ButtonVariant = "primary" | "secondary" | "danger";
-export type ButtonSize = "sm" | "md";
+export type ButtonSize = "sm" | "md" | "lg";
 
 export type ButtonProps = Omit<RACButtonProps, "className"> & {
   variant?: ButtonVariant;
