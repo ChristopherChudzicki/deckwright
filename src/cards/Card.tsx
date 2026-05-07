@@ -1,7 +1,7 @@
 import styles from "./Card.module.css";
+import { FramedIcon } from "./FramedIcon";
 import { pickIconKey } from "./iconRules";
 import { renderBody } from "./renderBody";
-import { ResolvedIcon } from "./resolveIcon";
 import type { RenderableCard } from "./types";
 
 export type CardsPerPage = 2 | 4;
@@ -24,44 +24,12 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
   const bodyText = bodyOverride ?? card.body;
   const showFooterTags = isFirstPage && card.footerTags.length > 0;
   const showFooter = showFooterTags || pagination !== undefined;
-  const isSpell = card.kind === "spell";
 
   return (
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
       <div className={styles.header}>
         <div className={styles.icon} data-testid="card-icon" aria-hidden="true">
-          <svg
-            className={styles.iconFrame}
-            viewBox="0 0 100 100"
-            aria-hidden="true"
-            data-testid="card-icon-frame"
-            data-frame={isSpell ? "hex" : "square"}
-          >
-            {isSpell ? (
-              <polygon
-                points="20,8 80,8 96,50 80,92 20,92 4,50"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinejoin="round"
-              />
-            ) : (
-              <rect
-                x="3"
-                y="3"
-                width="94"
-                height="94"
-                rx="14"
-                ry="14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-              />
-            )}
-          </svg>
-          <div className={styles.iconGlyph}>
-            <ResolvedIcon iconKey={iconKey} />
-          </div>
+          <FramedIcon kind={card.kind} iconKey={iconKey} />
         </div>
         <h3 className={styles.title}>{card.name}</h3>
         {isFirstPage && card.headerTags.length > 0 && (
