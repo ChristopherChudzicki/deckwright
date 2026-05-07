@@ -23,7 +23,6 @@ type AutofitState =
 
 export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
   const layoutClass = cardsPerPage === 4 ? styles.perPage4 : styles.perPage2;
-  const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [autofit, setAutofit] = useState<AutofitState>({ kind: "unmeasured" });
@@ -60,10 +59,6 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
       ? { fontSize: `${autofit.scale}em` }
       : undefined;
 
-  // Treat empty string the same as undefined: rendering <img src=""> makes the
-  // browser refetch the document URL, which doesn't fire onError reliably and
-  // leaves the styled-but-empty image element visible instead of falling back.
-  const showImage = !!card.imageUrl && brokenUrl !== card.imageUrl;
   const iconKey = card.iconKey ?? pickIconKey(card);
 
   const isFirstPage = !pagination || pagination.page === 1;
@@ -74,19 +69,9 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
   return (
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
       <div className={styles.header}>
-        {showImage ? (
-          <img
-            className={styles.image}
-            src={card.imageUrl}
-            alt=""
-            data-testid="card-image"
-            onError={() => setBrokenUrl(card.imageUrl ?? null)}
-          />
-        ) : (
-          <div className={styles.icon} data-testid="card-icon" aria-hidden="true">
-            <ResolvedIcon iconKey={iconKey} />
-          </div>
-        )}
+        <div className={styles.icon} data-testid="card-icon" aria-hidden="true">
+          <ResolvedIcon iconKey={iconKey} />
+        </div>
         <h3 className={styles.title} ref={titleRef} style={titleStyle}>
           {card.name}
         </h3>

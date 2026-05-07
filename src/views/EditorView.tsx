@@ -19,7 +19,6 @@ const isPristineNewCard = (card: ItemCard): boolean =>
   card.headerTags.length === 0 &&
   card.body === "" &&
   card.footerTags.length === 0 &&
-  card.imageUrl === undefined &&
   card.createdAt === card.updatedAt;
 
 type Bucket = { perPage: number; count: number };

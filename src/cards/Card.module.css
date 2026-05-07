@@ -29,18 +29,6 @@
   --card-height: 7.5in;
 }
 
-.image {
-  float: right;
-  margin: 0 0 -0.1em 0.4em;
-  width: 3em;
-  height: 3em;
-  background: var(--print-color-image-bg);
-  border: 1px solid var(--print-color-image-frame);
-  border-radius: 0.2em;
-  object-fit: cover;
-  display: block;
-}
-
 .icon {
   float: right;
   margin: 0 0 -0.1em 0.4em;

@@ -10,7 +10,6 @@ const baseCardSchema = z.object({
   id: z.string(),
   name: z.string(),
   body: z.string(),
-  imageUrl: z.string().optional(),
   source: z.enum(["custom", "api"]),
   apiRef: apiRefSchema.optional(),
   createdAt: z.string(),

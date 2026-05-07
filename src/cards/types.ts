@@ -4,7 +4,6 @@ export type BaseCard = {
   id: CardId;
   name: string;
   body: string;
-  imageUrl?: string;
   source: "custom" | "api";
   apiRef?: { system: "open5e"; slug: string; ruleset: "2014" | "2024" };
   createdAt: string;

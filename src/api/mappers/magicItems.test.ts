@@ -60,11 +60,10 @@ describe("magicItemDetailToCard", () => {
     });
   });
 
-  test("source is 'api' and imageUrl is undefined (Open5e magicitems has no image field)", () => {
+  test("source is 'api'", () => {
     const detail = magicItemDetailFactory.build();
     const card = magicItemDetailToCard(detail);
     expect(card.source).toBe("api");
-    expect(card.imageUrl).toBeUndefined();
   });
 
   test("weapon non-null → header includes damage tag with lowercased damage type", () => {
