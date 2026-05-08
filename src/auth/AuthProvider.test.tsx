@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
 import { AuthProvider } from "./AuthProvider";
 import { useSession } from "./useSession";
@@ -32,5 +32,30 @@ describe("AuthProvider", () => {
       expect(screen.getByTestId("status").textContent).toBe("unauthenticated");
     });
     expect(screen.getByTestId("user-id").textContent).toBe("anon");
+  });
+});
+
+describe("AuthProvider with anon flag on", () => {
+  beforeEach(async () => {
+    await supabase.auth.signOut();
+    vi.stubEnv("VITE_ANON_USERS_ENABLED", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("calls signInAnonymously and transitions to authenticated, never unauthenticated", async () => {
+    const spy = vi.spyOn(supabase.auth, "signInAnonymously");
+    render(
+      <AuthProvider>
+        <ShowSession />
+      </AuthProvider>,
+    );
+    expect(screen.getByTestId("status").textContent).toBe("loading");
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(screen.getByTestId("status").textContent).toBe("authenticated");
+    });
   });
 });

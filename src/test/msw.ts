@@ -51,6 +51,21 @@ export const supabaseDefaultHandlers = [
     });
   }),
   http.post(`${SB_URL}/auth/v1/logout`, () => new HttpResponse(null, { status: 204 })),
+  http.post(`${SB_URL}/auth/v1/signup`, async ({ request }) => {
+    // The Supabase client calls /signup with no email/password for
+    // signInAnonymously(); we only mock that anon-signup case here.
+    const body = (await request.json()) as { email?: string; password?: string };
+    if (body.email || body.password) {
+      return new HttpResponse("only anon signup mocked", { status: 400 });
+    }
+    return HttpResponse.json({
+      access_token: "fake-anon-jwt",
+      refresh_token: "fake-anon-refresh",
+      token_type: "bearer",
+      expires_in: 3600,
+      user: { id: "anon-test-id", is_anonymous: true, email: null },
+    });
+  }),
 ];
 
 // Pass the defaults to setupServer so they survive `server.resetHandlers()`
