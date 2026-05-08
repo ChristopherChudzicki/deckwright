@@ -44,7 +44,7 @@ describe("<Announcement>", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Signed in");
   });
 
-  it("auto-dismisses after 5 seconds", async () => {
+  it("auto-dismisses after 10 seconds", async () => {
     const user = userEvent.setup();
     render(
       <AnnouncementProvider>
@@ -55,7 +55,11 @@ describe("<Announcement>", () => {
     await user.click(screen.getByText("set"));
     expect(screen.getByRole("status")).toBeInTheDocument();
     act(() => {
-      vi.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(9000);
+    });
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1000);
     });
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });

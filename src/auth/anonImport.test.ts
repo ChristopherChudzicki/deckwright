@@ -44,9 +44,11 @@ type FakeSupabase = {
   decks: { ownerId: string; id: string; name: string }[];
   cards: { id: string; deck_id: string; position: number; payload: unknown }[];
   inserts: { decks: unknown[]; cards: unknown[] };
+  insertResults?: { table: string; error: Error | null }[];
 };
 
 function makeFakeSupabase(initial: FakeSupabase) {
+  let insertCallCount = 0;
   return {
     state: initial,
     from(table: string) {
@@ -75,6 +77,15 @@ function makeFakeSupabase(initial: FakeSupabase) {
         },
         insert(rows: unknown) {
           state.inserts[table as "decks" | "cards"].push(rows);
+          const callNum = insertCallCount++;
+          const resultConfig = state.insertResults?.[callNum];
+          if (resultConfig?.error) {
+            return {
+              select: () => ({
+                single: () => Promise.resolve({ data: null, error: resultConfig.error }),
+              }),
+            };
+          }
           return {
             select() {
               return {
@@ -141,5 +152,26 @@ describe("tryResume", () => {
     const fake = makeFakeSupabase({ decks: [], cards: [], inserts: { decks: [], cards: [] } });
     const result = await tryResume({ supabase: fake as never, currentUserId: "real-1" });
     expect(result).toEqual({ kind: "noop" });
+  });
+
+  it("returns partial and re-stashes when deck insert fails mid-loop", async () => {
+    stash({ version: 1, anonUuid: "anon-1", importedDeckIds: [] });
+    const fake = makeFakeSupabase({
+      decks: [
+        { ownerId: "anon-1", id: "d1", name: "First" },
+        { ownerId: "anon-1", id: "d2", name: "Second" },
+      ],
+      cards: [],
+      inserts: { decks: [], cards: [] },
+      insertResults: [
+        { table: "decks", error: null },
+        { table: "decks", error: new Error("boom") },
+      ],
+    });
+    const result = await tryResume({ supabase: fake as never, currentUserId: "real-1" });
+    expect(result).toEqual({ kind: "partial", importedCount: 1, total: 2 });
+    const stashed = readPending();
+    expect(stashed).not.toBeNull();
+    expect(stashed?.importedDeckIds).toEqual(["d1"]);
   });
 });

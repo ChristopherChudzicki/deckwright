@@ -26,6 +26,8 @@ function wrap(ui: ReactNode, session: SessionState) {
   );
 }
 
+let originalLocation: PropertyDescriptor | undefined;
+
 function setLocation(opts: { hash?: string; search?: string; origin?: string }) {
   Object.defineProperty(window, "location", {
     writable: true,
@@ -40,10 +42,14 @@ function setLocation(opts: { hash?: string; search?: string; origin?: string }) 
 
 describe("AuthCallback", () => {
   beforeEach(() => {
+    originalLocation = Object.getOwnPropertyDescriptor(window, "location");
     navigate.mockClear();
     window.localStorage.clear();
   });
   afterEach(() => {
+    if (originalLocation) {
+      Object.defineProperty(window, "location", originalLocation);
+    }
     vi.restoreAllMocks();
   });
 

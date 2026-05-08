@@ -9,7 +9,7 @@ import {
 } from "react";
 import styles from "./Announcement.module.css";
 
-const AUTO_DISMISS_MS = 5000;
+const AUTO_DISMISS_MS = 10000;
 
 type Slot = { message: string | null };
 type Subscriber = () => void;
