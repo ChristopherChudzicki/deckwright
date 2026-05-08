@@ -124,7 +124,7 @@ Dialog copy (uses existing `DialogShell` / `DialogHeader`). Note: Supabase does 
 
 The primary action is the styled button; "Skip" is a tertiary text-link styled to be visually de-emphasized so a hurried user can't equate it with the import action. The destructive consequence is named explicitly above the buttons.
 
-- **Import branch:** Persist `{ anonUuid, importedDeckIds: [] }` under `localStorage.dndCards.pendingAnonImport`, then `signOut()` and `signInWithOAuth({ provider })`. After OAuth lands the user as the existing real user, `anonImport.tryResume()` runs (see invocation rules below): SELECT decks where `owner_id = anonUuid` (public read), then SELECT their cards. For each deck not already in `importedDeckIds`: INSERT a new deck owned by the current user with the same name; INSERT clones of its cards under the new deck id; append the original deck id to `importedDeckIds` and persist back to localStorage. When the list is complete, clear the key. Toast "Imported N decks."
+- **Import branch:** Persist `{ anonUuid, importedDeckIds: [] }` under `localStorage.dndCards.pendingAnonImport`, then `signOut()` and `signInWithOAuth({ provider })`. After OAuth lands the user as the existing real user, `anonImport.tryResume()` runs (see invocation rules below): SELECT decks where `owner_id = anonUuid` (public read), then SELECT their cards. For each deck not already in `importedDeckIds`: INSERT a new deck owned by the current user with the same name; INSERT clones of its cards under the new deck id; append the original deck id to `importedDeckIds` and persist back to localStorage. When the list is complete, clear the key. The user lands on `next` and sees an Announcement: "Imported N decks."
 - **Sign in without importing branch:** `signOut()` and `signInWithOAuth({ provider })`. localStorage is not touched. The anon's decks are abandoned.
 
 In both branches of this dialog the user goes through OAuth twice (once for the failed link, once for the actual sign-in). That's unavoidable: linkIdentity needs a real OAuth round-trip to discover the conflict, and we can't reuse the failed attempt as a sign-in. The deck-count branch above keeps this 2-round-trip path confined to the case where there's actually data to merge — which is precisely when the user wants the dialog anyway.
@@ -232,8 +232,23 @@ Behavior:
 
 - Renders a single message at the top of its container (above the deck list when triggered from HomeView; above the page content otherwise).
 - Auto-dismisses after ~5 seconds; user can also dismiss via a small ✕ button.
-- Implemented as a controlled component: parent passes `message` and `onDismiss`. State for "show me an announcement on next render" is held in a small `AnnouncementContext` keyed off router state, so triggering an announcement from `AuthCallback` and rendering it on the destination view doesn't require global state plumbing.
 - Accessible: `role="status"` with `aria-live="polite"` so the message is announced to screen readers without interrupting them.
+
+API surface (in `Announcement.tsx`):
+
+```ts
+export function AnnouncementProvider(props: { children: ReactNode }): JSX.Element;
+
+// Set the next announcement to render. Call from AuthCallback before navigating.
+// The announcement renders the next time <Announcement /> mounts (on the destination view).
+export function useSetNextAnnouncement(): (message: string | null) => void;
+
+// Render the active announcement (if any) at this location.
+// Place inside HomeView (above deck list) and inside the LoginView for auth flows that stay on /login.
+export function Announcement(): JSX.Element | null;
+```
+
+State lives in a small in-memory context (no router-state coupling needed): `useSetNextAnnouncement` writes to a ref-backed slot; `<Announcement />` reads it on mount, displays it, and clears the slot. Surviving an OAuth round-trip is not needed because all current call sites set the announcement *after* the OAuth round-trip is complete (during `AuthCallback` rendering).
 
 Scope is deliberately small — this is not a queueable toast system. One message at a time, replaced if a new one is set. If we ever need a queue or multiple stacking notifications, we revisit.
 
@@ -285,13 +300,13 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 | `src/auth/AuthProvider.tsx` | Modify `INITIAL_SESSION` handler to call `signInAnonymously()` and stay loading |
 | `src/auth/AuthProvider.test.tsx` | New cases for the flag-on path |
 | `src/lib/ui/UserMenu.tsx` | Branch on `is_anonymous` for the CTA pill |
-| `src/lib/ui/UserMenu.module.css` | Pill button styling (or reuse `Button` accent variant) |
+| `src/lib/ui/UserMenu.module.css` | New `.pillCta` class for the accent pill button |
 | `src/lib/ui/UserMenu.test.tsx` | New cases for anon CTA |
 | `src/auth/LoginView.tsx` | OAuth buttons branch on anon deck count: 0 → `signInWithOAuth`; ≥1 → `linkIdentity`. Dev path uses `updateUser` |
 | `src/auth/LoginView.test.tsx` | New cases for the link path |
 | `src/auth/AuthCallback.tsx` | Parse callback URL hash/query for `error_code=identity_already_exists`; open import dialog. Render import progress when `pendingAnonImport` exists. |
 | `src/auth/AuthCallback.test.tsx` | New cases for the failure path and dialog |
-| `src/auth/anonImport.ts` (new) | Pure module: stash, resume, clear `pendingAnonImport` |
+| `src/auth/anonImport.ts` (new) | Pure module exporting `stash(payload)`, `tryResume()`, `clear()`, and the `PendingAnonImport` type. Manages the `localStorage.dndCards.pendingAnonImport` key. |
 | `src/auth/anonImport.test.ts` (new) | Unit tests including resumable interruption |
 | `src/views/FirstDeckDialog.tsx` (new) | Modal explainer using `DialogShell` |
 | `src/views/FirstDeckDialog.test.tsx` (new) | First-create-only behavior |
