@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type ChangeEvent, useRef } from "react";
+import { type ChangeEvent, useEffect, useRef } from "react";
 import { useSession } from "../auth/useSession";
 import { parseDeckJson } from "../decks/io";
 import { useCreateDeck, useDeleteDeck, useSaveCard } from "../decks/mutations";
@@ -22,19 +22,13 @@ export function HomeView() {
   const saveCard = useSaveCard();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (session.status === "loading") return null;
+  useEffect(() => {
+    if (session.status === "unauthenticated") {
+      navigate({ to: "/login" });
+    }
+  }, [session.status, navigate]);
 
-  if (session.status === "unauthenticated") {
-    return (
-      <section className={styles.splash}>
-        <h2>D&amp;D Cards</h2>
-        <p>Sign in to create and edit decks. Anyone can view shared decks via link.</p>
-        <Link to="/login" className={styles.cta}>
-          Sign in
-        </Link>
-      </section>
-    );
-  }
+  if (session.status !== "authenticated") return null;
 
   const handleImport = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
