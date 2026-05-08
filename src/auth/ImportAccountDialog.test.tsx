@@ -20,6 +20,12 @@ describe("<ImportAccountDialog>", () => {
     expect(screen.getByText(/cannot be recovered/i)).toBeInTheDocument();
   });
 
+  it("uses the singular form when deckCount is 1", () => {
+    render(<ImportAccountDialog isOpen deckCount={1} onImport={() => {}} onSkip={() => {}} />);
+    expect(screen.getByText(/bring your/)).toHaveTextContent("1 deck");
+    expect(screen.getByRole("button", { name: /yes, import 1 deck$/i })).toBeInTheDocument();
+  });
+
   it("calls onImport when the primary action is clicked", async () => {
     const onImport = vi.fn();
     render(<ImportAccountDialog isOpen deckCount={2} onImport={onImport} onSkip={() => {}} />);
@@ -31,6 +37,20 @@ describe("<ImportAccountDialog>", () => {
     const onSkip = vi.fn();
     render(<ImportAccountDialog isOpen deckCount={2} onImport={() => {}} onSkip={onSkip} />);
     await userEvent.click(screen.getByRole("button", { name: /skip — leave decks behind/i }));
+    expect(onSkip).toHaveBeenCalled();
+  });
+
+  it("calls onSkip when the dialog is dismissed via Escape", async () => {
+    const onSkip = vi.fn();
+    render(<ImportAccountDialog isOpen deckCount={2} onImport={() => {}} onSkip={onSkip} />);
+    await userEvent.keyboard("{Escape}");
+    expect(onSkip).toHaveBeenCalled();
+  });
+
+  it("calls onSkip when the close (X) button is clicked", async () => {
+    const onSkip = vi.fn();
+    render(<ImportAccountDialog isOpen deckCount={2} onImport={() => {}} onSkip={onSkip} />);
+    await userEvent.click(screen.getByRole("button", { name: /close/i }));
     expect(onSkip).toHaveBeenCalled();
   });
 });

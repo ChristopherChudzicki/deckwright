@@ -91,7 +91,7 @@ describe("AuthCallback", () => {
         session: {} as never,
       }),
     );
-    await userEvent.click(await screen.findByRole("button", { name: /yes, import 1 decks/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /yes, import 1 deck$/i }));
     const stash = window.localStorage.getItem("dndCards.pendingAnonImport");
     expect(stash).not.toBeNull();
     expect(JSON.parse(stash as string)).toMatchObject({ anonUuid: "anon-1", importedDeckIds: [] });

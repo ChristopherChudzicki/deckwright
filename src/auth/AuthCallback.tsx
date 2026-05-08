@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "../api/supabase";
+import { pluralize } from "../lib/pluralize";
 import { useSetNextAnnouncement } from "../lib/ui/Announcement";
 import { clear, readPending, stash, tryResume } from "./anonImport";
 import { ImportAccountDialog } from "./ImportAccountDialog";
@@ -69,10 +70,10 @@ export function AuthCallback() {
           });
           if (cancelled) return;
           if (result.kind === "completed" && result.importedCount > 0) {
-            setAnnouncement(`Imported ${result.importedCount} decks`);
+            setAnnouncement(`Imported ${pluralize(result.importedCount, "deck")}`);
           } else if (result.kind === "partial") {
             setAnnouncement(
-              `Imported ${result.importedCount} of ${result.total} decks. We'll try again next time you sign in.`,
+              `Imported ${result.importedCount} of ${pluralize(result.total, "deck")}. We'll try again next time you sign in.`,
             );
           }
           window.localStorage.removeItem("dndCards.lastProvider");
