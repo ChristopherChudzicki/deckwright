@@ -108,12 +108,14 @@ User is anon with N decks. Clicks "Sign in to save your work" in the header CTA.
 
 ### Already-linked branch: linkIdentity fails (anon has decks, existing account on this provider)
 
-If the user's OAuth identity is already attached to a different account, `linkIdentity` returns an error on the callback. We don't pin to a specific error code — any failure routes to the same dialog. The user is still anon (linking failed; session is unchanged).
+If the user's OAuth identity is already attached to a different account, the OAuth callback URL comes back with `error_code=identity_already_exists` and an `error_description` query/hash param. The error is **not** surfaced via `onAuthStateChange` and **not** thrown by the original `linkIdentity()` call — it lives only in the callback URL. `AuthCallback` must explicitly parse the URL to detect this case (anything other than `error_code === "identity_already_exists"` we treat as a generic OAuth failure; see "OAuth failure modes" below).
 
-Dialog copy (uses existing `DialogShell` / `DialogHeader`). The conflicting email is read from the failed-link response (Supabase exposes the OAuth identity's email even on link failure):
+The user remains anon (linking failed; session is unchanged), so RLS continues to permit reading their decks and cards.
+
+Dialog copy (uses existing `DialogShell` / `DialogHeader`). Note: Supabase does **not** expose the conflicting account's email in the failure response, so the dialog can't name it directly:
 
 > **You already have a dnd-cards account**
-> Looks like {email} is already signed up here. Want to bring your N decks into that account?
+> An account on dnd-cards is already linked to that Google identity. Want to bring your N decks into it?
 >
 > If you skip, those decks will be left behind and deleted after 30 days. They cannot be recovered.
 >
@@ -180,10 +182,11 @@ Beyond the already-linked branch, `linkIdentity` and `signInWithOAuth` can fail 
 
 The existing dev sign-in button does `signInWithPassword(DEV_EMAIL, DEV_PASSWORD)` and on first run does `signUp(...)`. With anon-as-default the user is already anon when they click it. The new path:
 
-1. Try `updateUser({ email: DEV_EMAIL, password: DEV_PASSWORD })` — upgrades the anon user in place, preserving the UUID and decks.
-2. On error (e.g., email already exists from a previous dev session): `signOut()` then `signInWithPassword(...)`. Decks are abandoned, same as today.
+1. Call `updateUser({ email: DEV_EMAIL })`. With `enable_confirmations = false` in `supabase/config.toml`, this auto-sets `email_confirmed_at` and flips `is_anonymous` to false synchronously, preserving the UUID and decks.
+2. **Then** call `updateUser({ password: DEV_PASSWORD })` as a separate call — Supabase rejects setting a password on an anonymous user before the email lands, so the two updates must be sequential, not bundled into one call.
+3. On error from either step (e.g., email already exists from a previous dev session): `signOut()` then `signInWithPassword(...)`. Decks are abandoned, same as today.
 
-`enable_confirmations = false` in `supabase/config.toml` already lets `updateUser` complete without an email round-trip locally.
+The single-call path (`updateUser({ email, password })` in one go) appears to work in some Supabase versions due to a known bug; do not rely on it.
 
 ## UI changes
 
@@ -240,23 +243,65 @@ A corresponding toggle in the Supabase dashboard for prod.
 
 ### Migration: anonymous-user cleanup
 
+Two non-obvious gotchas to design around:
+
+1. **`postgres` role can't `DELETE` from `auth.users`.** That table is owned by `supabase_auth_admin`. The cron job runs as the role that called `cron.schedule()` (typically `postgres`), so the bare `DELETE` will fail with a permission error. We wrap the delete in a `SECURITY DEFINER` function created by `supabase_auth_admin` and have the cron call the function.
+2. **`auth.users.last_sign_in_at` does not update on token refresh.** A returning anon user whose tokens auto-refresh in the background still has the same `last_sign_in_at` from their initial signin — gating cleanup on this column would reap actively-used accounts at 30 days. The correct activity signal is `auth.sessions.updated_at`, which the auth server bumps whenever a refresh happens.
+
 New migration `supabase/migrations/<timestamp>_anon_user_cleanup.sql`:
 
 ```sql
 create extension if not exists pg_cron;
 
+create or replace function auth.delete_stale_anonymous_users()
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  deleted_count integer;
+begin
+  with stale as (
+    select u.id
+    from auth.users u
+    where u.is_anonymous is true
+      and u.id is not null
+      and not exists (
+        select 1
+        from auth.sessions s
+        where s.user_id = u.id
+          and s.updated_at > now() - interval '30 days'
+      )
+    limit 1000
+  ),
+  deleted as (
+    delete from auth.users
+    where id in (select id from stale)
+    returning 1
+  )
+  select count(*) into deleted_count from deleted;
+  return deleted_count;
+end;
+$$;
+
+-- The function must be owned by supabase_auth_admin so SECURITY DEFINER
+-- runs with that role's privileges over auth.users.
+alter function auth.delete_stale_anonymous_users() owner to supabase_auth_admin;
+
 select cron.schedule(
   'delete-stale-anon-users',
   '0 3 * * 0',  -- Sundays 03:00 UTC
-  $$
-    delete from auth.users
-    where is_anonymous = true
-      and last_sign_in_at < now() - interval '30 days'
-  $$
+  $$ select auth.delete_stale_anonymous_users() $$
 );
 ```
 
-`decks.owner_id` already has `on delete cascade`, so deleting the user cascades to decks → cards.
+Notes:
+
+- The `LIMIT 1000` caps blast radius per run if the predicate is ever wrong; it also keeps the lock window short. Multiple weekly runs will catch up if the backlog grows.
+- `is not null` on `u.id` is defensive against any future schema change that produces NULL ids (paranoid but cheap).
+- `decks.owner_id` already has `on delete cascade`, so deleting the user cascades to decks → cards.
+- We can verify `auth.sessions` retention is long enough for our 30-day threshold; Supabase keeps sessions until `refresh_token` expires (~30+ days on default config), which aligns with the cleanup window.
 
 ### RLS
 
@@ -280,7 +325,7 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 | `src/lib/ui/UserMenu.test.tsx` | New cases for anon CTA |
 | `src/auth/LoginView.tsx` | OAuth buttons branch on anon deck count: 0 → `signInWithOAuth`; ≥1 → `linkIdentity`. Dev path uses `updateUser` |
 | `src/auth/LoginView.test.tsx` | New cases for the link path |
-| `src/auth/AuthCallback.tsx` | Detect `linkIdentity` failure; open import dialog |
+| `src/auth/AuthCallback.tsx` | Parse callback URL hash/query for `error_code=identity_already_exists`; open import dialog. Render import progress when `pendingAnonImport` exists. |
 | `src/auth/AuthCallback.test.tsx` | New cases for the failure path and dialog |
 | `src/auth/anonImport.ts` (new) | Pure module: stash, resume, clear `pendingAnonImport` |
 | `src/auth/anonImport.test.ts` (new) | Unit tests including resumable interruption |
@@ -289,7 +334,7 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 | `src/views/HomeView.tsx` | Trigger first-create dialog on first deck create as anon |
 | `src/views/HomeView.test.tsx` | New cases for the anon-create dialog and resume |
 | `supabase/config.toml` | `enable_anonymous_sign_ins = true` |
-| `supabase/migrations/<ts>_anon_user_cleanup.sql` (new) | `pg_cron` schedule |
+| `supabase/migrations/<ts>_anon_user_cleanup.sql` (new) | `pg_cron` schedule + `SECURITY DEFINER` cleanup function |
 
 ## Testing strategy
 
@@ -306,9 +351,9 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 
 ## Open verification items (deferred to implementation)
 
-- Exact error code/message returned by `linkIdentity` when the OAuth identity is on a different account. Implementation will catch any error and route to the dialog rather than match a specific code; revisit if the error is also raised in benign cases.
-- `INITIAL_SESSION` event ordering when we synchronously call `signInAnonymously()` from inside the listener. Acceptable fallback: call `signInAnonymously()` from a `useEffect` after subscribe rather than inside the listener body.
-- `updateUser({ email, password })` on an anon user under local config (`enable_confirmations = false`). Expected to complete without email confirmation; verify on first manual run.
+- Behavior of supabase-js's URL detection on a `linkIdentity` failure callback: confirm that no fake "session" event fires when the URL contains `error_code=identity_already_exists`, so AuthCallback's URL parsing is the sole source of truth for the failure branch.
+- `INITIAL_SESSION` event ordering when we synchronously call `signInAnonymously()` from inside the listener. Verified safe (auth-js serializes calls via internal lock), but the slightly more idiomatic alternative is to call `signInAnonymously()` from a `useEffect` after subscribe. Either is acceptable; revisit if the listener-body call produces any odd state transitions in tests.
+- `auth.sessions.updated_at` retention window in Supabase managed config. We assume it stays populated for at least 30 days for active sessions; if Supabase prunes sessions sooner, the cleanup query may reap users whose tokens are still valid. Monitor first month after rollout.
 
 ## Rollout
 
@@ -317,13 +362,18 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
    - Boot fresh: anon sign-in, create deck, see first-create dialog.
    - Sign in via Google → verify same UUID, decks attached.
    - Repeat with a Google identity already on another account → verify import dialog and resumable clone.
-3. Flip `enable_anonymous_sign_ins = true` in the Supabase dashboard for prod.
-4. Set `VITE_ANON_USERS_ENABLED=true` in the prod build env (Vercel).
-5. Verify `pg_cron` schedule landed and runs once before relying on it.
+3. Pre-flight checks before flipping prod flag:
+   - Confirm Supabase Auth → URL Configuration restricts redirect URLs to the prod origin and `localhost:5173`. No wildcards.
+   - Confirm Supabase Auth → Rate Limits has the default `anonymous_users` limit enabled (currently 30/hr/IP).
+   - Confirm `pg_cron` migration applied and `select * from cron.job` shows the scheduled job. Run `select auth.delete_stale_anonymous_users();` manually once to validate it executes without permission errors against the live `auth.users` schema.
+4. Flip `enable_anonymous_sign_ins = true` in the Supabase dashboard for prod.
+5. Set `VITE_ANON_USERS_ENABLED=true` in the prod build env (Vercel).
+6. Watch the first scheduled run in `cron.job_run_details` to confirm it executed cleanly.
 
 ## Out of scope follow-ups
 
 - "Clear my work" action for anon users who want to reset (e.g., sharing a device).
 - Per-deck "local only" badge after sign-in if a future feature lets users have a mix of synced and local decks.
-- Captcha / rate limiting on anonymous sign-in if abuse becomes a concern.
+- Captcha / additional rate limiting on anonymous sign-in if abuse becomes a concern.
 - Telemetry on conversion rate (anon → real user).
+- **Revisit the public-read RLS posture.** `decks_select_all` and `cards_select_all` use `using (true)`, meaning any authenticated user (including anyone with an anon JWT) can SELECT any deck or card. This is pre-existing — not introduced by this PR — but the anon sign-in feature makes the exposure trivial to discover (one API call to mint an anon JWT, then enumerate). For a hobby app where decks are share-by-link by design this is probably fine, but worth a deliberate decision rather than inheriting it by accident. Track as a separate issue.
