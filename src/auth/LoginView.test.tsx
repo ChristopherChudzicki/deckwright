@@ -1,13 +1,28 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { HttpResponse, http } from "msw";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
+import { SB_URL, server } from "../test/msw";
 import { LoginView } from "./LoginView";
+import { SessionContext, type SessionState } from "./useSession";
 
 const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
 }));
+
+function wrap(ui: ReactNode, session?: SessionState) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const inner = session ? (
+    <SessionContext.Provider value={session}>{ui}</SessionContext.Provider>
+  ) : (
+    ui
+  );
+  return <QueryClientProvider client={client}>{inner}</QueryClientProvider>;
+}
 
 describe("LoginView", () => {
   it("calls signInWithOAuth with google when the Google button is clicked", async () => {
@@ -15,7 +30,7 @@ describe("LoginView", () => {
     const spy = vi
       .spyOn(supabase.auth, "signInWithOAuth")
       .mockResolvedValue({ data: { provider: "google", url: "https://x" }, error: null });
-    render(<LoginView />);
+    render(wrap(<LoginView />));
     await userEvent.click(screen.getByRole("button", { name: /sign in with google/i }));
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ provider: "google", options: expect.any(Object) }),
@@ -28,14 +43,14 @@ describe("LoginView", () => {
     const spy = vi
       .spyOn(supabase.auth, "signInWithOAuth")
       .mockResolvedValue({ data: { provider: "github", url: "https://x" }, error: null });
-    render(<LoginView />);
+    render(wrap(<LoginView />));
     await userEvent.click(screen.getByRole("button", { name: /sign in with github/i }));
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ provider: "github" }));
     vi.unstubAllEnvs();
   });
 
   it("hides Google and GitHub buttons when their env vars are unset", () => {
-    render(<LoginView />);
+    render(wrap(<LoginView />));
     expect(screen.queryByRole("button", { name: /sign in with google/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /sign in with github/i })).not.toBeInTheDocument();
   });
@@ -46,7 +61,7 @@ describe("LoginView", () => {
     const signInSpy = vi
       .spyOn(supabase.auth, "signInWithPassword")
       .mockResolvedValue({ data: { session: null, user: null }, error: null } as never);
-    render(<LoginView />);
+    render(wrap(<LoginView />));
     await userEvent.click(screen.getByRole("button", { name: /sign in as dev user/i }));
     expect(signInSpy).toHaveBeenCalledWith({ email: "dev@local", password: "devpass" });
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
@@ -62,7 +77,7 @@ describe("LoginView", () => {
     const signUpSpy = vi
       .spyOn(supabase.auth, "signUp")
       .mockResolvedValue({ data: { session: null, user: null }, error: null } as never);
-    render(<LoginView />);
+    render(wrap(<LoginView />));
     await userEvent.click(screen.getByRole("button", { name: /sign in as dev user/i }));
     expect(signUpSpy).toHaveBeenCalledWith({ email: "dev@local", password: "devpass" });
     vi.unstubAllEnvs();
@@ -70,8 +85,90 @@ describe("LoginView", () => {
 
   it("does NOT show the dev sign-in button outside dev mode", () => {
     vi.stubEnv("DEV", false);
-    render(<LoginView />);
+    render(wrap(<LoginView />));
     expect(screen.queryByRole("button", { name: /sign in as dev user/i })).not.toBeInTheDocument();
     vi.unstubAllEnvs();
+  });
+});
+
+describe("LoginView OAuth branching", () => {
+  beforeEach(() => {
+    vi.stubEnv("VITE_ANON_USERS_ENABLED", "true");
+    vi.stubEnv("VITE_AUTH_GOOGLE_ENABLED", "true");
+    window.localStorage.clear();
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("calls linkIdentity (and stashes lastProvider) when user is anonymous and has decks", async () => {
+    const linkSpy = vi.spyOn(supabase.auth, "linkIdentity").mockResolvedValue({
+      data: { provider: "google", url: "https://example.com" },
+      error: null,
+    } as never);
+    const oauthSpy = vi.spyOn(supabase.auth, "signInWithOAuth").mockResolvedValue({
+      data: { provider: "google", url: "https://example.com" },
+      error: null,
+    } as never);
+
+    server.use(
+      http.get(`${SB_URL}/rest/v1/decks`, () =>
+        HttpResponse.json([{ id: "d1", owner_id: "anon-1", name: "Goblins" }]),
+      ),
+    );
+
+    render(
+      wrap(<LoginView />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /sign in with google/i }));
+
+    await waitFor(() =>
+      expect(linkSpy).toHaveBeenCalledWith(expect.objectContaining({ provider: "google" })),
+    );
+    expect(oauthSpy).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem("dndCards.lastProvider")).toBe("google");
+  });
+
+  it("calls signInWithOAuth when user is anonymous with zero decks", async () => {
+    const linkSpy = vi
+      .spyOn(supabase.auth, "linkIdentity")
+      .mockResolvedValue({ data: {}, error: null } as never);
+    const oauthSpy = vi.spyOn(supabase.auth, "signInWithOAuth").mockResolvedValue({
+      data: { provider: "google", url: "https://example.com" },
+      error: null,
+    } as never);
+    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([])));
+
+    render(
+      wrap(<LoginView />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /sign in with google/i }));
+
+    await waitFor(() =>
+      expect(oauthSpy).toHaveBeenCalledWith(expect.objectContaining({ provider: "google" })),
+    );
+    expect(linkSpy).not.toHaveBeenCalled();
+  });
+
+  it("calls signInWithOAuth when user is unauthenticated", async () => {
+    const linkSpy = vi
+      .spyOn(supabase.auth, "linkIdentity")
+      .mockResolvedValue({ data: {}, error: null } as never);
+    const oauthSpy = vi.spyOn(supabase.auth, "signInWithOAuth").mockResolvedValue({
+      data: { provider: "google", url: "https://example.com" },
+      error: null,
+    } as never);
+
+    render(wrap(<LoginView />, { status: "unauthenticated", user: null, session: null }));
+    await userEvent.click(screen.getByRole("button", { name: /sign in with google/i }));
+
+    await waitFor(() => expect(oauthSpy).toHaveBeenCalled());
+    expect(linkSpy).not.toHaveBeenCalled();
   });
 });

@@ -51,6 +51,9 @@ export const supabaseDefaultHandlers = [
     });
   }),
   http.post(`${SB_URL}/auth/v1/logout`, () => new HttpResponse(null, { status: 204 })),
+  http.post(`${SB_URL}/auth/v1/user/identities/authorize`, () =>
+    HttpResponse.json({ url: "https://example.com/oauth", provider: "google" }),
+  ),
   http.post(`${SB_URL}/auth/v1/signup`, async ({ request }) => {
     // The Supabase client calls /signup with no email/password for
     // signInAnonymously(); we only mock that anon-signup case here.
