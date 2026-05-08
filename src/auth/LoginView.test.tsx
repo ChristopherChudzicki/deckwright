@@ -89,6 +89,22 @@ describe("LoginView", () => {
     expect(screen.queryByRole("button", { name: /sign in as dev user/i })).not.toBeInTheDocument();
     vi.unstubAllEnvs();
   });
+
+  it("ignores a rapid second click after the first OAuth click", async () => {
+    vi.stubEnv("VITE_AUTH_GOOGLE_ENABLED", "true");
+    let resolveOAuth: (value: unknown) => void = () => {};
+    const oauthPromise = new Promise((resolve) => {
+      resolveOAuth = resolve;
+    });
+    const spy = vi.spyOn(supabase.auth, "signInWithOAuth").mockReturnValue(oauthPromise as never);
+    render(wrap(<LoginView />));
+    const button = screen.getByRole("button", { name: /sign in with google/i });
+    await userEvent.click(button);
+    await userEvent.click(button);
+    expect(spy).toHaveBeenCalledTimes(1);
+    resolveOAuth({ data: { provider: "google", url: "https://x" }, error: null });
+    vi.unstubAllEnvs();
+  });
 });
 
 describe("LoginView OAuth branching", () => {

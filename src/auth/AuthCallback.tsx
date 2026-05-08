@@ -5,16 +5,13 @@ import { pluralize } from "../lib/pluralize";
 import { useSetNextAnnouncement } from "../lib/ui/Announcement";
 import { clear, readPending, stash, tryResume } from "./anonImport";
 import { ImportAccountDialog } from "./ImportAccountDialog";
+import { readNextFromUrl } from "./safeNext";
 import { useSession } from "./useSession";
 
 function parseLinkError(): string | null {
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const search = new URLSearchParams(window.location.search);
   return hash.get("error_code") ?? search.get("error_code");
-}
-
-function getNextPath(): string {
-  return new URLSearchParams(window.location.search).get("next") ?? "/";
 }
 
 function lastProvider(): "google" | "github" {
@@ -77,13 +74,13 @@ export function AuthCallback() {
             );
           }
           window.localStorage.removeItem("dndCards.lastProvider");
-          navigate({ to: getNextPath() });
+          navigate({ to: readNextFromUrl() });
         } catch {
           if (cancelled) return;
           setAnnouncement(
             "Couldn't finish importing your decks. We'll try again next time you sign in.",
           );
-          navigate({ to: getNextPath() });
+          navigate({ to: readNextFromUrl() });
         }
       })();
       return () => {
@@ -95,7 +92,7 @@ export function AuthCallback() {
       setAnnouncement("Signed in");
       window.localStorage.removeItem("dndCards.lastProvider");
     }
-    navigate({ to: getNextPath() });
+    navigate({ to: readNextFromUrl() });
     return () => {
       cancelled = true;
     };
@@ -104,7 +101,7 @@ export function AuthCallback() {
   const onImport = async () => {
     if (session.status !== "authenticated") return;
     stash({ version: 1, anonUuid: session.user.id, importedDeckIds: [] });
-    const next = getNextPath();
+    const next = readNextFromUrl();
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
     const provider = lastProvider();
     await supabase.auth.signOut();
@@ -113,7 +110,7 @@ export function AuthCallback() {
 
   const onSkip = async () => {
     clear();
-    const next = getNextPath();
+    const next = readNextFromUrl();
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
     const provider = lastProvider();
     await supabase.auth.signOut();

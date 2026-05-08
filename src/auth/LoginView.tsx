@@ -1,9 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { supabase } from "../api/supabase";
 import { decksKey } from "../decks/queries";
 import { OAuthButton } from "../lib/ui/OAuthButton";
 import styles from "./LoginView.module.css";
+import { readNextFromUrl } from "./safeNext";
 import { useSession } from "./useSession";
 
 const DEV_EMAIL = "dev@local";
@@ -13,34 +15,43 @@ export function LoginView() {
   const navigate = useNavigate();
   const session = useSession();
   const queryClient = useQueryClient();
+  const [pending, setPending] = useState<"google" | "github" | "dev" | null>(null);
 
   const isAnon = session.status === "authenticated" && session.user.is_anonymous === true;
   const userId = session.status === "authenticated" ? session.user.id : null;
 
   const signIn = async (provider: "google" | "github") => {
-    const next = new URLSearchParams(window.location.search).get("next") ?? "/";
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    if (pending !== null) return;
+    setPending(provider);
+    try {
+      const next = readNextFromUrl();
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
-    if (isAnon && userId) {
-      const decks = await queryClient.fetchQuery({
-        queryKey: decksKey(userId),
-        queryFn: async () => {
-          const { data } = await supabase.from("decks").select("id").eq("owner_id", userId);
-          return data ?? [];
-        },
-        staleTime: 0,
-      });
-      if ((decks?.length ?? 0) > 0) {
-        window.localStorage.setItem("dndCards.lastProvider", provider);
-        await supabase.auth.linkIdentity({ provider, options: { redirectTo } });
-        return;
+      if (isAnon && userId) {
+        const decks = await queryClient.fetchQuery({
+          queryKey: decksKey(userId),
+          queryFn: async () => {
+            const { data } = await supabase.from("decks").select("id").eq("owner_id", userId);
+            return data ?? [];
+          },
+          staleTime: 0,
+        });
+        if ((decks?.length ?? 0) > 0) {
+          window.localStorage.setItem("dndCards.lastProvider", provider);
+          await supabase.auth.linkIdentity({ provider, options: { redirectTo } });
+          return;
+        }
       }
+      await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
+    } catch {
+      setPending(null);
     }
-    await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
   };
 
   const devSignIn = async () => {
-    const next = new URLSearchParams(window.location.search).get("next") ?? "/";
+    if (pending !== null) return;
+    setPending("dev");
+    const next = readNextFromUrl();
     if (isAnon) {
       // Supabase rejects setting a password on an anon user before the email
       // lands, so update email first, then password. If the email is already
@@ -90,17 +101,32 @@ export function LoginView() {
       <ul className={styles.providers} role="list">
         {import.meta.env.VITE_AUTH_GOOGLE_ENABLED === "true" && (
           <li>
-            <OAuthButton provider="google" onPress={() => void signIn("google")} />
+            <OAuthButton
+              provider="google"
+              onPress={() => void signIn("google")}
+              isDisabled={pending !== null && pending !== "google"}
+              isPending={pending === "google"}
+            />
           </li>
         )}
         {import.meta.env.VITE_AUTH_GITHUB_ENABLED === "true" && (
           <li>
-            <OAuthButton provider="github" onPress={() => void signIn("github")} />
+            <OAuthButton
+              provider="github"
+              onPress={() => void signIn("github")}
+              isDisabled={pending !== null && pending !== "github"}
+              isPending={pending === "github"}
+            />
           </li>
         )}
         {import.meta.env.DEV && (
           <li>
-            <OAuthButton provider="dev" onPress={() => void devSignIn()} />
+            <OAuthButton
+              provider="dev"
+              onPress={() => void devSignIn()}
+              isDisabled={pending !== null && pending !== "dev"}
+              isPending={pending === "dev"}
+            />
           </li>
         )}
       </ul>

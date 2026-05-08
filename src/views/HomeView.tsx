@@ -30,6 +30,7 @@ export function HomeView() {
     }
   }, [session.status, navigate]);
 
+  if (session.status === "loading") return <LoadingState />;
   if (session.status !== "authenticated") return null;
 
   const maybeShowFirstDeckExplainer = () => {

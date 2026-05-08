@@ -52,6 +52,17 @@ describe("HomeView", () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/login" }));
   });
 
+  it("renders a LoadingState while the session is initializing", () => {
+    vi.spyOn(useSessionMod, "useSession").mockReturnValue({
+      status: "loading",
+      user: null,
+      session: null,
+    });
+    render(wrap(<HomeView />));
+    expect(screen.getByRole("status")).toHaveTextContent(/loading/i);
+    vi.restoreAllMocks();
+  });
+
   it("shows the user's decks when authenticated", async () => {
     await signInTestUser();
     const decks = [makeDeckRow.build(), makeDeckRow.build()];
