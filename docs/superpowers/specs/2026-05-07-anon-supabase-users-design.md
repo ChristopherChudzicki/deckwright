@@ -5,7 +5,7 @@
 
 ## Summary
 
-Let visitors use the full app — create, edit, and print decks — without signing in. Persist their work in the same Supabase database under a real `auth.users` row created via Supabase's anonymous sign-in. When they later sign in with OAuth, `linkIdentity` upgrades the same row in place; their decks are preserved without any data movement. If their OAuth identity is already linked to a different existing account, offer to clone their anon decks into it. Stale anon users are auto-reaped after 30 days.
+Let visitors use the full app — create, edit, and print decks — without signing in. Persist their work in the same Supabase database under a real `auth.users` row created via Supabase's anonymous sign-in. When they later sign in with OAuth, `linkIdentity` upgrades the same row in place; their decks are preserved without any data movement. If their OAuth identity is already linked to a different existing account, offer to clone their anon decks into it.
 
 The whole feature is gated behind a `VITE_ANON_USERS_ENABLED` env var so it can be merged dark and rolled out independently.
 
@@ -15,7 +15,6 @@ The whole feature is gated behind a `VITE_ANON_USERS_ENABLED` env var so it can 
 - Sign-in via OAuth converts the anon account into a permanent one in place — same UUID, same `decks.owner_id`, no data movement.
 - If the OAuth identity is already on a different account, offer to clone anon decks into it (resumable, survives interruptions).
 - Make the local-only nature of anon work obvious so users don't lose work to a Safari ITP eviction by surprise.
-- Auto-cleanup of unused anon `auth.users` rows after 30 days via `pg_cron`.
 - Fully gated behind `VITE_ANON_USERS_ENABLED`; existing flows unchanged when off.
 
 ## Non-goals (v1)
@@ -24,7 +23,7 @@ The whole feature is gated behind a `VITE_ANON_USERS_ENABLED` env var so it can 
 - Atomic transfer of decks between accounts. The "clone into existing account" flow uses public-read SELECTs + INSERTs and is resumable but not transactional.
 - Server-side Postgres functions to facilitate transfer (`SECURITY DEFINER`). Not needed because cloning is purely client-side.
 - Differentiating anon from real users in RLS (e.g., capping anon to N decks). Existing policies already gate on `owner_id = auth.uid()`; anon users inherit the same constraints naturally.
-- Toast/notification primitive. The first-time explainer uses an existing modal dialog.
+- **Auto-cleanup of stale anon `auth.users` rows.** Scoping the cleanup turned up a long tail of correctness and operational issues for what is essentially hygiene work; deferred until accumulation is observed to matter. Research notes preserved at [`docs/superpowers/handoffs/2026-05-08-anon-user-cleanup-notes.md`](../handoffs/2026-05-08-anon-user-cleanup-notes.md) for whoever revisits.
 
 ## Hard constraints (carried forward)
 
@@ -44,16 +43,18 @@ AuthProvider                                   auth.users
        supabase.auth.signInAnonymously()       Postgres
        (status stays "loading")                  ├ decks   (RLS unchanged)
                                                  └ cards   (RLS unchanged)
-UserMenu                                       pg_cron schedule
-  ├ anonymous → "Sign in to save your work"      └ weekly: delete anon users
-  ├ authenticated → avatar + sign-out                inactive > 30 days
+UserMenu
+  ├ anonymous → "Sign in to save your work"
+  ├ authenticated → avatar + sign-out
   └ unauthenticated (flag off) → "Sign in" link
 LoginView
-  ├ anon? → linkIdentity(provider)
+  ├ anon with decks? → linkIdentity(provider)
+  ├ anon with 0 decks? → signInWithOAuth(provider)
   └ unauthenticated? → signInWithOAuth(provider)
 AuthCallback
-  ├ link succeeded → toast, redirect to next
-  └ link failed (identity already on another account) → import dialog
+  ├ link succeeded → Announcement "Signed in", redirect to next
+  ├ link failed (identity already on another account) → import dialog
+  └ pendingAnonImport present → import progress, then redirect
 anonImport.ts
   ├ stash {anonUuid, importedDeckIds:[]} in localStorage
   ├ on next sign-in: SELECT anon decks/cards (public reads), INSERT clones
@@ -97,14 +98,14 @@ When the flag is off, behavior is identical to today: no-session boot lands in `
 
 Before picking the API, the LoginView checks how many decks the anon user owns:
 
-- **0 decks** → call `signInWithOAuth({ provider })` directly. The anon row is abandoned (and reaped by cron); no link, no dialog. This handles the common returning-user-on-new-device case (where a fresh anon row exists from boot but the user hasn't done anything yet) and the brand-new-user-signing-in-immediately case.
+- **0 decks** → call `signInWithOAuth({ provider })` directly. The anon row is abandoned (cleanup is deferred — see Non-goals); no link, no dialog. This handles the common returning-user-on-new-device case (where a fresh anon row exists from boot but the user hasn't done anything yet) and the brand-new-user-signing-in-immediately case.
 - **≥1 decks** → call `linkIdentity({ provider })`. On the callback we know whether linking succeeded; failure routes to the dialog described below.
 
-The deck count comes from the existing `useDecks(anonUserId)` query. Reading it from the cache or refetching at click time are both fine; for safety we'll refetch (cheap; the user is about to do an OAuth round-trip anyway).
+The deck count is fetched on **OAuth button click**, not on LoginView mount, to avoid an unnecessary query when the user simply navigated to `/login`. We use the existing `useDecks(anonUserId)` infrastructure but trigger via `queryClient.fetchQuery` from the click handler so the OAuth redirect doesn't fire until we know the count.
 
 ### Happy path: linkIdentity succeeds (anon has decks, first time signing in with this provider)
 
-User is anon with N decks. Clicks "Sign in to save your work" in the header CTA. Lands on `/login`. Clicks Google (or GitHub). Because they're anon and have decks, LoginView calls `linkIdentity({ provider })`. OAuth round-trip; on the callback their session updates: same `user.id`, `is_anonymous` is now `false`. All `decks.owner_id` references stay valid. We toast "Signed in" and navigate to `next ?? "/"`.
+User is anon with N decks. Clicks "Sign in to save your work" in the header CTA. Lands on `/login`. Clicks Google (or GitHub). Because they're anon and have decks, LoginView calls `linkIdentity({ provider })`. OAuth round-trip; on the callback their session updates: same `user.id`, `is_anonymous` is now `false`. All `decks.owner_id` references stay valid. We set a "Signed in" announcement and navigate to `next ?? "/"`.
 
 ### Already-linked branch: linkIdentity fails (anon has decks, existing account on this provider)
 
@@ -138,14 +139,16 @@ In both branches of this dialog the user goes through OAuth twice (once for the 
 
 ### `tryResume()` invocation rules
 
-`anonImport.tryResume()` runs whenever:
+`anonImport.tryResume()` runs from a single site: `AuthCallback`, before navigating to `next`. It runs whenever:
 
-1. The session transitions to `authenticated` with `!user.is_anonymous`, **and**
+1. The current session is `authenticated` with `!user.is_anonymous`, **and**
 2. `localStorage.dndCards.pendingAnonImport` exists.
 
-The natural call site is `AuthCallback` (before navigating to `next`), so the import runs in front of the user. For the rare case where the user closes the tab mid-import and returns days later already signed in, a secondary check from `AuthProvider` on the `authenticated` event picks up the resume. The function is idempotent (the `importedDeckIds` list prevents double-cloning) so calling it from both sites is safe.
+If the user closes the tab mid-import, the localStorage key persists; the next time they sign in (which goes through AuthCallback again), `tryResume()` picks up where it left off. The function is idempotent: `importedDeckIds` prevents double-cloning of any deck that already succeeded.
 
-The new decks have new UUIDs (deck and card IDs change). The original anon rows are abandoned and reaped by `pg_cron`.
+We deliberately do **not** call `tryResume()` from a second site like `AuthProvider`. The single call site keeps reasoning simple and is sufficient because every recovery path goes through a sign-in (which routes through AuthCallback).
+
+The new decks have new UUIDs (deck and card IDs change). The original anon rows are abandoned (and accumulate; cleanup is deferred — see Non-goals).
 
 ### Import progress UI
 
@@ -156,18 +159,16 @@ While `tryResume()` is running on the AuthCallback page, the page renders an int
 
 A simple inline counter — no spinner, no progress bar primitive needed. Updates live as `importedDeckIds` grows. Navigation to `next` happens only after the counter reaches `total` and the localStorage key is cleared. The interstitial also doubles as the "Signing you in to import…" cue between the two OAuth round-trips, since the user lands on `AuthCallback` after the second OAuth completes.
 
-If the SELECT or any INSERT fails after retry (a single in-process retry on transient errors), render a recoverable error state:
+If the SELECT or any INSERT fails (a single in-process retry on transient errors first), render a non-blocking error message and continue navigating:
 
 > **Couldn't finish importing your decks**
-> Imported {imported} of {total}. We'll try again automatically next time you sign in.
->
-> [ Retry now ]   <small>Continue without retrying</small>
+> Imported {imported} of {total}. We'll try again next time you sign in.
 
-The localStorage key is preserved so the next sign-in resumes from where this one stopped. "Continue" navigates to `next` without clearing the key.
+The localStorage key is preserved so the next sign-in resumes from where this one stopped. We don't expose a "Retry now" button — the auto-resume on next sign-in covers the same need without the extra UI surface and tests.
 
-### Toast on full success
+### Announcement on full success
 
-`Imported N decks.` Shown once on completion of the import. If the import resumed across multiple sessions (e.g., interrupted at deck 3 of 10, completed on a later visit), the toast still says the total imported, so the user understands the import is fully done.
+The user lands on `next` (typically `/`) and sees a brief inline announcement at the top of the view: `Imported N decks.` (or `Signed in.` for the no-import path). The announcement auto-dismisses after ~5 seconds and is rendered via a small `Announcement` primitive added in this PR (see UI changes). If the import resumed across multiple sessions (e.g., interrupted at deck 3 of 10, completed on a later visit), the announcement still says the total imported.
 
 ### OAuth failure modes
 
@@ -176,7 +177,7 @@ Beyond the already-linked branch, `linkIdentity` and `signInWithOAuth` can fail 
 - **User cancels the OAuth popup / browser back-button.** No callback fires; user is still anon on the LoginView. No state change needed; they can click again.
 - **OAuth provider error (Google/GitHub down, denied consent).** Callback returns with `error_description` query param. We display "Sign-in didn't complete: {message}" on the LoginView and clear any `pendingAnonImport` key set in this attempt — we never started the import, so there's nothing to resume.
 - **Network drops mid-redirect.** Same as cancellation from the user's perspective.
-- **Race: anon row reaped while user is at the OAuth screen.** Possible but extremely unlikely (cron is weekly, OAuth round-trip is seconds). If `tryResume()` SELECTs the anon's decks and gets zero rows, we treat it as already-imported (clear the key, no toast). The user lands signed-in with no anon-decks to import — the same outcome as if they had no anon decks to begin with.
+- **Anon row missing when `tryResume()` SELECTs.** Without an automatic cleanup, this is rare in practice (only happens if someone manually deletes the user via the Supabase dashboard, or an admin bulk-deletes during maintenance), but the code still has to be defensive. If `tryResume()` SELECTs the anon's decks and gets zero rows, we treat it as already-imported (clear the key, no announcement). The user lands signed-in with no anon decks to import — the same outcome as if they had no anon decks to begin with.
 
 ### Dev sign-in path
 
@@ -198,7 +199,7 @@ Branch on `session.user.is_anonymous`:
 - **Authenticated (real)** → existing avatar + sign-out menu, unchanged.
 - **Unauthenticated** (flag off) → existing "Sign in" link, unchanged.
 
-The pill button styling should be visually clearly an action — not a text link. Reuse `Button.module.css` accent variant or extend `UserMenu.module.css`.
+The pill is styled in `UserMenu.module.css` (a new `.pillCta` class). Visually clearly an action — accent fill, padded button, not a text link.
 
 ### First-create explainer dialog
 
@@ -223,6 +224,25 @@ The primary action is "Sign in now" (links to `/login`). "Not yet" is a tertiary
 
 When the current user is anon, the page heading and copy shift from "Sign in to create and edit decks" to "Save your work to your account." OAuth buttons stay visually identical; the underlying handler picks `linkIdentity` vs `signInWithOAuth` based on session state.
 
+### Announcement primitive
+
+A new tiny UI primitive — `src/lib/ui/Announcement.tsx` — for brief, non-blocking confirmation messages. Used on `AuthCallback`'s success interstitial and on the destination view after navigating from `next`.
+
+Behavior:
+
+- Renders a single message at the top of its container (above the deck list when triggered from HomeView; above the page content otherwise).
+- Auto-dismisses after ~5 seconds; user can also dismiss via a small ✕ button.
+- Implemented as a controlled component: parent passes `message` and `onDismiss`. State for "show me an announcement on next render" is held in a small `AnnouncementContext` keyed off router state, so triggering an announcement from `AuthCallback` and rendering it on the destination view doesn't require global state plumbing.
+- Accessible: `role="status"` with `aria-live="polite"` so the message is announced to screen readers without interrupting them.
+
+Scope is deliberately small — this is not a queueable toast system. One message at a time, replaced if a new one is set. If we ever need a queue or multiple stacking notifications, we revisit.
+
+Files:
+- `src/lib/ui/Announcement.tsx` (new) — the component.
+- `src/lib/ui/Announcement.module.css` (new) — styles.
+- `src/lib/ui/Announcement.test.tsx` (new) — render, dismiss, auto-dismiss timer, aria attributes.
+- `src/lib/ui/AnnouncementContext.tsx` (new, or co-located in `Announcement.tsx`) — provider + hook for setting the next announcement across navigation.
+
 ### Accessibility
 
 - All dialogs (`FirstDeckDialog`, the import dialog) use the existing `DialogShell` + `DialogHeader`, which are built on react-aria-components and handle modal focus trap, escape-to-dismiss, and labelled-by relationships out of the box.
@@ -241,104 +261,11 @@ enable_anonymous_sign_ins = true
 
 A corresponding toggle in the Supabase dashboard for prod.
 
-### Cleanup: pg_cron + pg_net → Edge Function
+### Cleanup of stale anon users — deferred
 
-Cleanup uses Supabase's recommended pattern for scheduled work that needs admin privileges: a pg_cron schedule invokes an Edge Function via pg_net, and the Edge Function uses the `service_role` key to call `supabase.auth.admin.deleteUser()` for each stale user.
+Anonymous `auth.users` rows accumulate over time. We considered a `pg_cron` + `pg_net` → Edge Function pattern to reap them, but two review rounds turned up enough Supabase-specific pitfalls (auth-key model on Edge Functions, cascade permission grants, session-retention behavior, Vault read permissions) that the cost outweighs the benefit for a hobby app where there's no current accumulation pressure.
 
-Two non-obvious gotchas this design has to handle:
-
-1. **`auth.sessions` is owned by `supabase_auth_admin`.** Querying it from PostgREST/RPC requires either elevated SQL access or a `SECURITY DEFINER` helper. We use a small read-only helper rather than going through the admin SQL path.
-2. **`auth.users.last_sign_in_at` does not update on token refresh.** A returning anon user whose tokens auto-refresh in the background still has the same `last_sign_in_at` from their initial sign-in — gating cleanup on this column would reap actively-used accounts at 30 days. The correct activity signal is `auth.sessions.updated_at`, which the auth server bumps on every refresh.
-
-#### Migration: `supabase/migrations/<timestamp>_anon_user_cleanup.sql`
-
-```sql
-create extension if not exists pg_cron;
-create extension if not exists pg_net;
-
--- Read-only helper: returns IDs of anon users with no active session
--- in the last 30 days. SECURITY DEFINER because auth.sessions is
--- restricted to supabase_auth_admin.
-create or replace function public.stale_anon_user_ids()
-returns table(id uuid)
-language sql
-security definer
-set search_path = ''
-as $$
-  select u.id
-  from auth.users u
-  where u.is_anonymous is true
-    and u.id is not null
-    and not exists (
-      select 1
-      from auth.sessions s
-      where s.user_id = u.id
-        and s.updated_at > now() - interval '30 days'
-    )
-  limit 1000
-$$;
-
-alter function public.stale_anon_user_ids() owner to supabase_auth_admin;
-grant execute on function public.stale_anon_user_ids() to service_role;
-
--- Schedule weekly invocation of the Edge Function. Project URL and
--- service_role key live in Supabase Vault (created via the dashboard
--- or `select vault.create_secret(...)`).
-select cron.schedule(
-  'cleanup-anon-users',
-  '0 3 * * 0',  -- Sundays 03:00 UTC
-  $$
-    select net.http_post(
-      url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url')
-             || '/functions/v1/cleanup-anon-users',
-      headers := jsonb_build_object(
-        'Authorization', 'Bearer ' ||
-          (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key'),
-        'Content-Type', 'application/json'
-      ),
-      body := '{}'::jsonb
-    )
-  $$
-);
-```
-
-The helper is **read-only**: it returns IDs but cannot delete anything. The privilege elevation is narrow — calling it does nothing destructive. Deletion happens in the Edge Function via the admin API.
-
-#### Edge Function: `supabase/functions/cleanup-anon-users/index.ts`
-
-```ts
-import { createClient } from "jsr:@supabase/supabase-js@2";
-
-Deno.serve(async () => {
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
-
-  const { data: ids, error } = await supabase.rpc("stale_anon_user_ids");
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
-  }
-
-  let deleted = 0;
-  const failures: string[] = [];
-  for (const { id } of ids ?? []) {
-    const { error: delError } = await supabase.auth.admin.deleteUser(id);
-    if (delError) failures.push(`${id}: ${delError.message}`);
-    else deleted++;
-  }
-
-  return new Response(JSON.stringify({ deleted, failures }), { status: 200 });
-});
-```
-
-Notes:
-
-- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-injected into Edge Function runtimes by Supabase — no manual secret setup needed for the function itself.
-- Edge Functions require a valid JWT by default; the cron job's `Authorization: Bearer <service_role_key>` header satisfies that gate, so the function isn't reachable as an anonymous public endpoint.
-- The function returns a JSON summary; pg_net stores the HTTP response in `net._http_response` for inspection.
-- `decks.owner_id` already has `on delete cascade`, so `auth.admin.deleteUser()` cascades to decks → cards.
-- The `LIMIT 1000` in the helper caps blast radius per run; weekly runs will catch up on any backlog.
+The design we evaluated, the pitfalls we found, and the recommended approach when revisiting are captured in [`docs/superpowers/handoffs/2026-05-08-anon-user-cleanup-notes.md`](../handoffs/2026-05-08-anon-user-cleanup-notes.md). When/if accumulation becomes operationally annoying, start there.
 
 ### RLS
 
@@ -370,49 +297,45 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 | `src/views/FirstDeckDialog.test.tsx` (new) | First-create-only behavior |
 | `src/views/HomeView.tsx` | Trigger first-create dialog on first deck create as anon |
 | `src/views/HomeView.test.tsx` | New cases for the anon-create dialog and resume |
+| `src/lib/ui/Announcement.tsx` (new) | Inline non-blocking confirmation primitive |
+| `src/lib/ui/Announcement.module.css` (new) | Styles for the announcement |
+| `src/lib/ui/Announcement.test.tsx` (new) | Render, dismiss, auto-dismiss timer, aria-live |
+| `src/test/msw.ts` | Add MSW handlers for `signInAnonymously`, `linkIdentity`, `updateUser`, and the public-read SELECTs used during clone |
 | `supabase/config.toml` | `enable_anonymous_sign_ins = true` |
-| `supabase/migrations/<ts>_anon_user_cleanup.sql` (new) | Enable `pg_cron` + `pg_net`; create read-only `stale_anon_user_ids()` helper; schedule weekly Edge Function invocation |
-| `supabase/functions/cleanup-anon-users/index.ts` (new) | Deno Edge Function: calls helper, deletes returned IDs via `supabase.auth.admin.deleteUser()` |
 
 ## Testing strategy
 
-- All existing tests remain green with the flag off (the default in test env).
+- All existing tests remain green with the flag off (the default in test env). One explicit baseline test asserts `AuthProvider` flag-off → `unauthenticated` so the regression contract is durable.
 - New behavior gated by stubbing `import.meta.env.VITE_ANON_USERS_ENABLED = "true"` within the relevant tests.
 - Coverage:
-  - `AuthProvider`: with flag on, no session → calls `signInAnonymously`; status never `unauthenticated`.
-  - `UserMenu`: anon → CTA pill; authenticated → avatar/menu; unauthenticated → existing "Sign in" link.
-  - `LoginView`: OAuth click as anon with decks → `linkIdentity`; as anon with no decks → `signInWithOAuth`; as unauthenticated → `signInWithOAuth`. Dev click as anon → `updateUser`.
-  - `AuthCallback`: linkIdentity failure → opens import dialog; partial-import failure → renders recoverable error state with retry button; OAuth provider error → renders recoverable message.
-  - `anonImport`: happy clone, resumable clone (pre-existing partial state), cleared key on full success.
-  - `FirstDeckDialog`: opens on first create; suppressed when flag set.
-  - `HomeView`: integrates the dialog and resume call without breaking existing flows.
+  - `AuthProvider`: flag on, no session → calls `signInAnonymously` and stays `loading` until SIGNED_IN; status never `unauthenticated`. Flag off, no session → `unauthenticated` (baseline).
+  - `UserMenu`: anon → CTA pill (with text label readable to screen readers); authenticated → avatar/menu; unauthenticated → existing "Sign in" link.
+  - `LoginView`: OAuth click as anon with decks → `linkIdentity`; as anon with no decks → `signInWithOAuth`; as unauthenticated → `signInWithOAuth`. Dev click as anon → two-step `updateUser` (email then password).
+  - `AuthCallback`: linkIdentity failure → opens import dialog; partial-import failure → preserves pendingAnonImport for next-sign-in resume; OAuth provider error → renders recoverable message; anon row missing on resume (zero-rows SELECT) → treats as already-imported and clears the key without an announcement.
+  - `anonImport`: happy clone; resumable clone (pre-existing partial state); cleared key on full success.
+  - `FirstDeckDialog`: opens on first deck create as anon; suppressed once dismissed (localStorage flag set); never shown for non-anon users.
+  - `Announcement`: render, programmatic dismiss, auto-dismiss timer, `role="status"` + `aria-live="polite"` attributes.
+  - `HomeView`: integrates the first-create dialog and renders an Announcement passed via context after sign-in.
 
 ## Open verification items (deferred to implementation)
 
 - Behavior of supabase-js's URL detection on a `linkIdentity` failure callback: confirm that no fake "session" event fires when the URL contains `error_code=identity_already_exists`, so AuthCallback's URL parsing is the sole source of truth for the failure branch.
 - `INITIAL_SESSION` event ordering when we synchronously call `signInAnonymously()` from inside the listener. Verified safe (auth-js serializes calls via internal lock), but the slightly more idiomatic alternative is to call `signInAnonymously()` from a `useEffect` after subscribe. Either is acceptable; revisit if the listener-body call produces any odd state transitions in tests.
-- `auth.sessions.updated_at` retention window in Supabase managed config. We assume it stays populated for at least 30 days for active sessions; if Supabase prunes sessions sooner, the cleanup may reap users whose tokens are still valid. Monitor first month after rollout.
-- Ownership-transfer permission for `alter function public.stale_anon_user_ids() owner to supabase_auth_admin` from a standard migration. Most Supabase projects allow `postgres` to alter ownership to `supabase_auth_admin` because `postgres` is a member of the relevant role group, but verify on first migration run; if it fails, the alternative is a dashboard-side SQL edit using a more privileged session.
+- `pendingAnonImport` schema versioning: include a `version: 1` field in the stashed object and have `tryResume()` ignore unknown versions. Cheap insurance against shape changes between PRs.
+- `next` URL preservation across the two OAuth round-trips in the import-into-existing-account flow. The first OAuth (linkIdentity) carries `next` via `redirectTo`; on failure, when we sign out and signInWithOAuth, we need to re-set `redirectTo` so the user lands where they intended. Trivial but easy to forget.
 
 ## Rollout
 
 1. Land the feature behind the flag (default off). All existing tests pass.
 2. Manual smoke locally with `VITE_ANON_USERS_ENABLED=true`:
    - Boot fresh: anon sign-in, create deck, see first-create dialog.
-   - Sign in via Google → verify same UUID, decks attached.
-   - Repeat with a Google identity already on another account → verify import dialog and resumable clone.
-3. Deploy the Edge Function: `supabase functions deploy cleanup-anon-users`.
-4. Store secrets in Vault (one-time, via dashboard or `select vault.create_secret(...)`):
-   - `project_url` — e.g., `https://<ref>.supabase.co`
-   - `service_role_key` — copied from the Supabase dashboard
-5. Pre-flight checks before flipping prod flag:
+   - Sign in via Google → verify same UUID, decks attached, see "Signed in" announcement.
+   - Repeat with a Google identity already on another account → verify import dialog and resumable clone, see "Imported N decks" announcement.
+3. Pre-flight checks before flipping prod flag:
    - Confirm Supabase Auth → URL Configuration restricts redirect URLs to the prod origin and `localhost:5173`. No wildcards.
    - Confirm Supabase Auth → Rate Limits has the default `anonymous_users` limit enabled (30/hr/IP by default).
-   - Confirm migration applied: `select * from cron.job` shows `cleanup-anon-users`.
-   - Manually invoke the function once to validate end-to-end: `select net.http_post(...)` from SQL Editor, then check `cron.job_run_details` and the Edge Function logs.
-6. Flip `enable_anonymous_sign_ins = true` in the Supabase dashboard for prod.
-7. Set `VITE_ANON_USERS_ENABLED=true` in the prod build env (Vercel).
-8. Watch the first scheduled run in `cron.job_run_details` and the Edge Function logs to confirm it executed cleanly.
+4. Flip `enable_anonymous_sign_ins = true` in the Supabase dashboard for prod.
+5. Set `VITE_ANON_USERS_ENABLED=true` in the prod build env (Vercel).
 
 ## Out of scope follow-ups
 
@@ -424,8 +347,6 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 
 ## References
 
-Supabase auth APIs:
-
 - [Anonymous Sign-Ins guide](https://supabase.com/docs/guides/auth/auth-anonymous) — `signInAnonymously()` semantics, `is_anonymous` JWT claim, conversion paths.
 - [Identity Linking guide](https://supabase.com/docs/guides/auth/auth-identity-linking) — `linkIdentity()` API and conceptual flow.
 - [`linkIdentity` failure modes (community discussion #27061)](https://github.com/orgs/supabase/discussions/27061) — confirms that conflict detection happens server-side during the OAuth callback and is surfaced via `error_code=identity_already_exists` in the redirect URL, not via the original method's promise or `onAuthStateChange`.
@@ -433,15 +354,4 @@ Supabase auth APIs:
 - [`updateUser` anon bug #29350](https://github.com/supabase/supabase/issues/29350) — known bug where single-call `updateUser({ email, password })` works on anon users; do not rely on it.
 - [supabase-js `auth-js` source](https://github.com/supabase/auth-js) — `_acquireLock` serialization confirms calling `signInAnonymously()` from inside an `onAuthStateChange` listener body is safe but not idiomatic.
 
-Cleanup pattern:
-
-- [Supabase Cron module](https://supabase.com/modules/cron) and [pg_cron extension docs](https://supabase.com/docs/guides/database/extensions/pg_cron) — scheduled jobs in Postgres.
-- [pg_net extension](https://supabase.com/docs/guides/database/extensions/pg_net) — async HTTP from SQL, used to invoke the Edge Function.
-- [Scheduling Edge Functions guide](https://supabase.com/docs/guides/functions/schedule-functions) — Supabase's recommended pattern: pg_cron + pg_net → Edge Function with service-role auth.
-- [pg_cron free-tier availability (community discussion #37405)](https://github.com/orgs/supabase/discussions/37405) — confirms no tier gating; "Cron is only limited by the resources it uses CPU/Memory/Disk wise on any tier."
-- [Supabase Vault](https://supabase.com/docs/guides/database/vault) — encrypted secret storage for the project URL and service-role key referenced from the cron job.
-
-Postgres roles and permissions:
-
-- [Supabase Postgres Roles guide](https://supabase.com/docs/guides/database/postgres/roles) — role hierarchy and which schemas each role owns; relevant for understanding why `auth.users` and `auth.sessions` need elevated access.
-- [`SECURITY DEFINER` and search_path injection (Postgres docs)](https://www.postgresql.org/docs/current/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY) — why `set search_path = ''` plus fully-qualified table references are required.
+Anon-user cleanup research notes (separate doc, deferred from this spec): [`docs/superpowers/handoffs/2026-05-08-anon-user-cleanup-notes.md`](../handoffs/2026-05-08-anon-user-cleanup-notes.md).
