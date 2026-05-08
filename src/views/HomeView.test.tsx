@@ -46,9 +46,9 @@ describe("HomeView", () => {
     navigate.mockClear();
   });
 
-  it("shows a sign-in CTA when unauthenticated", async () => {
+  it("redirects to /login when unauthenticated", async () => {
     render(wrap(<HomeView />));
-    await waitFor(() => expect(screen.getByRole("link", { name: /sign in/i })).toBeInTheDocument());
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/login" }));
   });
 
   it("shows the user's decks when authenticated", async () => {
