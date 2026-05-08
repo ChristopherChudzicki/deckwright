@@ -93,11 +93,20 @@ When the flag is off, behavior is identical to today: no-session boot lands in `
 
 ## Sign-in flow
 
-### Happy path: linkIdentity succeeds
+### Branching logic
 
-User is anon with N decks. Clicks "Sign in to save permanently" in the header CTA. Lands on `/login`. Clicks Google (or GitHub). Because they're already anon, the LoginView calls `linkIdentity({ provider })` instead of `signInWithOAuth({ provider })`. OAuth round-trip; on the callback their session updates: same `user.id`, `is_anonymous` is now `false`. All `decks.owner_id` references stay valid. We toast "Signed in" and navigate to `next ?? "/"`.
+Before picking the API, the LoginView checks how many decks the anon user owns:
 
-### Already-linked branch: linkIdentity fails
+- **0 decks** → call `signInWithOAuth({ provider })` directly. The anon row is abandoned (and reaped by cron); no link, no dialog. This handles the common returning-user-on-new-device case (where a fresh anon row exists from boot but the user hasn't done anything yet) and the brand-new-user-signing-in-immediately case.
+- **≥1 decks** → call `linkIdentity({ provider })`. On the callback we know whether linking succeeded; failure routes to the dialog described below.
+
+The deck count comes from the existing `useDecks(anonUserId)` query. Reading it from the cache or refetching at click time are both fine; for safety we'll refetch (cheap; the user is about to do an OAuth round-trip anyway).
+
+### Happy path: linkIdentity succeeds (anon has decks, first time signing in with this provider)
+
+User is anon with N decks. Clicks "Sign in to save permanently" in the header CTA. Lands on `/login`. Clicks Google (or GitHub). Because they're anon and have decks, LoginView calls `linkIdentity({ provider })`. OAuth round-trip; on the callback their session updates: same `user.id`, `is_anonymous` is now `false`. All `decks.owner_id` references stay valid. We toast "Signed in" and navigate to `next ?? "/"`.
+
+### Already-linked branch: linkIdentity fails (anon has decks, existing account on this provider)
 
 If the user's OAuth identity is already attached to a different account, `linkIdentity` returns an error on the callback. We don't pin to a specific error code — any failure routes to the same dialog. The user is still anon (linking failed; session is unchanged).
 
@@ -110,7 +119,15 @@ Dialog copy (uses existing `DialogShell` / `DialogHeader`):
 - **Import branch:** Persist `{ anonUuid, importedDeckIds: [] }` under `localStorage.dndCards.pendingAnonImport`, then `signOut()` and `signInWithOAuth({ provider })`. After OAuth lands the user as the existing real user, `anonImport.tryResume()` runs (see invocation rules below): SELECT decks where `owner_id = anonUuid` (public read), then SELECT their cards. For each deck not already in `importedDeckIds`: INSERT a new deck owned by the current user with the same name; INSERT clones of its cards under the new deck id; append the original deck id to `importedDeckIds` and persist back to localStorage. When the list is complete, clear the key. Toast "Imported N decks."
 - **Sign in without importing branch:** `signOut()` and `signInWithOAuth({ provider })`. localStorage is not touched. The anon's decks are abandoned.
 
-In both branches the user goes through OAuth twice (once for the failed link, once for the actual sign-in). That's unavoidable: linkIdentity needs a real OAuth round-trip to discover the conflict, and we can't reuse the failed attempt as a sign-in.
+In both branches of this dialog the user goes through OAuth twice (once for the failed link, once for the actual sign-in). That's unavoidable: linkIdentity needs a real OAuth round-trip to discover the conflict, and we can't reuse the failed attempt as a sign-in. The deck-count branch above keeps this 2-round-trip path confined to the case where there's actually data to merge — which is precisely when the user wants the dialog anyway.
+
+### Cost summary
+
+| Scenario | Round-trips | Dialog? |
+|---|---|---|
+| Anon with 0 decks signs in (first time or returning) | 1 | No |
+| Anon with decks, first time signing in with this provider | 1 | No |
+| Anon with decks, existing account already on this provider | 2 | Yes |
 
 ### `tryResume()` invocation rules
 
@@ -219,7 +236,7 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 | `src/lib/ui/UserMenu.tsx` | Branch on `is_anonymous` for the CTA pill |
 | `src/lib/ui/UserMenu.module.css` | Pill button styling (or reuse `Button` accent variant) |
 | `src/lib/ui/UserMenu.test.tsx` | New cases for anon CTA |
-| `src/auth/LoginView.tsx` | OAuth buttons use `linkIdentity` when anon; dev path uses `updateUser` |
+| `src/auth/LoginView.tsx` | OAuth buttons branch on anon deck count: 0 → `signInWithOAuth`; ≥1 → `linkIdentity`. Dev path uses `updateUser` |
 | `src/auth/LoginView.test.tsx` | New cases for the link path |
 | `src/auth/AuthCallback.tsx` | Detect `linkIdentity` failure; open import dialog |
 | `src/auth/AuthCallback.test.tsx` | New cases for the failure path and dialog |
@@ -239,7 +256,7 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 - Coverage:
   - `AuthProvider`: with flag on, no session → calls `signInAnonymously`; status never `unauthenticated`.
   - `UserMenu`: anon → CTA pill; authenticated → avatar/menu; unauthenticated → existing "Sign in" link.
-  - `LoginView`: OAuth click as anon → `linkIdentity`; as unauthenticated → `signInWithOAuth`. Dev click as anon → `updateUser`.
+  - `LoginView`: OAuth click as anon with decks → `linkIdentity`; as anon with no decks → `signInWithOAuth`; as unauthenticated → `signInWithOAuth`. Dev click as anon → `updateUser`.
   - `AuthCallback`: linkIdentity failure → opens import dialog.
   - `anonImport`: happy clone, resumable clone (pre-existing partial state), cleared key on full success.
   - `FirstDeckDialog`: opens on first create; suppressed when flag set.
