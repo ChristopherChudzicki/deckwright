@@ -3,9 +3,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
 import { AuthProvider } from "../auth/AuthProvider";
+import * as useSessionMod from "../auth/useSession";
 import { makeCardRow, makeDeckRow } from "../test/factories";
 import { server } from "../test/msw";
 import { signInTestUser } from "../test/signInTestUser";
@@ -154,5 +155,60 @@ describe("HomeView", () => {
     const del = await screen.findByRole("button", { name: `Delete ${deck.name}` });
     await userEvent.click(del);
     await waitFor(() => expect(onDelete).toHaveBeenCalled());
+  });
+});
+
+describe("HomeView with anon user", () => {
+  beforeEach(() => {
+    navigate.mockClear();
+    window.localStorage.clear();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function renderAsAnon() {
+    vi.spyOn(useSessionMod, "useSession").mockReturnValue({
+      status: "authenticated",
+      user: { id: "anon-1", email: null, is_anonymous: true } as never,
+      session: {} as never,
+    });
+    return render(wrap(<HomeView />));
+  }
+
+  it("opens the FirstDeckDialog after an anonymous user creates their first deck", async () => {
+    const inserted = makeDeckRow.build({ name: "Untitled deck", owner_id: "anon-1" });
+    server.use(
+      http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])),
+      http.post(`${SB}/rest/v1/decks`, () => HttpResponse.json([inserted], { status: 201 })),
+    );
+    renderAsAnon();
+    await userEvent.click(await screen.findByRole("button", { name: /create your first deck/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /your decks live on this browser/i }),
+      ).toBeInTheDocument(),
+    );
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("does NOT open the FirstDeckDialog if it has already been seen", async () => {
+    window.localStorage.setItem("dndCards.firstDeckExplainerSeen", "1");
+    const inserted = makeDeckRow.build({ name: "Untitled deck", owner_id: "anon-1" });
+    server.use(
+      http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])),
+      http.post(`${SB}/rest/v1/decks`, () => HttpResponse.json([inserted], { status: 201 })),
+    );
+    renderAsAnon();
+    await userEvent.click(await screen.findByRole("button", { name: /create your first deck/i }));
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith({
+        to: "/deck/$deckId",
+        params: { deckId: inserted.id },
+      }),
+    );
+    expect(
+      screen.queryByRole("heading", { name: /your decks live on this browser/i }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type ChangeEvent, useEffect, useRef } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { useSession } from "../auth/useSession";
 import { parseDeckJson } from "../decks/io";
 import { useCreateDeck, useDeleteDeck, useSaveCard } from "../decks/mutations";
@@ -10,6 +10,7 @@ import { EmptyHero } from "../lib/ui/EmptyHero";
 import { IconButton } from "../lib/ui/IconButton";
 import { TrashIcon } from "../lib/ui/icons/TrashIcon";
 import { LoadingState } from "../lib/ui/LoadingState";
+import { FirstDeckDialog } from "./FirstDeckDialog";
 import styles from "./HomeView.module.css";
 
 export function HomeView() {
@@ -21,6 +22,7 @@ export function HomeView() {
   const deleteDeck = useDeleteDeck();
   const saveCard = useSaveCard();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showFirstDeckDialog, setShowFirstDeckDialog] = useState(false);
 
   useEffect(() => {
     if (session.status === "unauthenticated") {
@@ -29,6 +31,15 @@ export function HomeView() {
   }, [session.status, navigate]);
 
   if (session.status !== "authenticated") return null;
+
+  const maybeShowFirstDeckExplainer = () => {
+    if (session.status !== "authenticated") return false;
+    if (!session.user.is_anonymous) return false;
+    if (window.localStorage.getItem("dndCards.firstDeckExplainerSeen")) return false;
+    window.localStorage.setItem("dndCards.firstDeckExplainerSeen", "1");
+    setShowFirstDeckDialog(true);
+    return true;
+  };
 
   const handleImport = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,6 +63,7 @@ export function HomeView() {
         alert(`Import failed mid-way: ${err instanceof Error ? err.message : "unknown error"}`);
         return;
       }
+      if (maybeShowFirstDeckExplainer()) return;
       navigate({ to: "/deck/$deckId", params: { deckId: deck.id } });
     } finally {
       e.target.value = "";
@@ -61,6 +73,7 @@ export function HomeView() {
   const handleCreate = async () => {
     if (!ownerId) return;
     const deck = await createDeck.mutateAsync({ name: "Untitled deck", ownerId });
+    if (maybeShowFirstDeckExplainer()) return;
     navigate({ to: "/deck/$deckId", params: { deckId: deck.id } });
   };
 
@@ -69,7 +82,17 @@ export function HomeView() {
     deleteDeck.mutate(deckId);
   };
 
-  if (decks.isLoading) return <LoadingState />;
+  const dialog = (
+    <FirstDeckDialog isOpen={showFirstDeckDialog} onOpenChange={setShowFirstDeckDialog} />
+  );
+
+  if (decks.isLoading)
+    return (
+      <>
+        <LoadingState />
+        {dialog}
+      </>
+    );
 
   if (!decks.data || decks.data.length === 0) {
     return (
@@ -95,47 +118,51 @@ export function HomeView() {
           hidden
           onChange={handleImport}
         />
+        {dialog}
       </>
     );
   }
 
   return (
-    <section>
-      <header className={styles.header}>
-        <h2>Your decks</h2>
-        <div className={styles.headerActions}>
-          <Button variant="secondary" onPress={() => fileInputRef.current?.click()}>
-            Import JSON
-          </Button>
-          <Button variant="primary" onPress={handleCreate} isDisabled={createDeck.isPending}>
-            New deck
-          </Button>
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/json"
-          aria-label="Import JSON"
-          hidden
-          onChange={handleImport}
-        />
-      </header>
-      <ul className={styles.list}>
-        {decks.data.map((d) => (
-          <li key={d.id} className={styles.row}>
-            <Link to="/deck/$deckId" params={{ deckId: d.id }} className={styles.deckLink}>
-              {d.name}
-            </Link>
-            <IconButton
-              aria-label={`Delete ${d.name}`}
-              variant="danger"
-              onPress={() => handleDelete(d.id, d.name)}
-            >
-              <TrashIcon />
-            </IconButton>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <>
+      <section>
+        <header className={styles.header}>
+          <h2>Your decks</h2>
+          <div className={styles.headerActions}>
+            <Button variant="secondary" onPress={() => fileInputRef.current?.click()}>
+              Import JSON
+            </Button>
+            <Button variant="primary" onPress={handleCreate} isDisabled={createDeck.isPending}>
+              New deck
+            </Button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json"
+            aria-label="Import JSON"
+            hidden
+            onChange={handleImport}
+          />
+        </header>
+        <ul className={styles.list}>
+          {decks.data.map((d) => (
+            <li key={d.id} className={styles.row}>
+              <Link to="/deck/$deckId" params={{ deckId: d.id }} className={styles.deckLink}>
+                {d.name}
+              </Link>
+              <IconButton
+                aria-label={`Delete ${d.name}`}
+                variant="danger"
+                onPress={() => handleDelete(d.id, d.name)}
+              >
+                <TrashIcon />
+              </IconButton>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {dialog}
+    </>
   );
 }
