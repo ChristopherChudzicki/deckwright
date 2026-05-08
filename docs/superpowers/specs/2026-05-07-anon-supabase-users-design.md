@@ -241,67 +241,104 @@ enable_anonymous_sign_ins = true
 
 A corresponding toggle in the Supabase dashboard for prod.
 
-### Migration: anonymous-user cleanup
+### Cleanup: pg_cron + pg_net → Edge Function
 
-Two non-obvious gotchas to design around:
+Cleanup uses Supabase's recommended pattern for scheduled work that needs admin privileges: a pg_cron schedule invokes an Edge Function via pg_net, and the Edge Function uses the `service_role` key to call `supabase.auth.admin.deleteUser()` for each stale user.
 
-1. **`postgres` role can't `DELETE` from `auth.users`.** That table is owned by `supabase_auth_admin`. The cron job runs as the role that called `cron.schedule()` (typically `postgres`), so the bare `DELETE` will fail with a permission error. We wrap the delete in a `SECURITY DEFINER` function created by `supabase_auth_admin` and have the cron call the function.
-2. **`auth.users.last_sign_in_at` does not update on token refresh.** A returning anon user whose tokens auto-refresh in the background still has the same `last_sign_in_at` from their initial signin — gating cleanup on this column would reap actively-used accounts at 30 days. The correct activity signal is `auth.sessions.updated_at`, which the auth server bumps whenever a refresh happens.
+Two non-obvious gotchas this design has to handle:
 
-New migration `supabase/migrations/<timestamp>_anon_user_cleanup.sql`:
+1. **`auth.sessions` is owned by `supabase_auth_admin`.** Querying it from PostgREST/RPC requires either elevated SQL access or a `SECURITY DEFINER` helper. We use a small read-only helper rather than going through the admin SQL path.
+2. **`auth.users.last_sign_in_at` does not update on token refresh.** A returning anon user whose tokens auto-refresh in the background still has the same `last_sign_in_at` from their initial sign-in — gating cleanup on this column would reap actively-used accounts at 30 days. The correct activity signal is `auth.sessions.updated_at`, which the auth server bumps on every refresh.
+
+#### Migration: `supabase/migrations/<timestamp>_anon_user_cleanup.sql`
 
 ```sql
 create extension if not exists pg_cron;
+create extension if not exists pg_net;
 
-create or replace function auth.delete_stale_anonymous_users()
-returns integer
-language plpgsql
+-- Read-only helper: returns IDs of anon users with no active session
+-- in the last 30 days. SECURITY DEFINER because auth.sessions is
+-- restricted to supabase_auth_admin.
+create or replace function public.stale_anon_user_ids()
+returns table(id uuid)
+language sql
 security definer
 set search_path = ''
 as $$
-declare
-  deleted_count integer;
-begin
-  with stale as (
-    select u.id
-    from auth.users u
-    where u.is_anonymous is true
-      and u.id is not null
-      and not exists (
-        select 1
-        from auth.sessions s
-        where s.user_id = u.id
-          and s.updated_at > now() - interval '30 days'
-      )
-    limit 1000
-  ),
-  deleted as (
-    delete from auth.users
-    where id in (select id from stale)
-    returning 1
-  )
-  select count(*) into deleted_count from deleted;
-  return deleted_count;
-end;
+  select u.id
+  from auth.users u
+  where u.is_anonymous is true
+    and u.id is not null
+    and not exists (
+      select 1
+      from auth.sessions s
+      where s.user_id = u.id
+        and s.updated_at > now() - interval '30 days'
+    )
+  limit 1000
 $$;
 
--- The function must be owned by supabase_auth_admin so SECURITY DEFINER
--- runs with that role's privileges over auth.users.
-alter function auth.delete_stale_anonymous_users() owner to supabase_auth_admin;
+alter function public.stale_anon_user_ids() owner to supabase_auth_admin;
+grant execute on function public.stale_anon_user_ids() to service_role;
 
+-- Schedule weekly invocation of the Edge Function. Project URL and
+-- service_role key live in Supabase Vault (created via the dashboard
+-- or `select vault.create_secret(...)`).
 select cron.schedule(
-  'delete-stale-anon-users',
+  'cleanup-anon-users',
   '0 3 * * 0',  -- Sundays 03:00 UTC
-  $$ select auth.delete_stale_anonymous_users() $$
+  $$
+    select net.http_post(
+      url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url')
+             || '/functions/v1/cleanup-anon-users',
+      headers := jsonb_build_object(
+        'Authorization', 'Bearer ' ||
+          (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key'),
+        'Content-Type', 'application/json'
+      ),
+      body := '{}'::jsonb
+    )
+  $$
 );
+```
+
+The helper is **read-only**: it returns IDs but cannot delete anything. The privilege elevation is narrow — calling it does nothing destructive. Deletion happens in the Edge Function via the admin API.
+
+#### Edge Function: `supabase/functions/cleanup-anon-users/index.ts`
+
+```ts
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+Deno.serve(async () => {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  const { data: ids, error } = await supabase.rpc("stale_anon_user_ids");
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+
+  let deleted = 0;
+  const failures: string[] = [];
+  for (const { id } of ids ?? []) {
+    const { error: delError } = await supabase.auth.admin.deleteUser(id);
+    if (delError) failures.push(`${id}: ${delError.message}`);
+    else deleted++;
+  }
+
+  return new Response(JSON.stringify({ deleted, failures }), { status: 200 });
+});
 ```
 
 Notes:
 
-- The `LIMIT 1000` caps blast radius per run if the predicate is ever wrong; it also keeps the lock window short. Multiple weekly runs will catch up if the backlog grows.
-- `is not null` on `u.id` is defensive against any future schema change that produces NULL ids (paranoid but cheap).
-- `decks.owner_id` already has `on delete cascade`, so deleting the user cascades to decks → cards.
-- We can verify `auth.sessions` retention is long enough for our 30-day threshold; Supabase keeps sessions until `refresh_token` expires (~30+ days on default config), which aligns with the cleanup window.
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-injected into Edge Function runtimes by Supabase — no manual secret setup needed for the function itself.
+- Edge Functions require a valid JWT by default; the cron job's `Authorization: Bearer <service_role_key>` header satisfies that gate, so the function isn't reachable as an anonymous public endpoint.
+- The function returns a JSON summary; pg_net stores the HTTP response in `net._http_response` for inspection.
+- `decks.owner_id` already has `on delete cascade`, so `auth.admin.deleteUser()` cascades to decks → cards.
+- The `LIMIT 1000` in the helper caps blast radius per run; weekly runs will catch up on any backlog.
 
 ### RLS
 
@@ -334,7 +371,8 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 | `src/views/HomeView.tsx` | Trigger first-create dialog on first deck create as anon |
 | `src/views/HomeView.test.tsx` | New cases for the anon-create dialog and resume |
 | `supabase/config.toml` | `enable_anonymous_sign_ins = true` |
-| `supabase/migrations/<ts>_anon_user_cleanup.sql` (new) | `pg_cron` schedule + `SECURITY DEFINER` cleanup function |
+| `supabase/migrations/<ts>_anon_user_cleanup.sql` (new) | Enable `pg_cron` + `pg_net`; create read-only `stale_anon_user_ids()` helper; schedule weekly Edge Function invocation |
+| `supabase/functions/cleanup-anon-users/index.ts` (new) | Deno Edge Function: calls helper, deletes returned IDs via `supabase.auth.admin.deleteUser()` |
 
 ## Testing strategy
 
@@ -353,7 +391,8 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 
 - Behavior of supabase-js's URL detection on a `linkIdentity` failure callback: confirm that no fake "session" event fires when the URL contains `error_code=identity_already_exists`, so AuthCallback's URL parsing is the sole source of truth for the failure branch.
 - `INITIAL_SESSION` event ordering when we synchronously call `signInAnonymously()` from inside the listener. Verified safe (auth-js serializes calls via internal lock), but the slightly more idiomatic alternative is to call `signInAnonymously()` from a `useEffect` after subscribe. Either is acceptable; revisit if the listener-body call produces any odd state transitions in tests.
-- `auth.sessions.updated_at` retention window in Supabase managed config. We assume it stays populated for at least 30 days for active sessions; if Supabase prunes sessions sooner, the cleanup query may reap users whose tokens are still valid. Monitor first month after rollout.
+- `auth.sessions.updated_at` retention window in Supabase managed config. We assume it stays populated for at least 30 days for active sessions; if Supabase prunes sessions sooner, the cleanup may reap users whose tokens are still valid. Monitor first month after rollout.
+- Ownership-transfer permission for `alter function public.stale_anon_user_ids() owner to supabase_auth_admin` from a standard migration. Most Supabase projects allow `postgres` to alter ownership to `supabase_auth_admin` because `postgres` is a member of the relevant role group, but verify on first migration run; if it fails, the alternative is a dashboard-side SQL edit using a more privileged session.
 
 ## Rollout
 
@@ -362,13 +401,18 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
    - Boot fresh: anon sign-in, create deck, see first-create dialog.
    - Sign in via Google → verify same UUID, decks attached.
    - Repeat with a Google identity already on another account → verify import dialog and resumable clone.
-3. Pre-flight checks before flipping prod flag:
+3. Deploy the Edge Function: `supabase functions deploy cleanup-anon-users`.
+4. Store secrets in Vault (one-time, via dashboard or `select vault.create_secret(...)`):
+   - `project_url` — e.g., `https://<ref>.supabase.co`
+   - `service_role_key` — copied from the Supabase dashboard
+5. Pre-flight checks before flipping prod flag:
    - Confirm Supabase Auth → URL Configuration restricts redirect URLs to the prod origin and `localhost:5173`. No wildcards.
-   - Confirm Supabase Auth → Rate Limits has the default `anonymous_users` limit enabled (currently 30/hr/IP).
-   - Confirm `pg_cron` migration applied and `select * from cron.job` shows the scheduled job. Run `select auth.delete_stale_anonymous_users();` manually once to validate it executes without permission errors against the live `auth.users` schema.
-4. Flip `enable_anonymous_sign_ins = true` in the Supabase dashboard for prod.
-5. Set `VITE_ANON_USERS_ENABLED=true` in the prod build env (Vercel).
-6. Watch the first scheduled run in `cron.job_run_details` to confirm it executed cleanly.
+   - Confirm Supabase Auth → Rate Limits has the default `anonymous_users` limit enabled (30/hr/IP by default).
+   - Confirm migration applied: `select * from cron.job` shows `cleanup-anon-users`.
+   - Manually invoke the function once to validate end-to-end: `select net.http_post(...)` from SQL Editor, then check `cron.job_run_details` and the Edge Function logs.
+6. Flip `enable_anonymous_sign_ins = true` in the Supabase dashboard for prod.
+7. Set `VITE_ANON_USERS_ENABLED=true` in the prod build env (Vercel).
+8. Watch the first scheduled run in `cron.job_run_details` and the Edge Function logs to confirm it executed cleanly.
 
 ## Out of scope follow-ups
 
@@ -377,3 +421,27 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
 - Captcha / additional rate limiting on anonymous sign-in if abuse becomes a concern.
 - Telemetry on conversion rate (anon → real user).
 - **Revisit the public-read RLS posture.** `decks_select_all` and `cards_select_all` use `using (true)`, meaning any authenticated user (including anyone with an anon JWT) can SELECT any deck or card. This is pre-existing — not introduced by this PR — but the anon sign-in feature makes the exposure trivial to discover (one API call to mint an anon JWT, then enumerate). For a hobby app where decks are share-by-link by design this is probably fine, but worth a deliberate decision rather than inheriting it by accident. Track as a separate issue.
+
+## References
+
+Supabase auth APIs:
+
+- [Anonymous Sign-Ins guide](https://supabase.com/docs/guides/auth/auth-anonymous) — `signInAnonymously()` semantics, `is_anonymous` JWT claim, conversion paths.
+- [Identity Linking guide](https://supabase.com/docs/guides/auth/auth-identity-linking) — `linkIdentity()` API and conceptual flow.
+- [`linkIdentity` failure modes (community discussion #27061)](https://github.com/orgs/supabase/discussions/27061) — confirms that conflict detection happens server-side during the OAuth callback and is surfaced via `error_code=identity_already_exists` in the redirect URL, not via the original method's promise or `onAuthStateChange`.
+- [Anonymous user `updateUser` two-step (community discussion #29017)](https://github.com/orgs/supabase/discussions/29017) — Supabase rejects setting a password on an anonymous user before email lands; updates must be sequential.
+- [`updateUser` anon bug #29350](https://github.com/supabase/supabase/issues/29350) — known bug where single-call `updateUser({ email, password })` works on anon users; do not rely on it.
+- [supabase-js `auth-js` source](https://github.com/supabase/auth-js) — `_acquireLock` serialization confirms calling `signInAnonymously()` from inside an `onAuthStateChange` listener body is safe but not idiomatic.
+
+Cleanup pattern:
+
+- [Supabase Cron module](https://supabase.com/modules/cron) and [pg_cron extension docs](https://supabase.com/docs/guides/database/extensions/pg_cron) — scheduled jobs in Postgres.
+- [pg_net extension](https://supabase.com/docs/guides/database/extensions/pg_net) — async HTTP from SQL, used to invoke the Edge Function.
+- [Scheduling Edge Functions guide](https://supabase.com/docs/guides/functions/schedule-functions) — Supabase's recommended pattern: pg_cron + pg_net → Edge Function with service-role auth.
+- [pg_cron free-tier availability (community discussion #37405)](https://github.com/orgs/supabase/discussions/37405) — confirms no tier gating; "Cron is only limited by the resources it uses CPU/Memory/Disk wise on any tier."
+- [Supabase Vault](https://supabase.com/docs/guides/database/vault) — encrypted secret storage for the project URL and service-role key referenced from the cron job.
+
+Postgres roles and permissions:
+
+- [Supabase Postgres Roles guide](https://supabase.com/docs/guides/database/postgres/roles) — role hierarchy and which schemas each role owns; relevant for understanding why `auth.users` and `auth.sessions` need elevated access.
+- [`SECURITY DEFINER` and search_path injection (Postgres docs)](https://www.postgresql.org/docs/current/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY) — why `set search_path = ''` plus fully-qualified table references are required.
