@@ -35,7 +35,7 @@ export function AnnouncementProvider({ children }: { children: ReactNode }) {
     },
     setNext: (message) => {
       slotRef.current.message = message;
-      for (const fn of subsRef.current) fn();
+      for (const fn of Array.from(subsRef.current)) fn();
     },
   }).current;
   return <AnnouncementContext.Provider value={value}>{children}</AnnouncementContext.Provider>;
