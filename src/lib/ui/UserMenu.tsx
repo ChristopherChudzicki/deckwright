@@ -23,6 +23,14 @@ export function UserMenu() {
     );
   }
 
+  if (session.user.is_anonymous) {
+    return (
+      <Link to="/login" className={styles.pillCta}>
+        Sign in to save your work
+      </Link>
+    );
+  }
+
   const email = session.user.email ?? "";
 
   return (
