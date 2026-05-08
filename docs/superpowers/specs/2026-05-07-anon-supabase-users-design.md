@@ -45,7 +45,7 @@ AuthProvider                                   auth.users
        (status stays "loading")                  ├ decks   (RLS unchanged)
                                                  └ cards   (RLS unchanged)
 UserMenu                                       pg_cron schedule
-  ├ anonymous → "Sign in to save permanently"    └ weekly: delete anon users
+  ├ anonymous → "Sign in to save your work"      └ weekly: delete anon users
   ├ authenticated → avatar + sign-out                inactive > 30 days
   └ unauthenticated (flag off) → "Sign in" link
 LoginView
@@ -104,17 +104,22 @@ The deck count comes from the existing `useDecks(anonUserId)` query. Reading it 
 
 ### Happy path: linkIdentity succeeds (anon has decks, first time signing in with this provider)
 
-User is anon with N decks. Clicks "Sign in to save permanently" in the header CTA. Lands on `/login`. Clicks Google (or GitHub). Because they're anon and have decks, LoginView calls `linkIdentity({ provider })`. OAuth round-trip; on the callback their session updates: same `user.id`, `is_anonymous` is now `false`. All `decks.owner_id` references stay valid. We toast "Signed in" and navigate to `next ?? "/"`.
+User is anon with N decks. Clicks "Sign in to save your work" in the header CTA. Lands on `/login`. Clicks Google (or GitHub). Because they're anon and have decks, LoginView calls `linkIdentity({ provider })`. OAuth round-trip; on the callback their session updates: same `user.id`, `is_anonymous` is now `false`. All `decks.owner_id` references stay valid. We toast "Signed in" and navigate to `next ?? "/"`.
 
 ### Already-linked branch: linkIdentity fails (anon has decks, existing account on this provider)
 
 If the user's OAuth identity is already attached to a different account, `linkIdentity` returns an error on the callback. We don't pin to a specific error code — any failure routes to the same dialog. The user is still anon (linking failed; session is unchanged).
 
-Dialog copy (uses existing `DialogShell` / `DialogHeader`):
+Dialog copy (uses existing `DialogShell` / `DialogHeader`). The conflicting email is read from the failed-link response (Supabase exposes the OAuth identity's email even on link failure):
 
-> **You already have an account**
-> Looks like that Google account is already signed up. Want to import your N decks into it?
-> [ Import N decks ] [ Sign in without importing ]
+> **You already have a dnd-cards account**
+> Looks like {email} is already signed up here. Want to bring your N decks into that account?
+>
+> If you skip, those decks will be left behind and deleted after 30 days. They cannot be recovered.
+>
+> [ **Yes, import N decks** ]   <small>Skip — leave decks behind</small>
+
+The primary action is the styled button; "Skip" is a tertiary text-link styled to be visually de-emphasized so a hurried user can't equate it with the import action. The destructive consequence is named explicitly above the buttons.
 
 - **Import branch:** Persist `{ anonUuid, importedDeckIds: [] }` under `localStorage.dndCards.pendingAnonImport`, then `signOut()` and `signInWithOAuth({ provider })`. After OAuth lands the user as the existing real user, `anonImport.tryResume()` runs (see invocation rules below): SELECT decks where `owner_id = anonUuid` (public read), then SELECT their cards. For each deck not already in `importedDeckIds`: INSERT a new deck owned by the current user with the same name; INSERT clones of its cards under the new deck id; append the original deck id to `importedDeckIds` and persist back to localStorage. When the list is complete, clear the key. Toast "Imported N decks."
 - **Sign in without importing branch:** `signOut()` and `signInWithOAuth({ provider })`. localStorage is not touched. The anon's decks are abandoned.
@@ -136,11 +141,40 @@ In both branches of this dialog the user goes through OAuth twice (once for the 
 1. The session transitions to `authenticated` with `!user.is_anonymous`, **and**
 2. `localStorage.dndCards.pendingAnonImport` exists.
 
-The natural call site is `AuthCallback` (before navigating to `next`), so the import runs in front of the user with a "Importing your decks…" progress UI. For the rare case where the user closes the tab mid-import and returns days later already signed in, a secondary check from `AuthProvider` on the `authenticated` event picks up the resume. The function is idempotent (the `importedDeckIds` list prevents double-cloning) so calling it from both sites is safe.
+The natural call site is `AuthCallback` (before navigating to `next`), so the import runs in front of the user. For the rare case where the user closes the tab mid-import and returns days later already signed in, a secondary check from `AuthProvider` on the `authenticated` event picks up the resume. The function is idempotent (the `importedDeckIds` list prevents double-cloning) so calling it from both sites is safe.
 
 The new decks have new UUIDs (deck and card IDs change). The original anon rows are abandoned and reaped by `pg_cron`.
 
-Resumability: if the network drops mid-clone, on the next page load `tryResume()` picks up where it left off. Idempotent because we never re-insert deck ids that are already in `importedDeckIds`.
+### Import progress UI
+
+While `tryResume()` is running on the AuthCallback page, the page renders an interstitial in place of its current "Signing you in…" copy:
+
+> **Bringing your decks over**
+> Imported {imported} of {total} decks…
+
+A simple inline counter — no spinner, no progress bar primitive needed. Updates live as `importedDeckIds` grows. Navigation to `next` happens only after the counter reaches `total` and the localStorage key is cleared. The interstitial also doubles as the "Signing you in to import…" cue between the two OAuth round-trips, since the user lands on `AuthCallback` after the second OAuth completes.
+
+If the SELECT or any INSERT fails after retry (a single in-process retry on transient errors), render a recoverable error state:
+
+> **Couldn't finish importing your decks**
+> Imported {imported} of {total}. We'll try again automatically next time you sign in.
+>
+> [ Retry now ]   <small>Continue without retrying</small>
+
+The localStorage key is preserved so the next sign-in resumes from where this one stopped. "Continue" navigates to `next` without clearing the key.
+
+### Toast on full success
+
+`Imported N decks.` Shown once on completion of the import. If the import resumed across multiple sessions (e.g., interrupted at deck 3 of 10, completed on a later visit), the toast still says the total imported, so the user understands the import is fully done.
+
+### OAuth failure modes
+
+Beyond the already-linked branch, `linkIdentity` and `signInWithOAuth` can fail for several reasons. Each is handled by leaving the user in their pre-click state and surfacing a recoverable error:
+
+- **User cancels the OAuth popup / browser back-button.** No callback fires; user is still anon on the LoginView. No state change needed; they can click again.
+- **OAuth provider error (Google/GitHub down, denied consent).** Callback returns with `error_description` query param. We display "Sign-in didn't complete: {message}" on the LoginView and clear any `pendingAnonImport` key set in this attempt — we never started the import, so there's nothing to resume.
+- **Network drops mid-redirect.** Same as cancellation from the user's perspective.
+- **Race: anon row reaped while user is at the OAuth screen.** Possible but extremely unlikely (cron is weekly, OAuth round-trip is seconds). If `tryResume()` SELECTs the anon's decks and gets zero rows, we treat it as already-imported (clear the key, no toast). The user lands signed-in with no anon-decks to import — the same outcome as if they had no anon decks to begin with.
 
 ### Dev sign-in path
 
@@ -157,7 +191,7 @@ The existing dev sign-in button does `signInWithPassword(DEV_EMAIL, DEV_PASSWORD
 
 Branch on `session.user.is_anonymous`:
 
-- **Anonymous** → render an accent-colored pill button labeled "Sign in to save permanently" that links to `/login`. This replaces the avatar/menu when anon. No sign-out option; the only way out of anon is to convert.
+- **Anonymous** → render an accent-colored pill button labeled "Sign in to save your work" that links to `/login`. This replaces the avatar/menu when anon. No sign-out option; the only way out of anon is to convert.
 - **Authenticated (real)** → existing avatar + sign-out menu, unchanged.
 - **Unauthenticated** (flag off) → existing "Sign in" link, unchanged.
 
@@ -173,17 +207,25 @@ Trigger: in `HomeView.handleCreate` (and `handleImport`), after the deck is crea
 
 Copy:
 
-> **Heads up — your decks live on this browser**
-> You're using the app without an account. Your decks are saved to a temporary account on this browser and can be lost if you clear browsing data or don't visit for a few weeks.
+> **Your decks live on this browser**
+> You're not signed in, so your new deck only exists here on this device — not on your phone, your other laptop, or anywhere else. Sign in any time to save your decks to your account, where you can access them from any device.
 >
-> Sign in any time to save them permanently to your account.
-> [ Got it ] [ Sign in now ]
+> Otherwise, your decks may be lost if you clear browsing data, switch browsers, or don't visit for 30 days.
+>
+> [ **Sign in now** ]   <small>Not yet</small>
 
-"Sign in now" links to `/login`. "Got it" dismisses.
+The primary action is "Sign in now" (links to `/login`). "Not yet" is a tertiary text link that dismisses. Visual weight reflects intent: this is a conversion moment, not a 50/50 choice. Once dismissed, the dialog never reappears for that browser; the header CTA is the only ongoing prompt.
 
 ### LoginView copy
 
 When the current user is anon, the page heading and copy shift from "Sign in to create and edit decks" to "Save your work to your account." OAuth buttons stay visually identical; the underlying handler picks `linkIdentity` vs `signInWithOAuth` based on session state.
+
+### Accessibility
+
+- All dialogs (`FirstDeckDialog`, the import dialog) use the existing `DialogShell` + `DialogHeader`, which are built on react-aria-components and handle modal focus trap, escape-to-dismiss, and labelled-by relationships out of the box.
+- The header CTA pill is a `<Link to="/login">` styled as a button. It carries an explicit text label ("Sign in to save your work") so it reads correctly to screen readers without an `aria-label` override.
+- The import progress interstitial on `AuthCallback` uses an `aria-live="polite"` region so the counter updates are announced as the import progresses.
+- After dialog dismissal, focus returns to the originating control (the "Sign in" CTA for the import dialog; the deck list for the first-create dialog). `DialogShell` handles this by default; verify in tests.
 
 ## Database changes
 
@@ -257,7 +299,7 @@ No changes. Existing policies (`decks_select_all`, `cards_select_all`, `_insert_
   - `AuthProvider`: with flag on, no session → calls `signInAnonymously`; status never `unauthenticated`.
   - `UserMenu`: anon → CTA pill; authenticated → avatar/menu; unauthenticated → existing "Sign in" link.
   - `LoginView`: OAuth click as anon with decks → `linkIdentity`; as anon with no decks → `signInWithOAuth`; as unauthenticated → `signInWithOAuth`. Dev click as anon → `updateUser`.
-  - `AuthCallback`: linkIdentity failure → opens import dialog.
+  - `AuthCallback`: linkIdentity failure → opens import dialog; partial-import failure → renders recoverable error state with retry button; OAuth provider error → renders recoverable message.
   - `anonImport`: happy clone, resumable clone (pre-existing partial state), cleared key on full success.
   - `FirstDeckDialog`: opens on first create; suppressed when flag set.
   - `HomeView`: integrates the dialog and resume call without breaking existing flows.
