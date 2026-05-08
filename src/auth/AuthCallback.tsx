@@ -33,15 +33,19 @@ export function AuthCallback() {
 
   useEffect(() => {
     if (session.status !== "authenticated") return;
+    let cancelled = false;
 
     const linkError = parseLinkError();
     if (linkError === "identity_already_exists" && session.user.is_anonymous) {
       void (async () => {
         const { data } = await supabase.from("decks").select("id").eq("owner_id", session.user.id);
+        if (cancelled) return;
         setDeckCount(data?.length ?? 0);
         setPhase("dialog");
       })();
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (linkError) {
@@ -58,8 +62,12 @@ export function AuthCallback() {
           const result = await tryResume({
             supabase,
             currentUserId: session.user.id,
-            onProgress: (imported, total) => setProgress({ imported, total }),
+            onProgress: (imported, total) => {
+              if (cancelled) return;
+              setProgress({ imported, total });
+            },
           });
+          if (cancelled) return;
           if (result.kind === "completed" && result.importedCount > 0) {
             setAnnouncement(`Imported ${result.importedCount} decks`);
           } else if (result.kind === "partial") {
@@ -70,13 +78,16 @@ export function AuthCallback() {
           window.localStorage.removeItem("dndCards.lastProvider");
           navigate({ to: getNextPath() });
         } catch {
+          if (cancelled) return;
           setAnnouncement(
             "Couldn't finish importing your decks. We'll try again next time you sign in.",
           );
           navigate({ to: getNextPath() });
         }
       })();
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (!session.user.is_anonymous) {
@@ -84,6 +95,9 @@ export function AuthCallback() {
       window.localStorage.removeItem("dndCards.lastProvider");
     }
     navigate({ to: getNextPath() });
+    return () => {
+      cancelled = true;
+    };
   }, [session, navigate, setAnnouncement]);
 
   const onImport = async () => {
