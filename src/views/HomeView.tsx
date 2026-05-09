@@ -1,10 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "../auth/useSession";
-import { parseDeckJson } from "../decks/io";
-import { useCreateDeck, useDeleteDeck, useSaveCard } from "../decks/mutations";
+import { useCreateDeck, useDeleteDeck } from "../decks/mutations";
 import { useDecks } from "../decks/queries";
-import { newId } from "../lib/id";
 import { Button } from "../lib/ui/Button";
 import { EmptyHero } from "../lib/ui/EmptyHero";
 import { IconButton } from "../lib/ui/IconButton";
@@ -20,8 +18,6 @@ export function HomeView() {
   const decks = useDecks();
   const createDeck = useCreateDeck();
   const deleteDeck = useDeleteDeck();
-  const saveCard = useSaveCard();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showFirstDeckDialog, setShowFirstDeckDialog] = useState(false);
 
   useEffect(() => {
@@ -40,35 +36,6 @@ export function HomeView() {
     window.localStorage.setItem("dndCards.firstDeckExplainerSeen", "1");
     setShowFirstDeckDialog(true);
     return true;
-  };
-
-  const handleImport = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !ownerId) return;
-    try {
-      const text = await file.text();
-      const result = parseDeckJson(text);
-      if (!result.ok) {
-        alert(`Import failed: ${result.error}`);
-        return;
-      }
-      const name = file.name.replace(/\.json$/i, "") || "Imported deck";
-      const deck = await createDeck.mutateAsync({ name, ownerId });
-      try {
-        for (const card of result.deck.cards) {
-          const fresh = { ...card, id: newId() };
-          await saveCard.mutateAsync({ card: fresh, deckId: deck.id, isNew: true });
-        }
-      } catch (err) {
-        await deleteDeck.mutateAsync(deck.id).catch(() => {});
-        alert(`Import failed mid-way: ${err instanceof Error ? err.message : "unknown error"}`);
-        return;
-      }
-      if (maybeShowFirstDeckExplainer()) return;
-      navigate({ to: "/deck/$deckId", params: { deckId: deck.id } });
-    } finally {
-      e.target.value = "";
-    }
   };
 
   const handleCreate = async () => {
@@ -101,23 +68,10 @@ export function HomeView() {
         <EmptyHero
           title="No decks yet"
           actions={
-            <>
-              <Button variant="secondary" onPress={() => fileInputRef.current?.click()}>
-                Import JSON
-              </Button>
-              <Button variant="primary" onPress={handleCreate} isDisabled={createDeck.isPending}>
-                Create your first deck
-              </Button>
-            </>
+            <Button variant="primary" onPress={handleCreate} isDisabled={createDeck.isPending}>
+              Create your first deck
+            </Button>
           }
-        />
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/json"
-          aria-label="Import JSON"
-          hidden
-          onChange={handleImport}
         />
         {dialog}
       </>
@@ -130,21 +84,10 @@ export function HomeView() {
         <header className={styles.header}>
           <h2>Your decks</h2>
           <div className={styles.headerActions}>
-            <Button variant="secondary" onPress={() => fileInputRef.current?.click()}>
-              Import JSON
-            </Button>
             <Button variant="primary" onPress={handleCreate} isDisabled={createDeck.isPending}>
               New deck
             </Button>
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json"
-            aria-label="Import JSON"
-            hidden
-            onChange={handleImport}
-          />
         </header>
         <ul className={styles.list}>
           {decks.data.map((d) => (

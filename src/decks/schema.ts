@@ -23,12 +23,6 @@ export const itemCardSchema = baseCardSchema.extend({ kind: z.literal("item") })
 export const spellCardSchema = baseCardSchema.extend({ kind: z.literal("spell") });
 export const abilityCardSchema = baseCardSchema.extend({ kind: z.literal("ability") });
 
-export const cardSchema = z.discriminatedUnion("kind", [
-  itemCardSchema,
-  spellCardSchema,
-  abilityCardSchema,
-]);
-
 const itemPayloadSchema = itemCardSchema.omit({ id: true });
 const spellPayloadSchema = spellCardSchema.omit({ id: true });
 const abilityPayloadSchema = abilityCardSchema.omit({ id: true });
@@ -38,8 +32,3 @@ export const cardPayloadSchema = z.discriminatedUnion("kind", [
   spellPayloadSchema,
   abilityPayloadSchema,
 ]);
-
-export const deckSchema = z.object({
-  version: z.literal(1),
-  cards: z.array(cardSchema),
-});
