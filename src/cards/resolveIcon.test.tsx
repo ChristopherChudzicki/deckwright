@@ -3,7 +3,7 @@ import { render, waitFor } from "../test/render";
 import { ResolvedIcon } from "./resolveIcon";
 
 describe("<ResolvedIcon>", () => {
-  test("renders a curated icon", async () => {
+  test("renders a known icon", async () => {
     const { container } = render(<ResolvedIcon iconKey="trident" />);
     await waitFor(() => {
       expect(container.querySelector("svg")).not.toBeNull();

@@ -9,15 +9,13 @@ import {
   Size,
   Virtualizer,
 } from "react-aria-components";
-import { CURATED_ICONS } from "../../cards/curatedIcons";
-import { ensureFullSet } from "../../cards/resolveIcon";
+import { ensureIcons } from "../../cards/resolveIcon";
 import { Button } from "./Button";
 import { DialogHeader } from "./DialogHeader";
 import { DialogShell } from "./DialogShell";
 import styles from "./IconPickerDialog.module.css";
 import { IconPreview } from "./IconPreview";
 import { Input } from "./Input";
-import { Switch } from "./Switch";
 
 const AUTO_ID = "__auto__";
 
@@ -71,21 +69,36 @@ type Hovered = { label: string; top: number; left: number };
 function PickerBody({ value, autoHint, onChange, onCancel }: BodyProps) {
   const selectedKey = value ?? AUTO_ID;
   const [search, setSearch] = useState("");
-  const [showAll, setShowAll] = useState(false);
-  const [fullSetKeys, setFullSetKeys] = useState<readonly string[] | null>(null);
+  const [keys, setKeys] = useState<readonly string[] | null>(null);
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const resetScroll = () => {
-    if (gridRef.current) gridRef.current.scrollTop = 0;
-  };
+  useEffect(() => {
+    void ensureIcons().then(() => {
+      setKeys(listIcons("", "game-icons").map((n) => n.replace("game-icons:", "")));
+    });
+  }, []);
+
+  // Once icons are loaded, scroll the current tile into view (centered).
+  // Tile size matches layoutOptions (minItemSize 60 + minSpace 8).
+  useEffect(() => {
+    if (!keys || selectedKey === AUTO_ID) return;
+    const idx = keys.indexOf(selectedKey);
+    if (idx < 0) return;
+    const handle = requestAnimationFrame(() => {
+      const grid = gridRef.current;
+      if (!grid || grid.clientWidth === 0) return;
+      const cell = 68;
+      const cols = Math.max(1, Math.floor(grid.clientWidth / cell));
+      const row = Math.floor((idx + 1) / cols);
+      grid.scrollTop = Math.max(0, row * cell - grid.clientHeight / 2 + cell / 2);
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [keys, selectedKey]);
+
   const handleSearchChange = (next: string) => {
     setSearch(next);
-    resetScroll();
-  };
-  const handleShowAllChange = (next: boolean) => {
-    setShowAll(next);
-    resetScroll();
+    if (gridRef.current) gridRef.current.scrollTop = 0;
   };
 
   // Event delegation: RAC's GridListItem doesn't forward onMouseEnter, so a
@@ -104,22 +117,12 @@ function PickerBody({ value, autoHint, onChange, onCancel }: BodyProps) {
   };
   const handleGridLeave = () => setHovered(null);
 
-  useEffect(() => {
-    void ensureFullSet().then(() => {
-      const all = listIcons("", "game-icons").map((n) => n.replace("game-icons:", ""));
-      setFullSetKeys(all);
-    });
-  }, []);
-
-  const dataset = useMemo(
-    () => (showAll && fullSetKeys ? fullSetKeys : CURATED_ICONS),
-    [showAll, fullSetKeys],
-  );
   const filtered = useMemo(() => {
-    if (!search) return dataset;
+    if (!keys) return [];
+    if (!search) return keys;
     const q = search.toLowerCase();
-    return dataset.filter((k) => k.toLowerCase().includes(q));
-  }, [dataset, search]);
+    return keys.filter((k) => k.toLowerCase().includes(q));
+  }, [keys, search]);
   const items = useMemo<{ id: string; label: string }[]>(
     () => [{ id: AUTO_ID, label: "Auto" }, ...filtered.map((k) => ({ id: k, label: k }))],
     [filtered],
@@ -149,9 +152,6 @@ function PickerBody({ value, autoHint, onChange, onCancel }: BodyProps) {
         <SearchField aria-label="Search icons" value={search} onChange={handleSearchChange}>
           <Input className={styles.searchSlot} />
         </SearchField>
-        <Switch isSelected={showAll} onChange={handleShowAllChange}>
-          Show all
-        </Switch>
       </div>
       {value === undefined && autoHint && <div className={styles.autoHint}>{autoHint}</div>}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: Event delegation for tile tooltip; display:contents removes the wrapper from layout entirely. */}
@@ -169,15 +169,14 @@ function PickerBody({ value, autoHint, onChange, onCancel }: BodyProps) {
             className={styles.grid}
             items={items}
             layout="grid"
-            selectionMode="single"
-            selectionBehavior="replace"
-            defaultSelectedKeys={[selectedKey]}
+            selectionMode="none"
             onAction={handleAction}
           >
             {(item) => (
               <GridListItem
                 id={item.id}
                 textValue={item.label}
+                data-current={item.id === selectedKey ? "true" : undefined}
                 className={`${styles.tile} ${item.id === AUTO_ID ? styles.autoTile : ""}`}
               >
                 {item.id === AUTO_ID ? (
