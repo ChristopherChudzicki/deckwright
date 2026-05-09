@@ -69,6 +69,24 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
     updated_at: now,
   };
 
+  // RPC return shapes intentionally exclude owner_id; get_public_deck
+  // surfaces is_owner instead, computed server-side. See the
+  // 20260508000000_rls_rpc_hardening migration.
+  const publicDeckRow = {
+    id: TEST_DECK_ID,
+    name: "E2E Test Deck",
+    created_at: now,
+    updated_at: now,
+    is_owner: true,
+  };
+
+  const deckSummaryRow = {
+    id: TEST_DECK_ID,
+    name: "E2E Test Deck",
+    created_at: now,
+    updated_at: now,
+  };
+
   const cardRows = items.map((it, i) => ({
     id: it.id ?? `00000000-0000-4000-8000-${i.toString().padStart(12, "0")}`,
     deck_id: TEST_DECK_ID,
@@ -116,6 +134,18 @@ export async function seedDeck(page: Page, items: SeedItem[]): Promise<void> {
       `e2e fixture: unsupported ${method} on /rest/v1/cards. ` +
         "seedDeck currently mocks reads only; extend it before adding write-path specs.",
     );
+  });
+
+  await page.route("**/rest/v1/rpc/get_public_deck", async (route) => {
+    await route.fulfill({ json: publicDeckRow });
+  });
+
+  await page.route("**/rest/v1/rpc/get_public_deck_cards", async (route) => {
+    await route.fulfill({ json: cardRows });
+  });
+
+  await page.route("**/rest/v1/rpc/list_my_decks", async (route) => {
+    await route.fulfill({ json: [deckSummaryRow] });
   });
 
   await page.route("**/auth/v1/**", async (route) => {
