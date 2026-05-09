@@ -23,8 +23,3 @@ export type RenderableCard = ItemCard | SpellCard;
 
 export const isRenderableCard = (card: Card): card is RenderableCard =>
   card.kind === "item" || card.kind === "spell";
-
-export type Deck = {
-  version: 1;
-  cards: Card[];
-};
