@@ -11,6 +11,11 @@ export type LayoutPaginateOpts = {
   mount: (html: string, width: number) => HTMLElement;
 };
 
+// Safety bound: a body that produced this many chunks is almost certainly a
+// runaway loop (something is failing to make forward progress). Throwing
+// turns a hung renderer into a visible error.
+const MAX_CHUNKS = 1024;
+
 export function layoutPaginate(opts: LayoutPaginateOpts): string[] {
   const { bodyHtml, width, firstHeight, continuationHeight, mount } = opts;
   if (bodyHtml === "") return [""];
@@ -29,6 +34,11 @@ export function layoutPaginate(opts: LayoutPaginateOpts): string[] {
   try {
     let budget = firstHeight;
     while (container.children.length > 0) {
+      if (chunks.length >= MAX_CHUNKS) {
+        throw new Error(
+          `layoutPaginate: exceeded MAX_CHUNKS=${MAX_CHUNKS} — likely a non-progressing slice. Dumping container as one final chunk.`,
+        );
+      }
       const candidates = collectBreakCandidates(container);
       if (candidates.length === 0) {
         // No structural splits available — flush the rest as one chunk.
@@ -45,7 +55,9 @@ export function layoutPaginate(opts: LayoutPaginateOpts): string[] {
     }
   } finally {
     // Clear rather than remove — the measurer reuses the body slot it returns
-    // from mountForPagination across paginations.
+    // from mountForPagination across paginations. If the production
+    // measurer's contract ever changes (e.g. mountForPagination starts
+    // returning a fresh disposable element), update this call to match.
     container.replaceChildren();
   }
 

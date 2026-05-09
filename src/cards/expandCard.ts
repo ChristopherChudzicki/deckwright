@@ -6,7 +6,7 @@ import type { RenderableCard } from "./types";
 
 export type PhysicalCard = {
   card: RenderableCard;
-  bodyChunk: string;
+  bodyHtml: string;
   pagination?: CardPagination;
 };
 
@@ -18,13 +18,13 @@ export function expandCard(card: RenderableCard, measurer: CardMeasurer): Physic
     width: dims.width,
     firstHeight: dims.firstHeight,
     continuationHeight: dims.continuationHeight,
-    mount: (html, width) => measurer.mountForPagination(html, width),
+    mount: measurer.mountForPagination,
   });
 
   const total = chunks.length;
-  return chunks.map((bodyChunk, i) => ({
+  return chunks.map((bodyHtml, i) => ({
     card,
-    bodyChunk,
+    bodyHtml,
     pagination: total > 1 ? { page: i + 1, total } : undefined,
   }));
 }

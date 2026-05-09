@@ -55,7 +55,7 @@ describe("expandCard", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.card).toBe(card);
     // Trailing whitespace differs after the DOM round-trip; structural HTML matches.
-    expect(result[0]?.bodyChunk.trim()).toBe(renderBody("tiny").trim());
+    expect(result[0]?.bodyHtml.trim()).toBe(renderBody("tiny").trim());
     expect(result[0]?.pagination).toBeUndefined();
   });
 
@@ -71,8 +71,8 @@ describe("expandCard", () => {
       },
     });
     const result = expandCard(card, measurer);
-    expect(result[0]?.bodyChunk).toContain("<strong>bold</strong>");
-    expect(result[0]?.bodyChunk).not.toContain("**bold**");
+    expect(result[0]?.bodyHtml).toContain("<strong>bold</strong>");
+    expect(result[0]?.bodyHtml).not.toContain("**bold**");
   });
 
   test("multiple physical cards with pagination metadata when body splits", () => {
@@ -100,8 +100,8 @@ describe("expandCard", () => {
       { page: 2, total: 3 },
       { page: 3, total: 3 },
     ]);
-    expect(result[0]?.bodyChunk).toContain("para one");
-    expect(result[1]?.bodyChunk).toContain("para two");
-    expect(result[2]?.bodyChunk).toContain("para three");
+    expect(result[0]?.bodyHtml).toContain("para one");
+    expect(result[1]?.bodyHtml).toContain("para two");
+    expect(result[2]?.bodyHtml).toContain("para three");
   });
 });

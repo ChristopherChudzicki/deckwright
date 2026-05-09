@@ -10,9 +10,13 @@ export type BreakCandidate = {
 export type LineBox = { bottom: number; charOffset: number };
 export type LineBoxProvider = (textNode: Text) => LineBox[];
 
-const ATOMIC_TAGS = new Set(["IMG", "PRE", "HR", "FIGURE"]);
-const LINE_FLOW_TAGS = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "BLOCKQUOTE"]);
-
+// The walker only handles top-level children of `root`. Containers it knows
+// about (TABLE, DL, UL/OL, P) emit candidates between their immediate
+// children. Containers nested *inside* another container (e.g. a UL inside
+// an LI, a P inside a BLOCKQUOTE) are not recursed into — their break points
+// fall through to the parent's between-child boundaries. This is sufficient
+// for everything renderBody currently emits; adding deeper recursion is the
+// follow-up if that allowlist expands.
 export function collectBreakCandidates(
   root: HTMLElement,
   opts: { lineBoxes?: LineBoxProvider } = {},
@@ -44,11 +48,6 @@ function handleChild(
 ): void {
   const tag = child.tagName;
 
-  if (ATOMIC_TAGS.has(tag)) {
-    emitAfter(child, parent, originY, out);
-    return;
-  }
-
   if (tag === "TABLE") {
     handleTable(child, parent, originY, out);
     return;
@@ -64,11 +63,13 @@ function handleChild(
     return;
   }
 
-  if (LINE_FLOW_TAGS.has(tag)) {
+  if (tag === "P") {
     handleInlineFlow(child, parent, originY, lineBoxes, out);
     return;
   }
 
+  // Unknown / unhandled tag (PRE, IMG, HR, headings, ...). Treat as opaque:
+  // one candidate immediately after the element, no internal split points.
   emitAfter(child, parent, originY, out);
 }
 
@@ -213,8 +214,7 @@ const defaultLineBoxes: LineBoxProvider = (textNode) => {
   const out: LineBox[] = [];
   const probe = document.createRange();
   for (let lineIdx = 0; lineIdx < wholeRects.length - 1; lineIdx++) {
-    const targetBottom = wholeRects[lineIdx]?.bottom;
-    if (targetBottom === undefined) continue;
+    const targetBottom = (wholeRects[lineIdx] as DOMRect).bottom;
     let lo = 1;
     let hi = text.length;
     let best = 0;

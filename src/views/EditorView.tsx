@@ -141,7 +141,7 @@ export function EditorView({ deckId, cardId }: Props) {
         <Card
           card={draft}
           cardsPerPage={4}
-          bodyHtml={visibleChunk?.bodyChunk}
+          bodyHtml={visibleChunk?.bodyHtml}
           pagination={visibleChunk?.pagination}
         />
         {showPaginator && (
