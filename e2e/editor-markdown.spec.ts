@@ -93,11 +93,11 @@ test("undo collapses a toolbar action into a single Cmd+Z", async ({ page }) => 
   await expect(body).toHaveValue("hello **world**");
 
   await body.focus();
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   await expect(body).toHaveValue("hello world");
 
   // One more undo begins peeling the typed text.
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   await expect(body).not.toHaveValue("hello world");
 });
 
