@@ -24,7 +24,7 @@ export function useCreateDeck() {
       if (!data) throw new Error("useCreateDeck: insert returned no row");
       return data as DeckRow;
     },
-    onSuccess: (_data, vars) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: decksKey() });
     },
   });
