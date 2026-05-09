@@ -3,6 +3,32 @@ import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { SB_URL, server } from "./msw";
 
+// Replace the ~4000-icon game-icons bundle with a tiny fixture so picker
+// tests don't pay full-collection filter/render cost on every keystroke.
+// Add a key here if a test references it (resolveIcon's dev-time warning
+// fires for any name not in this set).
+vi.mock("@iconify-json/game-icons/icons.json", () => ({
+  default: {
+    prefix: "game-icons",
+    width: 512,
+    height: 512,
+    icons: Object.fromEntries(
+      [
+        "trident",
+        "broadsword",
+        "fireball",
+        "sword",
+        "shield",
+        "axe",
+        "bow",
+        "dragon",
+        "scroll",
+        "staff",
+      ].map((name) => [name, { body: "<path d='M0 0h512v512H0z'/>" }]),
+    ),
+  },
+}));
+
 vi.stubEnv("VITE_SUPABASE_URL", SB_URL);
 vi.stubEnv(
   "VITE_SUPABASE_ANON_KEY",
