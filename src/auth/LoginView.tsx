@@ -3,7 +3,11 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "../api/supabase";
 import { decksKey } from "../decks/queries";
+import { pluralize } from "../lib/pluralize";
+import { useSetNextAnnouncement } from "../lib/ui/Announcement";
 import { OAuthButton } from "../lib/ui/OAuthButton";
+import { clear, stash, tryResume } from "./anonImport";
+import { ImportAccountDialog } from "./ImportAccountDialog";
 import styles from "./LoginView.module.css";
 import { readNextFromUrl } from "./safeNext";
 import { useSession } from "./useSession";
@@ -15,7 +19,12 @@ export function LoginView() {
   const navigate = useNavigate();
   const session = useSession();
   const queryClient = useQueryClient();
+  const setAnnouncement = useSetNextAnnouncement();
   const [pending, setPending] = useState<"google" | "github" | "dev" | null>(null);
+  const [importPrompt, setImportPrompt] = useState<{
+    deckCount: number;
+    anonUuid: string;
+  } | null>(null);
 
   const isAnon = session.status === "authenticated" && session.user.is_anonymous === true;
   const userId = session.status === "authenticated" ? session.user.id : null;
@@ -48,26 +57,36 @@ export function LoginView() {
     }
   };
 
+  const switchToExistingDevAccount = async (next: string) => {
+    await supabase.auth.signOut();
+    await supabase.auth.signInWithPassword({ email: DEV_EMAIL, password: DEV_PASSWORD });
+    navigate({ to: next });
+  };
+
   const devSignIn = async () => {
     if (pending !== null) return;
     setPending("dev");
     const next = readNextFromUrl();
-    if (isAnon) {
+    if (isAnon && userId) {
       // Supabase rejects setting a password on an anon user before the email
-      // lands, so update email first, then password. If the email is already
-      // taken, fall back to sign-out + sign-in.
+      // lands, so update email first, then password.
       const { error: emailError } = await supabase.auth.updateUser({ email: DEV_EMAIL });
       if (emailError) {
-        await supabase.auth.signOut();
-        await supabase.auth.signInWithPassword({ email: DEV_EMAIL, password: DEV_PASSWORD });
-        navigate({ to: next });
+        // Email is taken — an existing dev account already exists. Mirror the
+        // OAuth identity_already_exists flow: if the anon has decks, prompt
+        // to import them; otherwise switch silently.
+        const { data: decks } = await supabase.from("decks").select("id").eq("owner_id", userId);
+        const deckCount = decks?.length ?? 0;
+        if (deckCount > 0) {
+          setImportPrompt({ deckCount, anonUuid: userId });
+          return;
+        }
+        await switchToExistingDevAccount(next);
         return;
       }
       const { error: pwError } = await supabase.auth.updateUser({ password: DEV_PASSWORD });
       if (pwError) {
-        await supabase.auth.signOut();
-        await supabase.auth.signInWithPassword({ email: DEV_EMAIL, password: DEV_PASSWORD });
-        navigate({ to: next });
+        await switchToExistingDevAccount(next);
         return;
       }
       navigate({ to: next });
@@ -86,6 +105,45 @@ export function LoginView() {
     // OAuth providers route back through /auth/callback which navigates;
     // dev sign-in is direct, so navigate manually.
     navigate({ to: next });
+  };
+
+  const onImportConfirm = async () => {
+    if (!importPrompt) return;
+    const { anonUuid } = importPrompt;
+    setImportPrompt(null);
+    const next = readNextFromUrl();
+    stash({ version: 1, anonUuid, importedDeckIds: [] });
+    await supabase.auth.signOut();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: DEV_EMAIL,
+      password: DEV_PASSWORD,
+    });
+    if (error || !data?.user) {
+      setAnnouncement("Couldn't sign in to existing dev account.");
+      navigate({ to: next });
+      return;
+    }
+    try {
+      const result = await tryResume({ supabase, currentUserId: data.user.id });
+      if (result.kind === "completed" && result.importedCount > 0) {
+        setAnnouncement(`Imported ${pluralize(result.importedCount, "deck")}`);
+      } else if (result.kind === "partial") {
+        setAnnouncement(
+          `Imported ${result.importedCount} of ${pluralize(result.total, "deck")}. We'll try again next time you sign in.`,
+        );
+      }
+    } catch {
+      setAnnouncement(
+        "Couldn't finish importing your decks. We'll try again next time you sign in.",
+      );
+    }
+    navigate({ to: next });
+  };
+
+  const onImportSkip = async () => {
+    setImportPrompt(null);
+    clear();
+    await switchToExistingDevAccount(readNextFromUrl());
   };
 
   const heading = isAnon ? "Save your work to your account" : "Sign in";
@@ -130,6 +188,14 @@ export function LoginView() {
           </li>
         )}
       </ul>
+      {importPrompt && (
+        <ImportAccountDialog
+          isOpen
+          deckCount={importPrompt.deckCount}
+          onImport={() => void onImportConfirm()}
+          onSkip={() => void onImportSkip()}
+        />
+      )}
     </section>
   );
 }

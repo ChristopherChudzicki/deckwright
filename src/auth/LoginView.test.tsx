@@ -5,6 +5,7 @@ import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
+import { AnnouncementProvider } from "../lib/ui/Announcement";
 import { SB_URL, server } from "../test/msw";
 import { LoginView } from "./LoginView";
 import { SessionContext, type SessionState } from "./useSession";
@@ -21,7 +22,11 @@ function wrap(ui: ReactNode, session?: SessionState) {
   ) : (
     ui
   );
-  return <QueryClientProvider client={client}>{inner}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <AnnouncementProvider>{inner}</AnnouncementProvider>
+    </QueryClientProvider>
+  );
 }
 
 describe("LoginView", () => {
@@ -186,5 +191,138 @@ describe("LoginView OAuth branching", () => {
 
     await waitFor(() => expect(oauthSpy).toHaveBeenCalled());
     expect(linkSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("LoginView dev path conflict", () => {
+  beforeEach(() => {
+    vi.stubEnv("DEV", true);
+    vi.stubEnv("VITE_ANON_USERS_ENABLED", "true");
+    window.localStorage.clear();
+    navigate.mockClear();
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("opens ImportAccountDialog when anon dev sign-in hits an email conflict and anon has decks", async () => {
+    vi.spyOn(supabase.auth, "updateUser").mockResolvedValue({
+      data: { user: null },
+      error: { message: "email already exists" },
+    } as never);
+    server.use(
+      http.get(`${SB_URL}/rest/v1/decks`, () =>
+        HttpResponse.json([{ id: "d1" }, { id: "d2" }, { id: "d3" }]),
+      ),
+    );
+
+    render(
+      wrap(<LoginView />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /sign in as dev user/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /you already have a dnd-cards account/i }),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: /yes, import 3 decks/i })).toBeInTheDocument();
+  });
+
+  it("on import: stashes pending, signs out, signs in to existing dev account, and navigates", async () => {
+    vi.spyOn(supabase.auth, "updateUser").mockResolvedValue({
+      data: { user: null },
+      error: { message: "email already exists" },
+    } as never);
+    const signOutSpy = vi
+      .spyOn(supabase.auth, "signOut")
+      .mockResolvedValue({ error: null } as never);
+    const signInSpy = vi.spyOn(supabase.auth, "signInWithPassword").mockResolvedValue({
+      data: { user: { id: "dev-1" }, session: {} },
+      error: null,
+    } as never);
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([{ id: "d1" }])));
+
+    render(
+      wrap(<LoginView />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /sign in as dev user/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /yes, import 1 deck$/i }));
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
+    expect(setItemSpy).toHaveBeenCalledWith(
+      "dndCards.pendingAnonImport",
+      expect.stringContaining("anon-1"),
+    );
+    expect(signOutSpy).toHaveBeenCalled();
+    expect(signInSpy).toHaveBeenCalledWith({ email: "dev@local", password: "devpass" });
+  });
+
+  it("on skip: clears pending, signs out, signs in to existing dev account, and navigates", async () => {
+    vi.spyOn(supabase.auth, "updateUser").mockResolvedValue({
+      data: { user: null },
+      error: { message: "email already exists" },
+    } as never);
+    const signOutSpy = vi
+      .spyOn(supabase.auth, "signOut")
+      .mockResolvedValue({ error: null } as never);
+    const signInSpy = vi
+      .spyOn(supabase.auth, "signInWithPassword")
+      .mockResolvedValue({ data: { user: { id: "dev-1" }, session: {} }, error: null } as never);
+    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([{ id: "d1" }])));
+    window.localStorage.setItem(
+      "dndCards.pendingAnonImport",
+      JSON.stringify({ version: 1, anonUuid: "anon-old", importedDeckIds: [] }),
+    );
+
+    render(
+      wrap(<LoginView />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /sign in as dev user/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /skip — leave decks behind/i }),
+    );
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
+    expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
+    expect(signOutSpy).toHaveBeenCalled();
+    expect(signInSpy).toHaveBeenCalledWith({ email: "dev@local", password: "devpass" });
+  });
+
+  it("falls through silently when anon dev sign-in conflicts but anon has no decks", async () => {
+    vi.spyOn(supabase.auth, "updateUser").mockResolvedValue({
+      data: { user: null },
+      error: { message: "email already exists" },
+    } as never);
+    const signInSpy = vi
+      .spyOn(supabase.auth, "signInWithPassword")
+      .mockResolvedValue({ data: { user: { id: "dev-1" }, session: {} }, error: null } as never);
+    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([])));
+
+    render(
+      wrap(<LoginView />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /sign in as dev user/i }));
+
+    await waitFor(() => expect(signInSpy).toHaveBeenCalled());
+    expect(
+      screen.queryByRole("heading", { name: /you already have a dnd-cards account/i }),
+    ).not.toBeInTheDocument();
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
   });
 });
