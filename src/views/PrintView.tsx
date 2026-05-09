@@ -112,7 +112,7 @@ export function PrintView({ deckId }: Props) {
                       <Card
                         card={entry.card}
                         cardsPerPage={perPage}
-                        bodyOverride={entry.bodyChunk}
+                        bodyHtml={entry.bodyChunk}
                         pagination={entry.pagination}
                       />
                     </div>

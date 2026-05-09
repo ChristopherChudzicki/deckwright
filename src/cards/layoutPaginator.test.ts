@@ -106,18 +106,25 @@ describe("layoutPaginate", () => {
     expect(result).toEqual(["<div>1</div>", "<div>2</div>", "<div>3</div>"]);
   });
 
-  test("removes the mounted container after pagination", () => {
-    const before = document.body.children.length;
+  test("clears the mounted container after pagination so the measurer can reuse it", () => {
+    let mounted: HTMLElement | null = null;
     layoutPaginate({
       bodyHtml: "<div>x</div>",
       width: 100,
       firstHeight: 100,
       continuationHeight: 100,
-      mount: makeMount((c) => {
+      mount: (html) => {
+        const c = document.createElement("div");
+        c.innerHTML = html;
+        document.body.appendChild(c);
         setRect(c, 0, 30);
         setRect(c.children[0], 0, 30);
-      }),
+        mounted = c;
+        return c;
+      },
     });
-    expect(document.body.children.length).toBe(before);
+    expect(mounted).not.toBeNull();
+    expect(mounted!.children.length).toBe(0);
+    mounted!.remove();
   });
 });

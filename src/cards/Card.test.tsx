@@ -120,13 +120,6 @@ describe("<Card> with pagination", () => {
     }
   });
 
-  test("renders bodyOverride instead of card.body", () => {
-    const card = itemCardFactory.build();
-    render(<Card card={card} cardsPerPage={4} bodyOverride="chunk text" />);
-    expect(screen.getByText("chunk text")).toBeInTheDocument();
-    expect(screen.queryByText(card.body)).not.toBeInTheDocument();
-  });
-
   test("renders bodyHtml directly without re-running markdown", () => {
     const card = itemCardFactory.build();
     const { unmount } = render(

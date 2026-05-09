@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
 import { magicItemIndexEntryFactory } from "../api/factories";
-import * as paginateModule from "../cards/paginate";
+import * as layoutPaginatorModule from "../cards/layoutPaginator";
 import { makeCardRow } from "../test/factories";
 import { SB_URL as SB, server } from "../test/msw";
 import { EditorView } from "./EditorView";
@@ -135,8 +135,8 @@ describe("EditorView", () => {
 
   it("shows multi-card counts label and paginator when body overflows at 4 per page", async () => {
     const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
-    vi.spyOn(paginateModule, "paginateBody").mockImplementation(({ body }) =>
-      body === "" ? [""] : ["chunk-a", "chunk-b", "chunk-c"],
+    vi.spyOn(layoutPaginatorModule, "layoutPaginate").mockImplementation(({ bodyHtml }) =>
+      bodyHtml === "" ? [""] : ["chunk-a", "chunk-b", "chunk-c"],
     );
     server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
     render(wrap(<EditorView deckId="d1" cardId="c1" />));
@@ -147,8 +147,8 @@ describe("EditorView", () => {
   it("shows per-bucket label when 4-per-page and 2-per-page counts differ", async () => {
     const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
     let callCount = 0;
-    vi.spyOn(paginateModule, "paginateBody").mockImplementation(({ body }) => {
-      if (body === "") return [""];
+    vi.spyOn(layoutPaginatorModule, "layoutPaginate").mockImplementation(({ bodyHtml }) => {
+      if (bodyHtml === "") return [""];
       callCount += 1;
       return callCount === 1 ? ["chunk-a", "chunk-b", "chunk-c"] : ["chunk-x", "chunk-y"];
     });

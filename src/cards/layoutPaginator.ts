@@ -36,7 +36,9 @@ export function layoutPaginate(opts: LayoutPaginateOpts): string[] {
       budget = continuationHeight;
     }
   } finally {
-    container.remove();
+    // Clear rather than remove — the measurer reuses the body slot it returns
+    // from mountForPagination across paginations.
+    container.replaceChildren();
   }
 
   return chunks;

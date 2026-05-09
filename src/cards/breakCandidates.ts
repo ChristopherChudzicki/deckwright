@@ -21,18 +21,23 @@ export function collectBreakCandidates(
   const originY = root.getBoundingClientRect().top;
   const lineBoxes = opts.lineBoxes ?? defaultLineBoxes;
 
-  const children = Array.from(root.children);
-  children.forEach((child, index) => {
-    handleChild(child as HTMLElement, root, index, originY, lineBoxes, out);
-  });
+  for (const child of Array.from(root.children)) {
+    handleChild(child as HTMLElement, root, originY, lineBoxes, out);
+  }
 
   return out.sort((a, b) => a.y - b.y);
+}
+
+// Returns the index in parent.childNodes immediately after `child`. Range
+// boundaries on Element parents use childNodes offsets (not element-only
+// offsets), so all SplitAt childIndex values must be computed this way.
+function indexAfter(parent: Element, child: Node): number {
+  return Array.prototype.indexOf.call(parent.childNodes, child) + 1;
 }
 
 function handleChild(
   child: HTMLElement,
   parent: Element,
-  index: number,
   originY: number,
   lineBoxes: LineBoxProvider,
   out: BreakCandidate[],
@@ -40,77 +45,78 @@ function handleChild(
   const tag = child.tagName;
 
   if (ATOMIC_TAGS.has(tag)) {
-    emitAfter(child, parent, index, originY, out);
+    emitAfter(child, parent, originY, out);
     return;
   }
 
   if (tag === "TABLE") {
-    handleTable(child, parent, index, originY, out);
+    handleTable(child, parent, originY, out);
     return;
   }
 
   if (tag === "DL") {
-    handleDefinitionList(child, parent, index, originY, out);
+    handleDefinitionList(child, parent, originY, out);
     return;
   }
 
   if (tag === "UL" || tag === "OL") {
-    handleListLike(child, parent, index, originY, out);
+    handleListLike(child, parent, originY, out);
     return;
   }
 
   if (LINE_FLOW_TAGS.has(tag)) {
-    handleInlineFlow(child, parent, index, originY, lineBoxes, out);
+    handleInlineFlow(child, parent, originY, lineBoxes, out);
     return;
   }
 
-  emitAfter(child, parent, index, originY, out);
+  emitAfter(child, parent, originY, out);
 }
 
 function emitAfter(
   child: HTMLElement,
   parent: Element,
-  index: number,
   originY: number,
   out: BreakCandidate[],
 ): void {
   out.push({
     y: child.getBoundingClientRect().bottom - originY,
-    splitAt: { kind: "between-children", parent, childIndex: index + 1 },
+    splitAt: {
+      kind: "between-children",
+      parent,
+      childIndex: indexAfter(parent, child),
+    },
   });
 }
 
 function handleTable(
   table: HTMLElement,
   parent: Element,
-  index: number,
   originY: number,
   out: BreakCandidate[],
 ): void {
   const tbody = (table.querySelector(":scope > tbody") as HTMLElement | null) ?? table;
-  const tbodyChildren = Array.from(tbody.children);
-  const rowIndices = tbodyChildren
-    .map((c, i) => (c.tagName === "TR" ? i : -1))
-    .filter((i) => i >= 0);
+  const rows = Array.from(tbody.children).filter((c): c is HTMLElement => c.tagName === "TR");
 
   // Emit between adjacent rows (skip after the last row — that coincides with
   // the after-table candidate).
-  for (let i = 0; i < rowIndices.length - 1; i++) {
-    const rowIdx = rowIndices[i] as number;
-    const row = tbodyChildren[rowIdx] as HTMLElement;
+  for (let i = 0; i < rows.length - 1; i++) {
+    const row = rows[i] as HTMLElement;
     out.push({
       y: row.getBoundingClientRect().bottom - originY,
-      splitAt: { kind: "between-children", parent: tbody, childIndex: rowIdx + 1 },
+      splitAt: {
+        kind: "between-children",
+        parent: tbody,
+        childIndex: indexAfter(tbody, row),
+      },
     });
   }
 
-  emitAfter(table, parent, index, originY, out);
+  emitAfter(table, parent, originY, out);
 }
 
 function handleDefinitionList(
   dl: HTMLElement,
   parent: Element,
-  index: number,
   originY: number,
   out: BreakCandidate[],
 ): void {
@@ -122,17 +128,20 @@ function handleDefinitionList(
     if (here.tagName === "DD" && next.tagName === "DT") {
       out.push({
         y: here.getBoundingClientRect().bottom - originY,
-        splitAt: { kind: "between-children", parent: dl, childIndex: i + 1 },
+        splitAt: {
+          kind: "between-children",
+          parent: dl,
+          childIndex: indexAfter(dl, here),
+        },
       });
     }
   }
-  emitAfter(dl, parent, index, originY, out);
+  emitAfter(dl, parent, originY, out);
 }
 
 function handleListLike(
   list: HTMLElement,
   parent: Element,
-  index: number,
   originY: number,
   out: BreakCandidate[],
 ): void {
@@ -141,16 +150,19 @@ function handleListLike(
     const item = items[i] as HTMLElement;
     out.push({
       y: item.getBoundingClientRect().bottom - originY,
-      splitAt: { kind: "between-children", parent: list, childIndex: i + 1 },
+      splitAt: {
+        kind: "between-children",
+        parent: list,
+        childIndex: indexAfter(list, item),
+      },
     });
   }
-  emitAfter(list, parent, index, originY, out);
+  emitAfter(list, parent, originY, out);
 }
 
 function handleInlineFlow(
   block: HTMLElement,
   parent: Element,
-  index: number,
   originY: number,
   lineBoxes: LineBoxProvider,
   out: BreakCandidate[],
@@ -175,7 +187,11 @@ function handleInlineFlow(
 
   out.push({
     y: blockBottom,
-    splitAt: { kind: "between-children", parent, childIndex: index + 1 },
+    splitAt: {
+      kind: "between-children",
+      parent,
+      childIndex: indexAfter(parent, block),
+    },
   });
 }
 

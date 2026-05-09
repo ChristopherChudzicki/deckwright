@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { describe, expect, test, vi } from "vitest";
-import * as paginateModule from "../cards/paginate";
+import * as layoutPaginatorModule from "../cards/layoutPaginator";
 import { makeCardRow } from "../test/factories";
 import { SB_URL as SB, server } from "../test/msw";
 import { PrintView } from "./PrintView";
@@ -53,8 +53,8 @@ describe("<PrintView>", () => {
 
   test("renders multiple physical cards for an oversized item at 4-up", async () => {
     const card = makeCardRow.build();
-    vi.spyOn(paginateModule, "paginateBody").mockImplementation(({ body }) =>
-      body === "" ? [""] : ["chunk-a", "chunk-b", "chunk-c"],
+    vi.spyOn(layoutPaginatorModule, "layoutPaginate").mockImplementation(({ bodyHtml }) =>
+      bodyHtml === "" ? [""] : ["chunk-a", "chunk-b", "chunk-c"],
     );
     server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
     render(wrap(<PrintView deckId="d1" />));

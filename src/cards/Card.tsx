@@ -12,17 +12,16 @@ type Props = {
   card: RenderableCard;
   cardsPerPage: CardsPerPage;
   pagination?: CardPagination;
-  bodyOverride?: string;
   bodyHtml?: string;
 };
 
-export function Card({ card, cardsPerPage, pagination, bodyOverride, bodyHtml }: Props) {
+export function Card({ card, cardsPerPage, pagination, bodyHtml }: Props) {
   const layoutClass = cardsPerPage === 4 ? styles.perPage4 : styles.perPage2;
 
   const iconKey = card.iconKey ?? pickIconKey(card);
 
   const isFirstPage = !pagination || pagination.page === 1;
-  const html = bodyHtml ?? renderBody(bodyOverride ?? card.body);
+  const html = bodyHtml ?? renderBody(card.body);
   const showFooterTags = isFirstPage && card.footerTags.length > 0;
   const showFooter = showFooterTags || pagination !== undefined;
 
