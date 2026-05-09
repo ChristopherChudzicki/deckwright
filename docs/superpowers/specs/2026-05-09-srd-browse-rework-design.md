@@ -83,16 +83,20 @@ export const items: ContentType = {
   supportedSources: ["2014", "2024"] as const,
   useResults: (source, query) => {
     const idx = useMagicItemIndex(source);
-    const q = query.trim().toLowerCase();
-    const rows = (idx.data?.results ?? [])
-      .filter((e) => q === "" || e.name.toLowerCase().includes(q))
-      .map((entry) => ({
-        key: entry.key,
-        name: entry.name,
-        meta: capitalize(entry.rarity.name),
-        // ruleset injection lives inside the module, satisfying the existing mapper contract
-        toCard: () => magicItemDetailToCard({ ...entry, ruleset: source }),
-      }));
+    // Memoize on the same triple BrowseApiModal currently uses
+    // (`useMemo([kind, itemIndex.data, query])` at BrowseApiModal.tsx:58–69).
+    const rows = useMemo(() => {
+      const q = query.trim().toLowerCase();
+      return (idx.data?.results ?? [])
+        .filter((e) => q === "" || e.name.toLowerCase().includes(q))
+        .map((entry) => ({
+          key: entry.key,
+          name: entry.name,
+          meta: capitalize(entry.rarity.name),
+          // ruleset injection lives inside the module, satisfying the existing mapper contract
+          toCard: () => magicItemDetailToCard({ ...entry, ruleset: source }),
+        }));
+    }, [idx.data, query, source]);
     return {
       isLoading: idx.isLoading,
       isError: idx.isError,
@@ -110,7 +114,9 @@ import { spells } from "./spells";
 export const CONTENT_TYPES: readonly ContentType[] = [items, spells];
 ```
 
-`BrowseApiModal` becomes type-agnostic: iterate `CONTENT_TYPES` to render the sidebar/tabs, look up the active type, call `useResults(source, query)`, render rows, on click call `row.toCard()` and pass the result to `useSaveCard`. The modal never sees `MagicItem` or `Spell` directly.
+`BrowseApiModal` becomes type-agnostic: it iterates `CONTENT_TYPES` to render `<Tab>` items in the `TabList` and a `<TabPanel key={type.id}>` per type. **The modal does not call `type.useResults` itself** — that would be a Rules-of-Hooks violation, since the resolved hook body would change as the active type changes. Instead, each `<TabPanel>` renders a `<TypePanel type={type} … />`, and `TypePanel` calls `type.useResults(source, query)` exactly once per render. Because `react-aria-components` `Tabs` only mounts the active `TabPanel` (default behavior — `shouldForceMount` is off), only one `TypePanel` is mounted at a time; switching the active type unmounts the prior `TypePanel` and mounts a fresh one keyed by `type.id`, so each `TypePanel` instance sees a single, stable `type` prop for its entire lifetime. This keeps the hook call order stable inside each `TypePanel`.
+
+On row click, `TypePanel` calls `row.toCard()` and hands the resulting `Card` up to the modal via the `onPick` prop, which in turn calls `useSaveCard.mutateAsync`. The modal never sees `MagicItem` or `Spell` directly.
 
 **Payload preservation contract:** `toCard` injection of `ruleset` (today: `magicItemDetailToCard({ ...item.entry, ruleset })` at `BrowseApiModal.tsx:78–79`) moves *inside* each module's `toCard` closure. The `Card` payload produced is byte-identical to today's; `useSaveCard` keeps receiving the same shape.
 
@@ -141,7 +147,11 @@ Today every type supports both 2014 and 2024 so the fallback path is a no-op; th
 
 ### Pick lifecycle and tab switching
 
-`pickingKey` (the in-flight save state) currently disables all rows globally (`BrowseApiModal.tsx:181`). Behavior preserved: rows are disabled for the active panel during a save. The sidebar tabs are **not** disabled during a save — switching types mid-save is allowed (no extra coupling to add). The in-flight save still resolves; on success `onSelected` fires and the modal closes regardless of which tab is currently active. On error, `pickError` would render in the panel that owned the save; since panel state belongs to its tab, switching away effectively dismisses the error message — acceptable. (Documented here so the implementer doesn't have to rediscover it; matches today's behavior modulo the scope of `pickError` rendering.)
+`pickingKey` and `pickError` are **single global pieces of state owned by `BrowseApiModal`** (not per-panel) — same as today. They flow into the active `TypePanel` as props.
+
+- `pickingKey` (the in-flight save key) disables rows in the active panel during a save (today: `BrowseApiModal.tsx:181`). Sidebar tabs are **not** disabled during a save; switching types mid-save is allowed.
+- The in-flight save still resolves regardless of which tab is currently active. On success `onSelected` fires and the modal closes.
+- `pickError` clears whenever the active type changes (the modal resets it on type switch, just like `query`). On error mid-save, `pickError` renders in whichever panel is active when the render happens — typically the panel that initiated the save, but if the user has switched away the prior panel is no longer mounted and the error is dismissed visually. This matches today's user-perceived behavior since the modal closes on success and the error is short-lived in failure.
 
 ### Narrow viewports
 
@@ -190,9 +200,10 @@ The existing `BrowseApiModal.module.css` keeps its row / state / footer rules; n
 - Clicking a sidebar tab switches placeholder text, rows, clears the search query, and clears any prior pick error.
 - Source dropdown options are exactly the active type's `supportedSources`. Switching the active type re-derives the options. (Today's two types both support 2014 and 2024, so this is a structural assertion via DOM, not a state transition.)
 - Switching source updates rows.
-- Below ~560px (set via container query — test by directly applying the narrow-state CSS class or by simulating container size if practical), the sidebar is hidden and a type dropdown appears in the header. If simulating container queries is impractical in JSDOM, fall back to a focused unit test against the layout component using a width prop or `data-` attribute as the toggle.
 
 **Dropped:** the previously proposed "registry shape guardrail" runtime test — TypeScript already enforces the shape; a runtime assert adds nothing.
+
+**Out of scope for unit tests:** the narrow-viewport layout swap is CSS-only (a `@container` rule that hides one element and shows another). The state machine — active type, source, query, picking — is identical at both widths, so the assertions above cover behavior at any width. We do **not** add a JSDOM-only `data-narrow` runtime toggle to make container queries testable; that would diverge production from the test path. Visual verification of the narrow layout is left to manual QA / future E2E.
 
 No new test infrastructure; existing MSW handlers continue to serve the bundled JSON.
 
