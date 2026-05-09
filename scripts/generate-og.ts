@@ -35,6 +35,7 @@ const collection: IconifyJSON = JSON.parse(
   readFileSync(require.resolve("@iconify-json/game-icons/icons.json"), "utf8"),
 );
 const fireballIcon = collection.icons.fireball;
+if (!fireballIcon) throw new Error("fireball icon missing from @iconify-json/game-icons");
 const iconW = fireballIcon.width ?? collection.width ?? 64;
 const iconH = fireballIcon.height ?? collection.height ?? 64;
 const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${iconW} ${iconH}" fill="currentColor">${fireballIcon.body}</svg>`;

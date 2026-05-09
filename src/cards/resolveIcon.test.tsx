@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, test, vi } from "vitest";
 import { render, waitFor } from "../test/render";
 import { ensureIcons, ResolvedIcon } from "./resolveIcon";
 
+let unknownKeyCounter = 0;
+
 describe("<ResolvedIcon>", () => {
   beforeAll(async () => {
     await ensureIcons();
@@ -16,11 +18,11 @@ describe("<ResolvedIcon>", () => {
 
   test("warns once for an unknown iconKey in dev", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const unknownKey = `definitely-not-a-real-icon-${Date.now()}`;
+    const unknownKey = `definitely-not-a-real-icon-${unknownKeyCounter++}`;
     render(<ResolvedIcon iconKey={unknownKey} />);
     await waitFor(() => {
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(unknownKey));
     });
-    warnSpy.mockRestore();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 });
