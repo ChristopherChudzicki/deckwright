@@ -196,36 +196,40 @@ function handleInlineFlow(
 }
 
 const defaultLineBoxes: LineBoxProvider = (textNode) => {
-  const range = document.createRange();
-  range.selectNodeContents(textNode);
+  const text = textNode.data;
+  if (text.length === 0) return [];
+  const whole = document.createRange();
+  whole.selectNodeContents(textNode);
   // jsdom does not implement Range.getClientRects; fall back to no line boxes
   // there. Real browsers (and Playwright) exercise the full path.
-  if (typeof range.getClientRects !== "function") return [];
-  const rects = Array.from(range.getClientRects());
-  if (rects.length <= 1) return [];
+  if (typeof whole.getClientRects !== "function") return [];
+  const wholeRects = Array.from(whole.getClientRects());
+  if (wholeRects.length <= 1) return [];
 
-  // Walk the text content character-by-character to find offsets where each
-  // line box ends. The last char whose end-rect bottom matches a given line's
-  // bottom is the line's break point.
-  const text = textNode.data;
+  // For each line K (except the last), binary-search for the largest offset
+  // where range(0, offset) is contained within lines 0..K — i.e., its
+  // getClientRects().length is at most K + 1. That offset is the line's break
+  // point. Total work: O(L · log N) Range queries instead of O(L · N).
   const out: LineBox[] = [];
-  for (let lineIdx = 0; lineIdx < rects.length - 1; lineIdx++) {
-    const target = rects[lineIdx]?.bottom;
-    if (target === undefined) continue;
-    let lastOffset = 0;
-    for (let i = 1; i <= text.length; i++) {
-      const r = document.createRange();
-      r.setStart(textNode, 0);
-      r.setEnd(textNode, i);
-      const rs = Array.from(r.getClientRects());
-      const last = rs[rs.length - 1];
-      if (last && Math.abs(last.bottom - target) < 0.5) {
-        lastOffset = i;
-      } else if (rs.length > lineIdx + 1) {
-        break;
+  const probe = document.createRange();
+  for (let lineIdx = 0; lineIdx < wholeRects.length - 1; lineIdx++) {
+    const targetBottom = wholeRects[lineIdx]?.bottom;
+    if (targetBottom === undefined) continue;
+    let lo = 1;
+    let hi = text.length;
+    let best = 0;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      probe.setStart(textNode, 0);
+      probe.setEnd(textNode, mid);
+      if (probe.getClientRects().length <= lineIdx + 1) {
+        best = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
       }
     }
-    if (lastOffset > 0) out.push({ bottom: target, charOffset: lastOffset });
+    if (best > 0) out.push({ bottom: targetBottom, charOffset: best });
   }
   return out;
 };
