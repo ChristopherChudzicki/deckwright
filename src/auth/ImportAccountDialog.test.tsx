@@ -87,7 +87,7 @@ describe("<ImportAccountDialog>", () => {
     expect(onSkip).not.toHaveBeenCalled();
   });
 
-  it("calls onCancel (NOT onSkip) when the close (X) button is clicked", async () => {
+  it("calls onCancel (NOT onSkip) when the labelled Cancel button is clicked", async () => {
     const onSkip = vi.fn();
     const onCancel = vi.fn();
     render(
@@ -99,7 +99,7 @@ describe("<ImportAccountDialog>", () => {
         onCancel={onCancel}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: /close/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
     expect(onCancel).toHaveBeenCalled();
     expect(onSkip).not.toHaveBeenCalled();
   });

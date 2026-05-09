@@ -124,7 +124,7 @@ describe("AuthCallback", () => {
         session: {} as never,
       }),
     );
-    await userEvent.click(await screen.findByRole("button", { name: /close/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /^cancel$/i }));
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
     expect(signOutSpy).not.toHaveBeenCalled();

@@ -24,7 +24,11 @@ export function ImportAccountDialog({ isOpen, deckCount, onImport, onSkip, onCan
     >
       {() => (
         <>
-          <DialogHeader title="You already have a dnd-cards account" onClose={onCancel} />
+          <DialogHeader
+            title="You already have a dnd-cards account"
+            onClose={onCancel}
+            closeLabel="Cancel"
+          />
           <div className={styles.body}>
             <p>
               An account on dnd-cards is already linked to that identity. Want to bring your{" "}

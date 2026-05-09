@@ -321,7 +321,7 @@ describe("LoginView dev path conflict", () => {
       }),
     );
     await userEvent.click(screen.getByRole("button", { name: /sign in as dev user/i }));
-    await userEvent.click(await screen.findByRole("button", { name: /close/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /^cancel$/i }));
 
     await waitFor(() =>
       expect(
