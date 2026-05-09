@@ -177,6 +177,7 @@ function PickerBody({ value, autoHint, onChange, onCancel }: BodyProps) {
                 id={item.id}
                 textValue={item.label}
                 data-current={item.id === selectedKey ? "true" : undefined}
+                aria-current={item.id === selectedKey ? "true" : undefined}
                 className={`${styles.tile} ${item.id === AUTO_ID ? styles.autoTile : ""}`}
               >
                 {item.id === AUTO_ID ? (

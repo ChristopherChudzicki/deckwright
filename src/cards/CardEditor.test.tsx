@@ -66,6 +66,7 @@ describe("<CardEditor>", () => {
 
   // Picker tile selector — react-aria GridListItem uses role="row".
   const tile = (name: RegExp | string) => screen.getByRole("row", { name });
+  const findTile = (name: RegExp | string) => screen.findByRole("row", { name });
 
   test("Icon row trigger shows 'Auto' when iconKey is unset", () => {
     const card = itemCardFactory.build({ iconKey: undefined });
@@ -85,7 +86,8 @@ describe("<CardEditor>", () => {
     render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
 
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
-    await userEvent.click(tile("trident"));
+    await userEvent.type(screen.getByRole("searchbox"), "trident");
+    await userEvent.click(await findTile("trident"));
 
     expect(seen[seen.length - 1]?.iconKey).toBe("trident");
   });
