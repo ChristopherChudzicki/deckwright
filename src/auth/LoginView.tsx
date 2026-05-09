@@ -124,10 +124,15 @@ export function LoginView() {
 
   const onImportConfirm = async () => {
     if (!importPrompt) return;
-    const { anonUuid } = importPrompt;
     setImportPrompt(null);
     const next = readNextFromUrl();
-    stash({ version: 1, anonUuid, importedDeckIds: [] });
+    const { data: anonDecks, error: listError } = await supabase.rpc("list_my_decks");
+    if (listError) {
+      setAnnouncement("Couldn't fetch your decks for import.");
+      return;
+    }
+    const anonDeckIds = (anonDecks ?? []).map((d: { id: string }) => d.id);
+    stash({ version: 2, anonDeckIds, importedDeckIds: [] });
     await supabase.auth.signOut();
     const { data, error } = await supabase.auth.signInWithPassword({
       email: DEV_EMAIL,

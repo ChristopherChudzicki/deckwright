@@ -261,7 +261,7 @@ describe("LoginView dev path conflict", () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
     expect(setItemSpy).toHaveBeenCalledWith(
       "dndCards.pendingAnonImport",
-      expect.stringContaining("anon-1"),
+      expect.stringContaining('"anonDeckIds":["d1"]'),
     );
     expect(signOutSpy).toHaveBeenCalled();
     expect(signInSpy).toHaveBeenCalledWith({ email: "dev@local", password: "devpass" });
