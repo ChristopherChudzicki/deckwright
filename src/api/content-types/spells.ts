@@ -1,28 +1,13 @@
 import { useMemo } from "react";
 import { useSpellIndex } from "../hooks";
-import { spellDetailToCard } from "../mappers/spells";
+import { levelTag, spellDetailToCard } from "../mappers/spells";
 import type { ContentType } from "./types";
-
-const ordinal = (n: number): string => {
-  if (n === 1) return "1st";
-  if (n === 2) return "2nd";
-  if (n === 3) return "3rd";
-  return `${n}th`;
-};
-
-const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-
-const spellMeta = (level: number, schoolName: string): string => {
-  const school = schoolName.toLowerCase();
-  if (level === 0) return `${capitalize(school)} cantrip`;
-  return `${ordinal(level)}-level ${school}`;
-};
 
 export const spellsContentType: ContentType = {
   id: "spells",
   label: "Spells",
   searchPlaceholder: "Search spells…",
-  supportedSources: ["2024", "2014"] as const,
+  supportedSources: ["2024", "2014"],
   useResults: (source, query) => {
     const idx = useSpellIndex(source);
     const rows = useMemo(() => {
@@ -32,7 +17,7 @@ export const spellsContentType: ContentType = {
         .map((entry) => ({
           key: entry.key,
           name: entry.name,
-          meta: spellMeta(entry.level, entry.school.name),
+          meta: levelTag(entry.level, entry.school.name),
           toCard: () => spellDetailToCard({ ...entry, ruleset: source }),
         }));
     }, [idx.data, query, source]);

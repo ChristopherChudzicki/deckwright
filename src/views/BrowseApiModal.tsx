@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Menu,
   MenuItem,
@@ -30,17 +30,13 @@ type Props = {
 };
 
 export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
-  const [typeId, setTypeId] = useState<string>(() => CONTENT_TYPES[0]?.id ?? "");
+  const [typeId, setTypeId] = useState<string>(CONTENT_TYPES[0].id);
   const activeType = CONTENT_TYPES.find((t) => t.id === typeId) ?? CONTENT_TYPES[0];
-  if (!activeType) {
-    throw new Error("CONTENT_TYPES is empty");
-  }
 
-  const [source, setSource] = useState<Ruleset>(() => activeType.supportedSources[0] ?? "2024");
+  const [source, setSource] = useState<Ruleset>(activeType.supportedSources[0]);
   useEffect(() => {
     if (!activeType.supportedSources.includes(source)) {
-      const fallback = activeType.supportedSources[0];
-      if (fallback) setSource(fallback);
+      setSource(activeType.supportedSources[0]);
     }
   }, [activeType, source]);
 
@@ -191,10 +187,7 @@ function TypePanel({
   onPick,
 }: TypePanelProps) {
   const results = type.useResults(source, query);
-  const emptyMessage = useMemo(
-    () => `No ${type.label.toLowerCase()} match your search.`,
-    [type.label],
-  );
+  const emptyMessage = `No ${type.label.toLowerCase()} match your search.`;
 
   return (
     <>

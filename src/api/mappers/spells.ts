@@ -10,7 +10,7 @@ const ordinal = (n: number): string => {
   return `${n}th`;
 };
 
-const levelTag = (level: number, schoolName: string): string => {
+export const levelTag = (level: number, schoolName: string): string => {
   if (level === 0) {
     const cap = schoolName.charAt(0).toUpperCase() + schoolName.slice(1).toLowerCase();
     return `${cap} cantrip`;

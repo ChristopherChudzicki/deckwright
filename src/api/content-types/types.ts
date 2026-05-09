@@ -19,6 +19,6 @@ export type ContentType = {
   id: string;
   label: string;
   searchPlaceholder: string;
-  supportedSources: readonly Ruleset[];
+  supportedSources: readonly [Ruleset, ...Ruleset[]];
   useResults: (source: Ruleset, query: string) => ContentTypeResults;
 };

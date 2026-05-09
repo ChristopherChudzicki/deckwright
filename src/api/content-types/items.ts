@@ -3,13 +3,11 @@ import { useMagicItemIndex } from "../hooks";
 import { magicItemDetailToCard } from "../mappers/magicItems";
 import type { ContentType } from "./types";
 
-const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-
 export const itemsContentType: ContentType = {
   id: "items",
   label: "Items",
   searchPlaceholder: "Search items…",
-  supportedSources: ["2024", "2014"] as const,
+  supportedSources: ["2024", "2014"],
   useResults: (source, query) => {
     const idx = useMagicItemIndex(source);
     const rows = useMemo(() => {
@@ -19,7 +17,7 @@ export const itemsContentType: ContentType = {
         .map((entry) => ({
           key: entry.key,
           name: entry.name,
-          meta: capitalize(entry.rarity.name),
+          meta: entry.rarity.name,
           toCard: () => magicItemDetailToCard({ ...entry, ruleset: source }),
         }));
     }, [idx.data, query, source]);
