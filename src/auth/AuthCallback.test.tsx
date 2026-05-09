@@ -12,7 +12,19 @@ const navigate = vi.fn();
 vi.mock("@tanstack/react-router", async () => {
   const actual =
     await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
-  return { ...actual, useNavigate: () => navigate };
+  return {
+    ...actual,
+    useNavigate: () => navigate,
+    Link: ({
+      children,
+      to,
+      ...rest
+    }: { children: ReactNode; to?: string } & Record<string, unknown>) => (
+      <a href={to as string} {...rest}>
+        {children}
+      </a>
+    ),
+  };
 });
 
 function wrap(ui: ReactNode, session: SessionState) {
