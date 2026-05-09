@@ -1,8 +1,8 @@
-import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, test, vi } from "vitest";
 import { makeSpellPayload } from "../test/factories";
+import { render, screen } from "../test/render";
 import { CardEditor } from "./CardEditor";
 import { itemCardFactory } from "./factories";
 import type { RenderableCard, SpellCard } from "./types";

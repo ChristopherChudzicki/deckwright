@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
@@ -8,6 +7,7 @@ import { supabase } from "../api/supabase";
 import { AuthProvider } from "../auth/AuthProvider";
 import { makeCardRow, makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
+import { render, screen, waitFor } from "../test/render";
 import { signInTestUser } from "../test/signInTestUser";
 import { DeckView } from "./DeckView";
 

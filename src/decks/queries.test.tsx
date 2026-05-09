@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import { makeCardRow, makeDeckSummary, makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
+import { renderHook, waitFor } from "../test/render";
 import { useDeck, useDeckCards, useDecks } from "./queries";
 
 const SB = "http://localhost:54321";

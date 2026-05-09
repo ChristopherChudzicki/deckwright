@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "vitest";
 import { ITEM_RULES, SCHOOL_ICONS, SPELL_NAME_RULES } from "../cards/iconRules";
+import { render, screen } from "../test/render";
 import { IconDebugView } from "./IconDebugView";
 
 describe("<IconDebugView>", () => {

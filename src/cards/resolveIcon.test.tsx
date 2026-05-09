@@ -1,5 +1,5 @@
-import { render, waitFor } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
+import { render, waitFor } from "../test/render";
 import { ResolvedIcon } from "./resolveIcon";
 
 describe("<ResolvedIcon>", () => {

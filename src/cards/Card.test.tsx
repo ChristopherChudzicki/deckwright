@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
+import { render, screen } from "../test/render";
 import { Card } from "./Card";
 import { itemCardFactory, spellCardFactory } from "./factories";
 

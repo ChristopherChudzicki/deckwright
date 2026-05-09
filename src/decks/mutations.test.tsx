@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import type { Card } from "../cards/types";
 import { makeCardRow, makeDeckRow } from "../test/factories";
 import { server } from "../test/msw";
+import { renderHook } from "../test/render";
 import {
   useCreateDeck,
   useDeleteCard,

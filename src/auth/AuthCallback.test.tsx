@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
 import { AnnouncementProvider } from "../lib/ui/Announcement";
+import { render, screen, waitFor } from "../test/render";
 import { AuthCallback } from "./AuthCallback";
 import { SessionContext, type SessionState } from "./useSession";
 
@@ -120,15 +120,9 @@ describe("AuthCallback", () => {
 
   it("on import click: aborts before signOut and shows error when list_my_decks errors", async () => {
     setLocation({ hash: "#error_code=identity_already_exists" });
-    // First call (deck count for the dialog) succeeds; second (prefetch) errors.
-    let callCount = 0;
-    vi.spyOn(supabase, "rpc").mockImplementation((() => {
-      callCount += 1;
-      if (callCount === 1) {
-        return Promise.resolve({ data: [{ id: "d1" }], error: null });
-      }
-      return Promise.resolve({ data: null, error: { message: "boom" } });
-    }) as never);
+    const rpcSpy = vi
+      .spyOn(supabase, "rpc")
+      .mockResolvedValue({ data: [{ id: "d1" }], error: null } as never);
     const signOutSpy = vi
       .spyOn(supabase.auth, "signOut")
       .mockResolvedValue({ error: null } as never);
@@ -143,7 +137,9 @@ describe("AuthCallback", () => {
         session: {} as never,
       }),
     );
-    await userEvent.click(await screen.findByRole("button", { name: /yes, import 1 deck$/i }));
+    const importButton = await screen.findByRole("button", { name: /yes, import 1 deck$/i });
+    rpcSpy.mockResolvedValue({ data: null, error: { message: "boom" } } as never);
+    await userEvent.click(importButton);
 
     await waitFor(() => expect(screen.getByText(/couldn't start the import/i)).toBeInTheDocument());
     expect(signOutSpy).not.toHaveBeenCalled();

@@ -1,8 +1,8 @@
-import { render, screen, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
 import { SB_URL, server } from "../test/msw";
+import { render, screen, waitFor } from "../test/render";
 import { AuthProvider } from "./AuthProvider";
 import { useSession } from "./useSession";
 

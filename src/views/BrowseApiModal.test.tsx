@@ -1,14 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
-import { type ReactNode, StrictMode } from "react";
+import type { ReactNode } from "react";
 import { describe, expect, test, vi } from "vitest";
 import type { MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
 import type { SpellIndex } from "../api/endpoints/spells";
 import { magicItemIndexEntryFactory, spellIndexEntryFactory } from "../api/factories";
 import { makeCardRow } from "../test/factories";
 import { SB_URL, server } from "../test/msw";
+import { render, screen, waitFor } from "../test/render";
 import { BrowseApiModal } from "./BrowseApiModal";
 
 const itemKey = (ruleset: Ruleset) => ["magic-items", ruleset, "index"];
@@ -152,11 +152,9 @@ describe("<BrowseApiModal>", () => {
     );
 
     render(
-      <StrictMode>
-        <QueryClientProvider client={client}>
-          <BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />
-        </QueryClientProvider>
-      </StrictMode>,
+      <QueryClientProvider client={client}>
+        <BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />
+      </QueryClientProvider>,
     );
 
     await userEvent.click(await screen.findByRole("button", { name: /Flame Tongue/ }));
