@@ -12,16 +12,16 @@ type Props = {
   card: RenderableCard;
   cardsPerPage: CardsPerPage;
   pagination?: CardPagination;
-  bodyOverride?: string;
+  bodyHtml?: string;
 };
 
-export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
+export function Card({ card, cardsPerPage, pagination, bodyHtml }: Props) {
   const layoutClass = cardsPerPage === 4 ? styles.perPage4 : styles.perPage2;
 
   const iconKey = card.iconKey ?? pickIconKey(card);
 
   const isFirstPage = !pagination || pagination.page === 1;
-  const bodyText = bodyOverride ?? card.body;
+  const html = bodyHtml ?? renderBody(card.body);
   const showFooterTags = isFirstPage && card.footerTags.length > 0;
   const showFooter = showFooterTags || pagination !== undefined;
 
@@ -46,8 +46,8 @@ export function Card({ card, cardsPerPage, pagination, bodyOverride }: Props) {
       <div
         className={styles.body}
         data-role="card-body"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized via DOMPurify in renderBody
-        dangerouslySetInnerHTML={{ __html: renderBody(bodyText) }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized via DOMPurify in renderBody (or upstream layoutPaginator that slices already-sanitized HTML)
+        dangerouslySetInnerHTML={{ __html: html }}
       />
       {showFooter && (
         <div className={styles.footer} data-testid="card-footer">

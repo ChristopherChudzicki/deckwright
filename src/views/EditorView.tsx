@@ -10,7 +10,6 @@ import { newId } from "../lib/id";
 import { nowIso } from "../lib/time";
 import { Button } from "../lib/ui/Button";
 import { LoadingState } from "../lib/ui/LoadingState";
-import { useDebouncedValue } from "../lib/useDebouncedValue";
 import { BrowseApiModal } from "./BrowseApiModal";
 import styles from "./EditorView.module.css";
 
@@ -72,17 +71,13 @@ export function EditorView({ deckId, cardId }: Props) {
     if (initial && isRenderableCard(initial)) setDraft(initial);
   }, [initial]);
 
-  const debouncedBody = useDebouncedValue(draft?.body ?? "", 200);
-  const measurementCard = useMemo<RenderableCard | null>(
-    () => (draft ? { ...draft, body: debouncedBody } : null),
-    [draft, debouncedBody],
-  );
-  const measurementItems = useMemo(
-    () => (measurementCard ? [measurementCard] : []),
-    [measurementCard],
-  );
-  const { physicalCards: chunks4Up } = useExpandedCards(measurementItems, 4);
-  const { physicalCards: chunks2Up } = useExpandedCards(measurementItems, 2);
+  const measurementItems = useMemo(() => (draft ? [draft] : []), [draft]);
+  const { physicalCards: chunks4Up } = useExpandedCards(measurementItems, 4, {
+    debounceMs: 300,
+  });
+  const { physicalCards: chunks2Up } = useExpandedCards(measurementItems, 2, {
+    debounceMs: 300,
+  });
 
   const [previewPage, setPreviewPage] = useState(0);
   const [browseOpen, setBrowseOpen] = useState(false);
@@ -146,7 +141,7 @@ export function EditorView({ deckId, cardId }: Props) {
         <Card
           card={draft}
           cardsPerPage={4}
-          bodyOverride={visibleChunk?.bodyChunk}
+          bodyHtml={visibleChunk?.bodyHtml}
           pagination={visibleChunk?.pagination}
         />
         {showPaginator && (

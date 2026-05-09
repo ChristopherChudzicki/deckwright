@@ -1,14 +1,31 @@
 import type { CardsPerPage } from "./Card";
 import cardStyles from "./Card.module.css";
-import { renderBody } from "./renderBody";
 import type { RenderableCard } from "./types";
 
+export type BodyDimensions = {
+  width: number;
+  firstHeight: number;
+  continuationHeight: number;
+};
+
 export type CardMeasurer = {
-  measureFirst: (card: RenderableCard, chunk: string) => boolean;
-  measureContinuation: (card: RenderableCard, chunk: string) => boolean;
+  getBodyDimensions(card: RenderableCard): BodyDimensions;
+  // Writes `html` into the first scaffold's body slot and returns it for the
+  // paginator to read geometry from. Caller must clear the contents
+  // (replaceChildren) when done — the scaffold is reused across paginations.
+  // NOT REENTRANT: concurrent paginations on the same measurer would corrupt
+  // each other's mount. Production callers (expandCard via useExpandedCards)
+  // run paginations sequentially in a flatMap; preserve that invariant.
+  mountForPagination(html: string, width: number): HTMLElement;
 };
 
 const SENTINEL_PAGINATION = "Card 9 of 9";
+
+// Module-level cache. One CardMeasurer per layout (4-up vs 2-up); each
+// builds its scaffold lazily on first use and attaches it to document.body
+// at `position:absolute; left:-99999px`. The cache lives for the lifetime of
+// the JS context — this is fine for the SPA but means tests share scaffolds
+// across describe blocks (jsdom retains them between tests).
 const cache = new Map<CardsPerPage, CardMeasurer>();
 
 export function getMeasurer(cardsPerPage: CardsPerPage): CardMeasurer {
@@ -70,10 +87,6 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
   const contBody = find("continuation", "body");
   const contFooter = find("continuation", "footer");
 
-  const setBodyContent = (el: HTMLElement, text: string) => {
-    el.innerHTML = renderBody(text);
-  };
-
   const setHeaderTags = (el: HTMLElement, headerTags: string[]) => {
     el.replaceChildren();
     for (const tag of headerTags) {
@@ -104,18 +117,27 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
   };
 
   return {
-    measureFirst: (card, chunk) => {
+    getBodyDimensions(card) {
       firstTitle.textContent = card.name;
       setHeaderTags(firstHeaderTags, card.headerTags);
       setFooter(firstFooter, card.footerTags, SENTINEL_PAGINATION);
-      setBodyContent(firstBody, chunk);
-      return firstBody.scrollHeight <= firstBody.clientHeight;
-    },
-    measureContinuation: (card, chunk) => {
+
       contTitle.textContent = card.name;
       setFooter(contFooter, [], SENTINEL_PAGINATION);
-      setBodyContent(contBody, chunk);
-      return contBody.scrollHeight <= contBody.clientHeight;
+
+      return {
+        width: firstBody.clientWidth,
+        firstHeight: firstBody.clientHeight,
+        continuationHeight: contBody.clientHeight,
+      };
+    },
+    mountForPagination(html, _width) {
+      // The first scaffold's body slot already has the right CSS context
+      // (font, line-height, width). Reuse it as the offscreen layout host so
+      // line wrapping and getClientRects line up with what the rendered Card
+      // will produce.
+      firstBody.innerHTML = html;
+      return firstBody;
     },
   };
 }

@@ -151,3 +151,18 @@ export const longItem: SeedItem = {
   body: LONG_BODY,
   footerTags: ["5,000 gp", "1 lb"],
 };
+
+// A 4-column table with enough rows to overflow several cards, used to verify
+// row-boundary splits and <thead> repetition on each chunk.
+const wideTableRows = Array.from({ length: 24 }, (_, i) => {
+  const idx = (i + 1).toString().padStart(2, "0");
+  return `| R${idx} | A${idx} | B${idx} | C${idx} |`;
+}).join("\n");
+
+export const tableItem: SeedItem = {
+  id: "00000000-0000-4000-8000-100000000002",
+  name: "Tome of Tabular Tabulations",
+  headerTags: ["Tome", "uncommon"],
+  body: `| Row | Alpha | Beta | Gamma |\n|---|---|---|---|\n${wideTableRows}`,
+  footerTags: ["100 gp"],
+};

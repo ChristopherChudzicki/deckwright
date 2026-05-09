@@ -1,25 +1,30 @@
 import type { CardPagination } from "./Card";
+import { layoutPaginate } from "./layoutPaginator";
 import type { CardMeasurer } from "./measurer";
-import { paginateBody } from "./paginate";
+import { renderBody } from "./renderBody";
 import type { RenderableCard } from "./types";
 
 export type PhysicalCard = {
   card: RenderableCard;
-  bodyChunk: string;
+  bodyHtml: string;
   pagination?: CardPagination;
 };
 
 export function expandCard(card: RenderableCard, measurer: CardMeasurer): PhysicalCard[] {
-  const chunks = paginateBody({
-    body: card.body,
-    measureFirst: (s) => measurer.measureFirst(card, s),
-    measureContinuation: (s) => measurer.measureContinuation(card, s),
+  const dims = measurer.getBodyDimensions(card);
+  const bodyHtml = renderBody(card.body);
+  const chunks = layoutPaginate({
+    bodyHtml,
+    width: dims.width,
+    firstHeight: dims.firstHeight,
+    continuationHeight: dims.continuationHeight,
+    mount: measurer.mountForPagination,
   });
 
   const total = chunks.length;
-  return chunks.map((bodyChunk, i) => ({
+  return chunks.map((bodyHtml, i) => ({
     card,
-    bodyChunk,
+    bodyHtml,
     pagination: total > 1 ? { page: i + 1, total } : undefined,
   }));
 }
