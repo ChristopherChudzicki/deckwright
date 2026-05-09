@@ -1,0 +1,39 @@
+.toolbar {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.button {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+/* :hover (not [data-hovered]) — md-* elements are web components, not react-aria primitives. */
+.button:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.button > svg {
+  width: 1rem;
+  height: 1rem;
+}
