@@ -18,6 +18,8 @@ import { IconPreview } from "./IconPreview";
 import { Input } from "./Input";
 
 const AUTO_ID = "__auto__";
+const TILE_SIZE = 60;
+const TILE_GAP = 8;
 
 type Props = {
   value: string | undefined;
@@ -79,8 +81,6 @@ function PickerBody({ value, autoHint, onChange, onCancel }: BodyProps) {
     });
   }, []);
 
-  // Once icons are loaded, scroll the current tile into view (centered).
-  // Tile size matches layoutOptions (minItemSize 60 + minSpace 8).
   useEffect(() => {
     if (!keys || selectedKey === AUTO_ID) return;
     const idx = keys.indexOf(selectedKey);
@@ -88,7 +88,7 @@ function PickerBody({ value, autoHint, onChange, onCancel }: BodyProps) {
     const handle = requestAnimationFrame(() => {
       const grid = gridRef.current;
       if (!grid || grid.clientWidth === 0) return;
-      const cell = 68;
+      const cell = TILE_SIZE + TILE_GAP;
       const cols = Math.max(1, Math.floor(grid.clientWidth / cell));
       const row = Math.floor((idx + 1) / cols);
       grid.scrollTop = Math.max(0, row * cell - grid.clientHeight / 2 + cell / 2);
@@ -130,8 +130,8 @@ function PickerBody({ value, autoHint, onChange, onCancel }: BodyProps) {
 
   const layoutOptions = useMemo(
     () => ({
-      minItemSize: new Size(60, 60),
-      minSpace: new Size(8, 8),
+      minItemSize: new Size(TILE_SIZE, TILE_SIZE),
+      minSpace: new Size(TILE_GAP, TILE_GAP),
       preserveAspectRatio: true,
     }),
     [],

@@ -1,8 +1,12 @@
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 import { render, waitFor } from "../test/render";
-import { ResolvedIcon } from "./resolveIcon";
+import { ensureIcons, ResolvedIcon } from "./resolveIcon";
 
 describe("<ResolvedIcon>", () => {
+  beforeAll(async () => {
+    await ensureIcons();
+  });
+
   test("renders a known icon", async () => {
     const { container } = render(<ResolvedIcon iconKey="trident" />);
     await waitFor(() => {
@@ -10,10 +14,13 @@ describe("<ResolvedIcon>", () => {
     });
   });
 
-  test("renders without crashing for an unknown key", async () => {
-    const { container } = render(<ResolvedIcon iconKey="definitely-not-a-real-icon" />);
+  test("warns once for an unknown iconKey in dev", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unknownKey = `definitely-not-a-real-icon-${Date.now()}`;
+    render(<ResolvedIcon iconKey={unknownKey} />);
     await waitFor(() => {
-      expect(container).toBeInTheDocument();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(unknownKey));
     });
+    warnSpy.mockRestore();
   });
 });

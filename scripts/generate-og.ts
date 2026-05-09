@@ -20,16 +20,24 @@
 //
 // Run: npx tsx scripts/generate-og.ts (or `npm run gen:og`).
 
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import iconFireball from "@iconify-icons/game-icons/fireball";
+import type { IconifyJSON } from "@iconify/types";
 import { chromium } from "@playwright/test";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const out = resolve(__dirname, "../public/og.png");
 
-const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${iconFireball.width} ${iconFireball.height}" fill="currentColor">${iconFireball.body}</svg>`;
+const require = createRequire(import.meta.url);
+const collection: IconifyJSON = JSON.parse(
+  readFileSync(require.resolve("@iconify-json/game-icons/icons.json"), "utf8"),
+);
+const fireballIcon = collection.icons.fireball;
+const iconW = fireballIcon.width ?? collection.width ?? 64;
+const iconH = fireballIcon.height ?? collection.height ?? 64;
+const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${iconW} ${iconH}" fill="currentColor">${fireballIcon.body}</svg>`;
 
 const html = `<!doctype html>
 <html lang="en">

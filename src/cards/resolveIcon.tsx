@@ -1,5 +1,6 @@
-import { addCollection, Icon } from "@iconify/react";
+import { addCollection, Icon, iconLoaded } from "@iconify/react";
 import type { IconifyJSON } from "@iconify/types";
+import { useEffect } from "react";
 
 const PREFIX = "game-icons";
 
@@ -11,10 +12,20 @@ export function ensureIcons(): Promise<void> {
   return iconsPromise;
 }
 
+const warned = new Set<string>();
+
 type Props = {
   iconKey: string;
 };
 
 export function ResolvedIcon({ iconKey }: Props) {
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    void ensureIcons().then(() => {
+      if (iconLoaded(`${PREFIX}:${iconKey}`) || warned.has(iconKey)) return;
+      warned.add(iconKey);
+      console.warn(`[ResolvedIcon] Unknown iconKey "${iconKey}" — rendering nothing.`);
+    });
+  }, [iconKey]);
   return <Icon icon={`${PREFIX}:${iconKey}`} />;
 }
