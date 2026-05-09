@@ -18,7 +18,7 @@ export function DialogHeader({ title, onClose, closeLabel, children }: DialogHea
       {children !== undefined && <div className={styles.slot}>{children}</div>}
       {closeLabel ? (
         <Button variant="secondary" size="sm" onPress={onClose}>
-          <XIcon size={16} aria-hidden /> {closeLabel}
+          <XIcon size={16} /> {closeLabel}
         </Button>
       ) : (
         <IconButton aria-label="Close" onPress={onClose}>

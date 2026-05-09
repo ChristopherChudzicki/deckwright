@@ -59,7 +59,13 @@ export function LoginView() {
 
   const switchToExistingDevAccount = async (next: string) => {
     await supabase.auth.signOut();
-    await supabase.auth.signInWithPassword({ email: DEV_EMAIL, password: DEV_PASSWORD });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: DEV_EMAIL,
+      password: DEV_PASSWORD,
+    });
+    if (error) {
+      setAnnouncement("Couldn't sign in to existing dev account.");
+    }
     navigate({ to: next });
   };
 
@@ -75,8 +81,15 @@ export function LoginView() {
         // Email is taken — an existing dev account already exists. Mirror the
         // OAuth identity_already_exists flow: if the anon has decks, prompt
         // to import them; otherwise switch silently.
-        const { data: decks } = await supabase.from("decks").select("id").eq("owner_id", userId);
-        const deckCount = decks?.length ?? 0;
+        const decks = await queryClient.fetchQuery({
+          queryKey: decksKey(userId),
+          queryFn: async () => {
+            const { data } = await supabase.from("decks").select("id").eq("owner_id", userId);
+            return data ?? [];
+          },
+          staleTime: 0,
+        });
+        const deckCount = decks.length;
         if (deckCount > 0) {
           setImportPrompt({ deckCount, anonUuid: userId });
           return;

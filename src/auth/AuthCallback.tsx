@@ -120,6 +120,7 @@ export function AuthCallback() {
   const onCancel = () => {
     // The anon session is preserved by linkIdentity failures, so dismissing
     // the dialog returns the user to their anon home with decks intact.
+    window.localStorage.removeItem("dndCards.lastProvider");
     navigate({ to: "/" });
   };
 
