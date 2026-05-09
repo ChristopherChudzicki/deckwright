@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { deckSchema, itemCardSchema } from "./schema";
+import { itemCardSchema } from "./schema";
 
 describe("itemCardSchema", () => {
   test("accepts a valid item card", () => {
@@ -70,7 +70,7 @@ describe("itemCardSchema", () => {
     expect(itemCardSchema.safeParse(card).success).toBe(true);
   });
 
-  test("accepts an item card without footerTags (legacy JSON export) and defaults to []", () => {
+  test("accepts an item card without footerTags and defaults to []", () => {
     const card = {
       id: "abc",
       kind: "item" as const,
@@ -86,7 +86,7 @@ describe("itemCardSchema", () => {
     if (result.success) expect(result.data.footerTags).toEqual([]);
   });
 
-  test("accepts an item card without headerTags (legacy JSON export) and defaults to []", () => {
+  test("accepts an item card without headerTags and defaults to []", () => {
     const card = {
       id: "abc",
       kind: "item" as const,
@@ -115,24 +115,5 @@ describe("itemCardSchema", () => {
       updatedAt: "2026-04-19T00:00:00.000Z",
     };
     expect(itemCardSchema.safeParse(card).success).toBe(false);
-  });
-});
-
-describe("deckSchema", () => {
-  test("accepts an empty deck with version 1", () => {
-    expect(deckSchema.safeParse({ version: 1, cards: [] }).success).toBe(true);
-  });
-
-  test("rejects a deck with version 2", () => {
-    expect(deckSchema.safeParse({ version: 2, cards: [] }).success).toBe(false);
-  });
-
-  test("rejects a deck with a malformed card", () => {
-    expect(
-      deckSchema.safeParse({
-        version: 1,
-        cards: [{ id: "a", kind: "item", name: "missing fields" }],
-      }).success,
-    ).toBe(false);
   });
 });

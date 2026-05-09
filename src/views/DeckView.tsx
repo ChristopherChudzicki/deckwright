@@ -1,9 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { serializeDeck } from "../decks/io";
 import { useDeleteCard, useRenameDeck } from "../decks/mutations";
 import { useDeck, useDeckCards } from "../decks/queries";
-import { downloadText } from "../lib/download";
 import { Button } from "../lib/ui/Button";
 import { IconButton } from "../lib/ui/IconButton";
 import { Input } from "../lib/ui/Input";
@@ -29,10 +27,6 @@ export function DeckView({ deckId }: Props) {
   const cards = cardsQuery.data ?? [];
   const isOwner = deck.is_owner;
 
-  const handleExport = () => {
-    downloadText(`${deck.name}.json`, serializeDeck({ version: 1, cards }));
-  };
-
   return (
     <section>
       <header className={styles.header}>
@@ -45,9 +39,6 @@ export function DeckView({ deckId }: Props) {
           {cards.length} {cards.length === 1 ? "card" : "cards"}
         </span>
         <div className={styles.actions}>
-          <Button variant="secondary" onPress={handleExport} isDisabled={cards.length === 0}>
-            Export JSON
-          </Button>
           <Link to="/deck/$deckId/print" params={{ deckId }} className={styles.printLink}>
             Print
           </Link>
