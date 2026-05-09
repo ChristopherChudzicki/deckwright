@@ -9,21 +9,22 @@ type Props = {
   deckCount: number;
   onImport: () => void;
   onSkip: () => void;
+  onCancel: () => void;
 };
 
-export function ImportAccountDialog({ isOpen, deckCount, onImport, onSkip }: Props) {
+export function ImportAccountDialog({ isOpen, deckCount, onImport, onSkip, onCancel }: Props) {
   if (!isOpen) return null;
   return (
     <DialogShell
       isOpen={isOpen}
       onOpenChange={(open) => {
-        if (!open) onSkip();
+        if (!open) onCancel();
       }}
       aria-label="You already have a dnd-cards account"
     >
       {() => (
         <>
-          <DialogHeader title="You already have a dnd-cards account" onClose={onSkip} />
+          <DialogHeader title="You already have a dnd-cards account" onClose={onCancel} />
           <div className={styles.body}>
             <p>
               An account on dnd-cards is already linked to that identity. Want to bring your{" "}

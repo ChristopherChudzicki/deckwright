@@ -146,6 +146,13 @@ export function LoginView() {
     await switchToExistingDevAccount(readNextFromUrl());
   };
 
+  const onImportCancel = () => {
+    // The anon session is intact (updateUser failed before any signOut), so
+    // closing the dialog leaves the user where they were.
+    setImportPrompt(null);
+    setPending(null);
+  };
+
   const heading = isAnon ? "Save your work to your account" : "Sign in";
   const copy = isAnon
     ? "Sign in to save your decks to your account, where you can access them from any device."
@@ -194,6 +201,7 @@ export function LoginView() {
           deckCount={importPrompt.deckCount}
           onImport={() => void onImportConfirm()}
           onSkip={() => void onImportSkip()}
+          onCancel={onImportCancel}
         />
       )}
     </section>

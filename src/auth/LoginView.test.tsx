@@ -300,6 +300,39 @@ describe("LoginView dev path conflict", () => {
     expect(signInSpy).toHaveBeenCalledWith({ email: "dev@local", password: "devpass" });
   });
 
+  it("on dismiss: closes the dialog without signOut or signInWithPassword", async () => {
+    vi.spyOn(supabase.auth, "updateUser").mockResolvedValue({
+      data: { user: null },
+      error: { message: "email already exists" },
+    } as never);
+    const signOutSpy = vi
+      .spyOn(supabase.auth, "signOut")
+      .mockResolvedValue({ error: null } as never);
+    const signInSpy = vi
+      .spyOn(supabase.auth, "signInWithPassword")
+      .mockResolvedValue({ data: { user: { id: "dev-1" }, session: {} }, error: null } as never);
+    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([{ id: "d1" }])));
+
+    render(
+      wrap(<LoginView />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /sign in as dev user/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /close/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: /you already have a dnd-cards account/i }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(signOutSpy).not.toHaveBeenCalled();
+    expect(signInSpy).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it("falls through silently when anon dev sign-in conflicts but anon has no decks", async () => {
     vi.spyOn(supabase.auth, "updateUser").mockResolvedValue({
       data: { user: null },

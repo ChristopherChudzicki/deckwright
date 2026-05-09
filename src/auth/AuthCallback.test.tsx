@@ -105,6 +105,32 @@ describe("AuthCallback", () => {
     expect(oauthSpy).toHaveBeenCalledWith(expect.objectContaining({ provider: "github" }));
   });
 
+  it("on dismiss (X / Esc): navigates without signOut or signInWithOAuth", async () => {
+    setLocation({ hash: "#error_code=identity_already_exists" });
+    vi.spyOn(supabase, "from").mockReturnValue({
+      select: () => ({ eq: () => Promise.resolve({ data: [{ id: "d1" }], error: null }) }),
+    } as never);
+    const signOutSpy = vi
+      .spyOn(supabase.auth, "signOut")
+      .mockResolvedValue({ error: null } as never);
+    const oauthSpy = vi
+      .spyOn(supabase.auth, "signInWithOAuth")
+      .mockResolvedValue({ data: {}, error: null } as never);
+
+    render(
+      wrap(<AuthCallback />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /close/i }));
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
+    expect(signOutSpy).not.toHaveBeenCalled();
+    expect(oauthSpy).not.toHaveBeenCalled();
+  });
+
   it("on skip click: signs out and signInWithOAuth, no stash", async () => {
     setLocation({ hash: "#error_code=identity_already_exists" });
     vi.spyOn(supabase, "from").mockReturnValue({

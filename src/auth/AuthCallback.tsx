@@ -117,8 +117,22 @@ export function AuthCallback() {
     await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
   };
 
+  const onCancel = () => {
+    // The anon session is preserved by linkIdentity failures, so dismissing
+    // the dialog returns the user to their anon home with decks intact.
+    navigate({ to: "/" });
+  };
+
   if (phase === "dialog") {
-    return <ImportAccountDialog isOpen deckCount={deckCount} onImport={onImport} onSkip={onSkip} />;
+    return (
+      <ImportAccountDialog
+        isOpen
+        deckCount={deckCount}
+        onImport={onImport}
+        onSkip={onSkip}
+        onCancel={onCancel}
+      />
+    );
   }
 
   if (phase === "importing") {

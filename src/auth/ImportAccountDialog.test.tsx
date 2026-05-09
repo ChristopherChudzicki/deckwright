@@ -4,15 +4,25 @@ import { describe, expect, it, vi } from "vitest";
 import { ImportAccountDialog } from "./ImportAccountDialog";
 
 describe("<ImportAccountDialog>", () => {
+  const noop = () => {};
+
   it("renders nothing when closed", () => {
     const { container } = render(
-      <ImportAccountDialog isOpen={false} deckCount={3} onImport={() => {}} onSkip={() => {}} />,
+      <ImportAccountDialog
+        isOpen={false}
+        deckCount={3}
+        onImport={noop}
+        onSkip={noop}
+        onCancel={noop}
+      />,
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders heading, deck count, and unrecoverable warning", () => {
-    render(<ImportAccountDialog isOpen deckCount={3} onImport={() => {}} onSkip={() => {}} />);
+    render(
+      <ImportAccountDialog isOpen deckCount={3} onImport={noop} onSkip={noop} onCancel={noop} />,
+    );
     expect(
       screen.getByRole("heading", { name: /you already have a dnd-cards account/i }),
     ).toBeInTheDocument();
@@ -21,36 +31,76 @@ describe("<ImportAccountDialog>", () => {
   });
 
   it("uses the singular form when deckCount is 1", () => {
-    render(<ImportAccountDialog isOpen deckCount={1} onImport={() => {}} onSkip={() => {}} />);
+    render(
+      <ImportAccountDialog isOpen deckCount={1} onImport={noop} onSkip={noop} onCancel={noop} />,
+    );
     expect(screen.getByText(/bring your/)).toHaveTextContent("1 deck");
     expect(screen.getByRole("button", { name: /yes, import 1 deck$/i })).toBeInTheDocument();
   });
 
   it("calls onImport when the primary action is clicked", async () => {
     const onImport = vi.fn();
-    render(<ImportAccountDialog isOpen deckCount={2} onImport={onImport} onSkip={() => {}} />);
+    render(
+      <ImportAccountDialog
+        isOpen
+        deckCount={2}
+        onImport={onImport}
+        onSkip={noop}
+        onCancel={noop}
+      />,
+    );
     await userEvent.click(screen.getByRole("button", { name: /yes, import 2 decks/i }));
     expect(onImport).toHaveBeenCalled();
   });
 
-  it("calls onSkip when the skip text link is clicked", async () => {
+  it("calls onSkip (NOT onCancel) when the skip text link is clicked", async () => {
     const onSkip = vi.fn();
-    render(<ImportAccountDialog isOpen deckCount={2} onImport={() => {}} onSkip={onSkip} />);
+    const onCancel = vi.fn();
+    render(
+      <ImportAccountDialog
+        isOpen
+        deckCount={2}
+        onImport={noop}
+        onSkip={onSkip}
+        onCancel={onCancel}
+      />,
+    );
     await userEvent.click(screen.getByRole("button", { name: /skip — leave decks behind/i }));
     expect(onSkip).toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
-  it("calls onSkip when the dialog is dismissed via Escape", async () => {
+  it("calls onCancel (NOT onSkip) when the dialog is dismissed via Escape", async () => {
     const onSkip = vi.fn();
-    render(<ImportAccountDialog isOpen deckCount={2} onImport={() => {}} onSkip={onSkip} />);
+    const onCancel = vi.fn();
+    render(
+      <ImportAccountDialog
+        isOpen
+        deckCount={2}
+        onImport={noop}
+        onSkip={onSkip}
+        onCancel={onCancel}
+      />,
+    );
     await userEvent.keyboard("{Escape}");
-    expect(onSkip).toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalled();
+    expect(onSkip).not.toHaveBeenCalled();
   });
 
-  it("calls onSkip when the close (X) button is clicked", async () => {
+  it("calls onCancel (NOT onSkip) when the close (X) button is clicked", async () => {
     const onSkip = vi.fn();
-    render(<ImportAccountDialog isOpen deckCount={2} onImport={() => {}} onSkip={onSkip} />);
+    const onCancel = vi.fn();
+    render(
+      <ImportAccountDialog
+        isOpen
+        deckCount={2}
+        onImport={noop}
+        onSkip={onSkip}
+        onCancel={onCancel}
+      />,
+    );
     await userEvent.click(screen.getByRole("button", { name: /close/i }));
-    expect(onSkip).toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalled();
+    expect(onSkip).not.toHaveBeenCalled();
   });
 });
