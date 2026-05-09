@@ -99,9 +99,6 @@ export function AuthCallback() {
       window.localStorage.removeItem("dndCards.lastProvider");
     }
     navigate({ to: readNextFromUrl() });
-    return () => {
-      cancelled = true;
-    };
   }, [session, navigate, setAnnouncement]);
 
   const onImport = async () => {
