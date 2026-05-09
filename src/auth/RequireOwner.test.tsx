@@ -4,7 +4,8 @@ import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
-import { makeDeckRow } from "../test/factories";
+import { AnnouncementProvider } from "../lib/ui/Announcement";
+import { makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
 import { signInTestUser } from "../test/signInTestUser";
 import { AuthProvider } from "./AuthProvider";
@@ -22,7 +23,9 @@ function wrap(ui: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={client}>
-      <AuthProvider>{ui}</AuthProvider>
+      <AnnouncementProvider>
+        <AuthProvider>{ui}</AuthProvider>
+      </AnnouncementProvider>
     </QueryClientProvider>
   );
 }
@@ -41,19 +44,17 @@ describe("RequireOwner", () => {
   });
 
   it("renders children when the session user owns the deck", async () => {
-    const user = await signInTestUser();
-    const deck = makeDeckRow.build({ owner_id: user.id });
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    await signInTestUser();
+    const deck = makePublicDeck.build({ is_owner: true });
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
     render(wrap(<RequireOwner deckId={deck.id}>protected</RequireOwner>));
     await waitFor(() => expect(screen.getByText("protected")).toBeInTheDocument());
   });
 
   it("redirects to /deck/$deckId (read-only) when authenticated but not the owner", async () => {
-    // Use the default Alice user (the MSW /auth/v1/user handler always returns Alice).
-    // The deck belongs to a different uuid so Alice is not the owner.
     await signInTestUser();
-    const deck = makeDeckRow.build({ owner_id: "someone-else" });
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    const deck = makePublicDeck.build({ is_owner: false });
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
     render(wrap(<RequireOwner deckId={deck.id}>protected</RequireOwner>));
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith({ to: "/deck/$deckId", params: { deckId: deck.id } }),

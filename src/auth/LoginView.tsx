@@ -23,7 +23,6 @@ export function LoginView() {
   const [pending, setPending] = useState<"google" | "github" | "dev" | null>(null);
   const [importPrompt, setImportPrompt] = useState<{
     deckCount: number;
-    anonUuid: string;
   } | null>(null);
 
   const isAnon = session.status === "authenticated" && session.user.is_anonymous === true;
@@ -38,9 +37,10 @@ export function LoginView() {
 
       if (isAnon && userId) {
         const decks = await queryClient.fetchQuery({
-          queryKey: decksKey(userId),
+          queryKey: decksKey(),
           queryFn: async () => {
-            const { data } = await supabase.from("decks").select("id").eq("owner_id", userId);
+            const { data, error } = await supabase.rpc("list_my_decks");
+            if (error) throw error;
             return data ?? [];
           },
           staleTime: 0,
@@ -82,16 +82,17 @@ export function LoginView() {
         // OAuth identity_already_exists flow: if the anon has decks, prompt
         // to import them; otherwise switch silently.
         const decks = await queryClient.fetchQuery({
-          queryKey: decksKey(userId),
+          queryKey: decksKey(),
           queryFn: async () => {
-            const { data } = await supabase.from("decks").select("id").eq("owner_id", userId);
+            const { data, error } = await supabase.rpc("list_my_decks");
+            if (error) throw error;
             return data ?? [];
           },
           staleTime: 0,
         });
         const deckCount = decks.length;
         if (deckCount > 0) {
-          setImportPrompt({ deckCount, anonUuid: userId });
+          setImportPrompt({ deckCount });
           return;
         }
         await switchToExistingDevAccount(next);
@@ -122,10 +123,16 @@ export function LoginView() {
 
   const onImportConfirm = async () => {
     if (!importPrompt) return;
-    const { anonUuid } = importPrompt;
     setImportPrompt(null);
     const next = readNextFromUrl();
-    stash({ version: 1, anonUuid, importedDeckIds: [] });
+    const { data: anonDecks, error: listError } = await supabase.rpc("list_my_decks");
+    if (listError) {
+      setAnnouncement("Couldn't start the import. Please try again.");
+      setPending(null);
+      return;
+    }
+    const anonDeckIds = (anonDecks ?? []).map((d: { id: string }) => d.id);
+    stash({ version: 2, anonDeckIds, importedDeckIds: [] });
     await supabase.auth.signOut();
     const { data, error } = await supabase.auth.signInWithPassword({
       email: DEV_EMAIL,

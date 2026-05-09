@@ -3,8 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const STORAGE_KEY = "dndCards.pendingAnonImport";
 
 export type PendingAnonImport = {
-  version: 1;
-  anonUuid: string;
+  version: 2;
+  anonDeckIds: string[];
   importedDeckIds: string[];
 };
 
@@ -21,7 +21,7 @@ export function readPending(): PendingAnonImport | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as { version?: number };
-    if (parsed.version !== 1) return null;
+    if (parsed.version !== 2) return null;
     return parsed as PendingAnonImport;
   } catch {
     return null;
@@ -40,27 +40,39 @@ export async function tryResume(args: {
 }): Promise<ResumeResult> {
   const pending = readPending();
   if (!pending) return { kind: "noop" };
-
-  const { data: anonDecks, error: deckError } = await args.supabase
-    .from("decks")
-    .select("id, name")
-    .eq("owner_id", pending.anonUuid);
-  if (deckError) throw deckError;
-  if (!anonDecks || anonDecks.length === 0) {
+  if (pending.anonDeckIds.length === 0) {
     clear();
     return { kind: "completed", importedCount: 0 };
   }
 
-  const total = anonDecks.length;
+  const total = pending.anonDeckIds.length;
   let imported = pending.importedDeckIds.length;
   args.onProgress?.(imported, total);
 
-  for (const deck of anonDecks as Array<{ id: string; name: string }>) {
-    if (pending.importedDeckIds.includes(deck.id)) continue;
+  for (const deckId of pending.anonDeckIds) {
+    if (pending.importedDeckIds.includes(deckId)) continue;
+
+    const { data: oldDeck, error: deckError } = await args.supabase
+      .rpc("get_public_deck", { deck_id: deckId })
+      .maybeSingle();
+    if (deckError) {
+      stash(pending);
+      return { kind: "partial", importedCount: imported, total };
+    }
+    if (!oldDeck) {
+      // Anon deck deleted between stash and resume — mark as imported and continue.
+      pending.importedDeckIds.push(deckId);
+      imported += 1;
+      stash(pending);
+      args.onProgress?.(imported, total);
+      continue;
+    }
+
+    const oldDeckRow = oldDeck as { id: string; name: string };
 
     const { data: newDeck, error: insertDeckError } = await args.supabase
       .from("decks")
-      .insert({ owner_id: args.currentUserId, name: deck.name })
+      .insert({ owner_id: args.currentUserId, name: oldDeckRow.name })
       .select()
       .single();
     if (insertDeckError) {
@@ -68,17 +80,17 @@ export async function tryResume(args: {
       return { kind: "partial", importedCount: imported, total };
     }
 
-    const { data: cards, error: cardsError } = await args.supabase
-      .from("cards")
-      .select("position, payload")
-      .eq("deck_id", deck.id);
+    const { data: cards, error: cardsError } = await args.supabase.rpc("get_public_deck_cards", {
+      deck_id: deckId,
+    });
     if (cardsError) {
       stash(pending);
       return { kind: "partial", importedCount: imported, total };
     }
 
-    if (cards && cards.length > 0) {
-      const rows = (cards as Array<{ position: number; payload: unknown }>).map((c) => ({
+    const cardRows = (cards ?? []) as Array<{ position: number; payload: unknown }>;
+    if (cardRows.length > 0) {
+      const rows = cardRows.map((c) => ({
         deck_id: (newDeck as { id: string }).id,
         position: c.position,
         payload: c.payload,
@@ -90,7 +102,7 @@ export async function tryResume(args: {
       }
     }
 
-    pending.importedDeckIds.push(deck.id);
+    pending.importedDeckIds.push(deckId);
     imported += 1;
     stash(pending);
     args.onProgress?.(imported, total);

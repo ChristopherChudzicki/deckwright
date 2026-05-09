@@ -24,8 +24,8 @@ export function useCreateDeck() {
       if (!data) throw new Error("useCreateDeck: insert returned no row");
       return data as DeckRow;
     },
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: decksKey(vars.ownerId) });
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: decksKey() });
     },
   });
 }
@@ -46,7 +46,7 @@ export function useRenameDeck() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: deckKey(data.id) });
-      qc.invalidateQueries({ queryKey: decksKey(data.owner_id) });
+      qc.invalidateQueries({ queryKey: decksKey() });
     },
   });
 }

@@ -12,7 +12,19 @@ const navigate = vi.fn();
 vi.mock("@tanstack/react-router", async () => {
   const actual =
     await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
-  return { ...actual, useNavigate: () => navigate };
+  return {
+    ...actual,
+    useNavigate: () => navigate,
+    Link: ({
+      children,
+      to,
+      ...rest
+    }: { children: ReactNode; to?: string } & Record<string, unknown>) => (
+      <a href={to as string} {...rest}>
+        {children}
+      </a>
+    ),
+  };
 });
 
 function wrap(ui: ReactNode, session: SessionState) {
@@ -57,11 +69,8 @@ describe("AuthCallback", () => {
     setLocation({
       hash: "#error=invalid_request&error_code=identity_already_exists&error_description=Identity+is+already+linked+to+another+user",
     });
-    vi.spyOn(supabase, "from").mockReturnValue({
-      select: () => ({
-        eq: () => Promise.resolve({ data: [{ id: "d1" }, { id: "d2" }], error: null }),
-      }),
-    } as never);
+    vi.spyOn(supabase, "rpc").mockImplementation((() =>
+      Promise.resolve({ data: [{ id: "d1" }, { id: "d2" }], error: null })) as never);
     render(
       wrap(<AuthCallback />, {
         status: "authenticated",
@@ -80,9 +89,8 @@ describe("AuthCallback", () => {
   it("on import click: stashes pendingAnonImport, signs out, signInWithOAuth with stashed provider", async () => {
     setLocation({ hash: "#error_code=identity_already_exists", search: "?next=/" });
     window.localStorage.setItem("dndCards.lastProvider", "github");
-    vi.spyOn(supabase, "from").mockReturnValue({
-      select: () => ({ eq: () => Promise.resolve({ data: [{ id: "d1" }], error: null }) }),
-    } as never);
+    vi.spyOn(supabase, "rpc").mockImplementation((() =>
+      Promise.resolve({ data: [{ id: "d1" }], error: null })) as never);
     const signOutSpy = vi
       .spyOn(supabase.auth, "signOut")
       .mockResolvedValue({ error: null } as never);
@@ -98,18 +106,55 @@ describe("AuthCallback", () => {
       }),
     );
     await userEvent.click(await screen.findByRole("button", { name: /yes, import 1 deck$/i }));
+    await waitFor(() => expect(signOutSpy).toHaveBeenCalled());
     const stash = window.localStorage.getItem("dndCards.pendingAnonImport");
     expect(stash).not.toBeNull();
-    expect(JSON.parse(stash as string)).toMatchObject({ anonUuid: "anon-1", importedDeckIds: [] });
+    expect(JSON.parse(stash as string)).toMatchObject({
+      version: 2,
+      anonDeckIds: ["d1"],
+      importedDeckIds: [],
+    });
     expect(signOutSpy).toHaveBeenCalled();
     expect(oauthSpy).toHaveBeenCalledWith(expect.objectContaining({ provider: "github" }));
   });
 
+  it("on import click: aborts before signOut and shows error when list_my_decks errors", async () => {
+    setLocation({ hash: "#error_code=identity_already_exists" });
+    // First call (deck count for the dialog) succeeds; second (prefetch) errors.
+    let callCount = 0;
+    vi.spyOn(supabase, "rpc").mockImplementation((() => {
+      callCount += 1;
+      if (callCount === 1) {
+        return Promise.resolve({ data: [{ id: "d1" }], error: null });
+      }
+      return Promise.resolve({ data: null, error: { message: "boom" } });
+    }) as never);
+    const signOutSpy = vi
+      .spyOn(supabase.auth, "signOut")
+      .mockResolvedValue({ error: null } as never);
+    const oauthSpy = vi
+      .spyOn(supabase.auth, "signInWithOAuth")
+      .mockResolvedValue({ data: {}, error: null } as never);
+
+    render(
+      wrap(<AuthCallback />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /yes, import 1 deck$/i }));
+
+    await waitFor(() => expect(screen.getByText(/couldn't start the import/i)).toBeInTheDocument());
+    expect(signOutSpy).not.toHaveBeenCalled();
+    expect(oauthSpy).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
+  });
+
   it("on dismiss (X / Esc): navigates without signOut or signInWithOAuth", async () => {
     setLocation({ hash: "#error_code=identity_already_exists" });
-    vi.spyOn(supabase, "from").mockReturnValue({
-      select: () => ({ eq: () => Promise.resolve({ data: [{ id: "d1" }], error: null }) }),
-    } as never);
+    vi.spyOn(supabase, "rpc").mockImplementation((() =>
+      Promise.resolve({ data: [{ id: "d1" }], error: null })) as never);
     const signOutSpy = vi
       .spyOn(supabase.auth, "signOut")
       .mockResolvedValue({ error: null } as never);
@@ -133,9 +178,8 @@ describe("AuthCallback", () => {
 
   it("on skip click: signs out and signInWithOAuth, no stash", async () => {
     setLocation({ hash: "#error_code=identity_already_exists" });
-    vi.spyOn(supabase, "from").mockReturnValue({
-      select: () => ({ eq: () => Promise.resolve({ data: [{ id: "d1" }], error: null }) }),
-    } as never);
+    vi.spyOn(supabase, "rpc").mockImplementation((() =>
+      Promise.resolve({ data: [{ id: "d1" }], error: null })) as never);
     const signOutSpy = vi
       .spyOn(supabase.auth, "signOut")
       .mockResolvedValue({ error: null } as never);
@@ -175,16 +219,21 @@ describe("AuthCallback", () => {
   it("when pendingAnonImport exists and session is non-anon: runs import then navigates", async () => {
     window.localStorage.setItem(
       "dndCards.pendingAnonImport",
-      JSON.stringify({ version: 1, anonUuid: "anon-1", importedDeckIds: [] }),
+      JSON.stringify({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [] }),
     );
     setLocation({});
+    vi.spyOn(supabase, "rpc").mockImplementation(((name: string) => {
+      if (name === "get_public_deck") {
+        return {
+          maybeSingle: () => Promise.resolve({ data: { id: "d1", name: "Goblins" }, error: null }),
+        };
+      }
+      if (name === "get_public_deck_cards") {
+        return Promise.resolve({ data: [{ position: 0, payload: {} }], error: null });
+      }
+      return Promise.resolve({ data: [], error: null });
+    }) as never);
     vi.spyOn(supabase, "from").mockReturnValue({
-      select: () => ({
-        eq: (col: string) =>
-          col === "owner_id"
-            ? Promise.resolve({ data: [{ id: "d1", name: "Goblins" }], error: null })
-            : Promise.resolve({ data: [{ position: 0, payload: {} }], error: null }),
-      }),
       insert: () => ({
         select: () => ({
           single: () => Promise.resolve({ data: { id: "new-deck" }, error: null }),

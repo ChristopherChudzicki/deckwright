@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "../api/supabase";
 import { pluralize } from "../lib/pluralize";
@@ -36,7 +36,7 @@ export function AuthCallback() {
     const linkError = parseLinkError();
     if (linkError === "identity_already_exists" && session.user.is_anonymous) {
       void (async () => {
-        const { data } = await supabase.from("decks").select("id").eq("owner_id", session.user.id);
+        const { data } = await supabase.rpc("list_my_decks");
         if (cancelled) return;
         setDeckCount(data?.length ?? 0);
         setPhase("dialog");
@@ -100,7 +100,14 @@ export function AuthCallback() {
 
   const onImport = async () => {
     if (session.status !== "authenticated") return;
-    stash({ version: 1, anonUuid: session.user.id, importedDeckIds: [] });
+    const { data: anonDecks, error: listError } = await supabase.rpc("list_my_decks");
+    if (listError) {
+      setErrorMessage("Couldn't start the import. Please try again.");
+      setPhase("error");
+      return;
+    }
+    const anonDeckIds = (anonDecks ?? []).map((d: { id: string }) => d.id);
+    stash({ version: 2, anonDeckIds, importedDeckIds: [] });
     const next = readNextFromUrl();
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
     const provider = lastProvider();
@@ -151,6 +158,9 @@ export function AuthCallback() {
     return (
       <section style={{ textAlign: "center", padding: "4rem" }}>
         <p>{errorMessage}</p>
+        <p>
+          <Link to="/login">Back to sign-in</Link>
+        </p>
       </section>
     );
   }

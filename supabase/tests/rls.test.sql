@@ -1,6 +1,6 @@
 -- supabase/tests/rls.test.sql
 begin;
-select plan(7);
+select plan(13);
 
 -- Helpers: create two test users in auth.users.
 insert into auth.users (id, email) values
@@ -20,6 +20,19 @@ select lives_ok(
     '{"kind":"item","name":"x","body":"","headerTags":[],"footerTags":[],"source":"custom","createdAt":"2026-04-26T00:00:00Z","updatedAt":"2026-04-26T00:00:00Z"}'::jsonb
   )$$,
   'owner can insert card into own deck'
+);
+
+-- Owner sees own deck via list_my_decks and is_owner=true via get_public_deck.
+select is(
+  (select count(*)::int from public.list_my_decks() where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  1,
+  'owner sees own deck via list_my_decks'
+);
+
+select is(
+  (select is_owner from public.get_public_deck('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')),
+  true,
+  'get_public_deck reports is_owner=true for the owner'
 );
 
 -- Switch to Bob.
@@ -53,20 +66,46 @@ select is(
   'non-owner DELETE on a deck affects 0 rows'
 );
 
--- Public read access works for any role.
-set local role anon;
-
+-- Owner-only SELECT: non-owner sees no rows via direct SELECT on either table.
 select is(
   (select count(*)::int from public.decks where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-  1,
-  'anon can SELECT decks'
+  0,
+  'non-owner cannot direct-SELECT decks'
 );
 
 select is(
   (select count(*)::int from public.cards where deck_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-  1,
-  'anon can SELECT cards'
+  0,
+  'non-owner cannot direct-SELECT cards'
 );
+
+-- Public-by-link: non-owner can read via SECURITY DEFINER RPCs given the UUID.
+select is(
+  (select count(*)::int from public.get_public_deck('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')),
+  1,
+  'non-owner can read deck via get_public_deck RPC'
+);
+
+select is(
+  (select is_owner from public.get_public_deck('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')),
+  false,
+  'get_public_deck reports is_owner=false for non-owner'
+);
+
+select is(
+  (select count(*)::int from public.get_public_deck_cards('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')),
+  1,
+  'non-owner can read cards via get_public_deck_cards RPC'
+);
+
+-- list_my_decks is owner-scoped: Bob sees nothing.
+select is(
+  (select count(*)::int from public.list_my_decks()),
+  0,
+  'non-owner sees 0 rows in list_my_decks'
+);
+
+set local role anon;
 
 select throws_ok(
   $$insert into public.decks (owner_id, name) values ('11111111-1111-1111-1111-111111111111', 'spam')$$,

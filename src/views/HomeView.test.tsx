@@ -66,7 +66,7 @@ describe("HomeView", () => {
   it("shows the user's decks when authenticated", async () => {
     await signInTestUser();
     const decks = [makeDeckRow.build(), makeDeckRow.build()];
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json(decks)));
+    server.use(http.post(`${SB}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json(decks)));
     render(wrap(<HomeView />));
     for (const d of decks) {
       await waitFor(() => expect(screen.getByText(d.name)).toBeInTheDocument());
@@ -75,7 +75,7 @@ describe("HomeView", () => {
 
   it("shows an empty-state CTA when authenticated with no decks", async () => {
     await signInTestUser();
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])));
+    server.use(http.post(`${SB}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([])));
     render(wrap(<HomeView />));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /create your first deck/i })).toBeInTheDocument(),
@@ -86,7 +86,7 @@ describe("HomeView", () => {
     await signInTestUser();
     const inserted = makeDeckRow.build({ name: "Untitled deck" });
     server.use(
-      http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])),
+      http.post(`${SB}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([])),
       http.post(`${SB}/rest/v1/decks`, () => HttpResponse.json([inserted], { status: 201 })),
     );
     render(wrap(<HomeView />));
@@ -104,7 +104,7 @@ describe("HomeView", () => {
     const created = makeDeckRow.build({ name: "my-deck" });
     const insertedRows: unknown[] = [];
     server.use(
-      http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])),
+      http.post(`${SB}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([])),
       http.post(`${SB}/rest/v1/decks`, () => HttpResponse.json([created], { status: 201 })),
       http.post(`${SB}/rest/v1/cards`, async ({ request }) => {
         insertedRows.push(await request.json());
@@ -153,7 +153,7 @@ describe("HomeView", () => {
     const deck = makeDeckRow.build();
     const onDelete = vi.fn();
     server.use(
-      http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])),
+      http.post(`${SB}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([deck])),
       http.delete(`${SB}/rest/v1/decks`, () => {
         onDelete();
         return HttpResponse.json([]);
@@ -190,7 +190,7 @@ describe("HomeView with anon user", () => {
   it("opens the FirstDeckDialog after an anonymous user creates their first deck", async () => {
     const inserted = makeDeckRow.build({ name: "Untitled deck", owner_id: "anon-1" });
     server.use(
-      http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])),
+      http.post(`${SB}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([])),
       http.post(`${SB}/rest/v1/decks`, () => HttpResponse.json([inserted], { status: 201 })),
     );
     renderAsAnon();
@@ -207,7 +207,7 @@ describe("HomeView with anon user", () => {
     window.localStorage.setItem("dndCards.firstDeckExplainerSeen", "1");
     const inserted = makeDeckRow.build({ name: "Untitled deck", owner_id: "anon-1" });
     server.use(
-      http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])),
+      http.post(`${SB}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([])),
       http.post(`${SB}/rest/v1/decks`, () => HttpResponse.json([inserted], { status: 201 })),
     );
     renderAsAnon();

@@ -10,10 +10,10 @@ describe("anonImport storage", () => {
     expect(readPending()).toBeNull();
   });
 
-  it("round-trips a stashed payload", () => {
+  it("round-trips a v2 payload", () => {
     const payload: PendingAnonImport = {
-      version: 1,
-      anonUuid: "00000000-0000-0000-0000-000000000001",
+      version: 2,
+      anonDeckIds: ["d1", "d2"],
       importedDeckIds: [],
     };
     stash(payload);
@@ -21,7 +21,7 @@ describe("anonImport storage", () => {
   });
 
   it("clears the stashed payload", () => {
-    stash({ version: 1, anonUuid: "x", importedDeckIds: [] });
+    stash({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [] });
     clear();
     expect(readPending()).toBeNull();
   });
@@ -31,18 +31,33 @@ describe("anonImport storage", () => {
     expect(readPending()).toBeNull();
   });
 
+  it("returns null on a stashed v1 payload (silently dropped)", () => {
+    window.localStorage.setItem(
+      "dndCards.pendingAnonImport",
+      JSON.stringify({
+        version: 1,
+        anonUuid: "00000000-0000-0000-0000-000000000001",
+        importedDeckIds: [],
+      }),
+    );
+    expect(readPending()).toBeNull();
+  });
+
   it("returns null on a stashed value with an unknown version", () => {
     window.localStorage.setItem(
       "dndCards.pendingAnonImport",
-      JSON.stringify({ version: 999, anonUuid: "x", importedDeckIds: [] }),
+      JSON.stringify({ version: 999, anonDeckIds: [], importedDeckIds: [] }),
     );
     expect(readPending()).toBeNull();
   });
 });
 
 type FakeSupabase = {
-  decks: { ownerId: string; id: string; name: string }[];
-  cards: { id: string; deck_id: string; position: number; payload: unknown }[];
+  deckById: Record<string, { id: string; name: string } | null>;
+  cardsByDeck: Record<
+    string,
+    Array<{ id: string; deck_id: string; position: number; payload: unknown }>
+  >;
   inserts: { decks: unknown[]; cards: unknown[] };
   insertResults?: { table: string; error: Error | null }[];
 };
@@ -51,34 +66,27 @@ function makeFakeSupabase(initial: FakeSupabase) {
   let insertCallCount = 0;
   return {
     state: initial,
+    rpc(name: string, params?: { deck_id?: string }) {
+      if (name === "get_public_deck") {
+        const id = params?.deck_id ?? "";
+        const row = initial.deckById[id] ?? null;
+        return {
+          maybeSingle: () => Promise.resolve({ data: row, error: null }),
+        };
+      }
+      if (name === "get_public_deck_cards") {
+        const id = params?.deck_id ?? "";
+        const rows = initial.cardsByDeck[id] ?? [];
+        return Promise.resolve({ data: rows, error: null });
+      }
+      throw new Error(`unmocked rpc: ${name}`);
+    },
     from(table: string) {
-      const state = initial;
       return {
-        select() {
-          return {
-            eq(_col: string, val: string) {
-              if (table === "decks") {
-                return Promise.resolve({
-                  data: state.decks
-                    .filter((d) => d.ownerId === val)
-                    .map((d) => ({ id: d.id, owner_id: d.ownerId, name: d.name })),
-                  error: null,
-                });
-              }
-              if (table === "cards") {
-                return Promise.resolve({
-                  data: state.cards.filter((c) => c.deck_id === val),
-                  error: null,
-                });
-              }
-              return Promise.resolve({ data: [], error: null });
-            },
-          };
-        },
         insert(rows: unknown) {
-          state.inserts[table as "decks" | "cards"].push(rows);
+          initial.inserts[table as "decks" | "cards"].push(rows);
           const callNum = insertCallCount++;
-          const resultConfig = state.insertResults?.[callNum];
+          const resultConfig = initial.insertResults?.[callNum];
           if (resultConfig?.error) {
             return {
               select: () => ({
@@ -109,11 +117,13 @@ describe("tryResume", () => {
     window.localStorage.clear();
   });
 
-  it("clones each anon-owned deck and its cards under the new user, then clears the key", async () => {
-    stash({ version: 1, anonUuid: "anon-1", importedDeckIds: [] });
+  it("clones each anon deck and its cards under the new user, then clears the key", async () => {
+    stash({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [] });
     const fake = makeFakeSupabase({
-      decks: [{ ownerId: "anon-1", id: "d1", name: "Goblins" }],
-      cards: [{ id: "c1", deck_id: "d1", position: 0, payload: { kind: "item", name: "Sword" } }],
+      deckById: { d1: { id: "d1", name: "Goblins" } },
+      cardsByDeck: {
+        d1: [{ id: "c1", deck_id: "d1", position: 0, payload: { kind: "item", name: "Sword" } }],
+      },
       inserts: { decks: [], cards: [] },
     });
     await tryResume({ supabase: fake as never, currentUserId: "real-1" });
@@ -123,45 +133,62 @@ describe("tryResume", () => {
   });
 
   it("skips decks already in importedDeckIds (resumable)", async () => {
-    stash({ version: 1, anonUuid: "anon-1", importedDeckIds: ["d1"] });
+    stash({ version: 2, anonDeckIds: ["d1", "d2"], importedDeckIds: ["d1"] });
     const fake = makeFakeSupabase({
-      decks: [
-        { ownerId: "anon-1", id: "d1", name: "Done" },
-        { ownerId: "anon-1", id: "d2", name: "Pending" },
-      ],
-      cards: [{ id: "c2", deck_id: "d2", position: 0, payload: {} }],
+      deckById: {
+        d1: { id: "d1", name: "Done" },
+        d2: { id: "d2", name: "Pending" },
+      },
+      cardsByDeck: { d2: [{ id: "c2", deck_id: "d2", position: 0, payload: {} }] },
       inserts: { decks: [], cards: [] },
     });
     await tryResume({ supabase: fake as never, currentUserId: "real-1" });
     expect(fake.state.inserts.decks).toHaveLength(1);
   });
 
-  it("treats zero-rows as already-imported and clears the key without inserting", async () => {
-    stash({ version: 1, anonUuid: "missing-anon", importedDeckIds: [] });
+  it("skips a deck that was deleted between stash and resume", async () => {
+    stash({ version: 2, anonDeckIds: ["missing"], importedDeckIds: [] });
     const fake = makeFakeSupabase({
-      decks: [],
-      cards: [],
+      deckById: { missing: null },
+      cardsByDeck: {},
       inserts: { decks: [], cards: [] },
     });
-    await tryResume({ supabase: fake as never, currentUserId: "real-1" });
+    const result = await tryResume({ supabase: fake as never, currentUserId: "real-1" });
     expect(fake.state.inserts.decks).toHaveLength(0);
+    expect(result).toEqual({ kind: "completed", importedCount: 1 });
+    expect(readPending()).toBeNull();
+  });
+
+  it("treats an empty anonDeckIds list as already-completed and clears the key", async () => {
+    stash({ version: 2, anonDeckIds: [], importedDeckIds: [] });
+    const fake = makeFakeSupabase({
+      deckById: {},
+      cardsByDeck: {},
+      inserts: { decks: [], cards: [] },
+    });
+    const result = await tryResume({ supabase: fake as never, currentUserId: "real-1" });
+    expect(result).toEqual({ kind: "completed", importedCount: 0 });
     expect(readPending()).toBeNull();
   });
 
   it("is a no-op when there is no pending import", async () => {
-    const fake = makeFakeSupabase({ decks: [], cards: [], inserts: { decks: [], cards: [] } });
+    const fake = makeFakeSupabase({
+      deckById: {},
+      cardsByDeck: {},
+      inserts: { decks: [], cards: [] },
+    });
     const result = await tryResume({ supabase: fake as never, currentUserId: "real-1" });
     expect(result).toEqual({ kind: "noop" });
   });
 
   it("returns partial and re-stashes when deck insert fails mid-loop", async () => {
-    stash({ version: 1, anonUuid: "anon-1", importedDeckIds: [] });
+    stash({ version: 2, anonDeckIds: ["d1", "d2"], importedDeckIds: [] });
     const fake = makeFakeSupabase({
-      decks: [
-        { ownerId: "anon-1", id: "d1", name: "First" },
-        { ownerId: "anon-1", id: "d2", name: "Second" },
-      ],
-      cards: [],
+      deckById: {
+        d1: { id: "d1", name: "First" },
+        d2: { id: "d2", name: "Second" },
+      },
+      cardsByDeck: {},
       inserts: { decks: [], cards: [] },
       insertResults: [
         { table: "decks", error: null },

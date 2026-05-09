@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { makeDeckRow } from "../test/factories";
+import { makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
 import { DeckBreadcrumb } from "./DeckBreadcrumb";
 
@@ -51,9 +51,9 @@ describe("DeckBreadcrumb", () => {
   });
 
   it("renders just a Decks link on the deck root route", () => {
-    const deck = makeDeckRow.build();
+    const deck = makePublicDeck.build();
     mockPathname = `/deck/${deck.id}`;
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
     render(wrap(<DeckBreadcrumb />));
 
     expect(screen.getByRole("link", { name: "Decks" })).toHaveAttribute("href", "/");
@@ -62,9 +62,9 @@ describe("DeckBreadcrumb", () => {
   });
 
   it("renders the deck name as a link on the editor route", async () => {
-    const deck = makeDeckRow.build();
+    const deck = makePublicDeck.build();
     mockPathname = `/deck/${deck.id}/edit/new`;
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
     render(wrap(<DeckBreadcrumb />));
 
     const deckLink = await screen.findByRole("link", { name: deck.name });
@@ -73,9 +73,9 @@ describe("DeckBreadcrumb", () => {
   });
 
   it("renders the deck name as a link on the print route", async () => {
-    const deck = makeDeckRow.build();
+    const deck = makePublicDeck.build();
     mockPathname = `/deck/${deck.id}/print`;
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
     render(wrap(<DeckBreadcrumb />));
 
     const deckLink = await screen.findByRole("link", { name: deck.name });
@@ -83,12 +83,12 @@ describe("DeckBreadcrumb", () => {
   });
 
   it("shows an ellipsis while the deck query is pending", async () => {
-    const deck = makeDeckRow.build();
+    const deck = makePublicDeck.build();
     mockPathname = `/deck/${deck.id}/edit/new`;
     let resolve: ((res: Response) => void) | undefined;
     server.use(
-      http.get(
-        `${SB}/rest/v1/decks`,
+      http.post(
+        `${SB}/rest/v1/rpc/get_public_deck`,
         () =>
           new Promise<Response>((r) => {
             resolve = r;
@@ -100,13 +100,13 @@ describe("DeckBreadcrumb", () => {
     expect(await screen.findByText("…")).toBeInTheDocument();
     expect(screen.queryByText(deck.name)).not.toBeInTheDocument();
 
-    resolve?.(HttpResponse.json([deck]));
+    resolve?.(HttpResponse.json(deck));
     await screen.findByText(deck.name);
   });
 
   it("collapses to just Decks when the deck is not found", async () => {
     mockPathname = "/deck/missing/edit/new";
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])));
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(null)));
     render(wrap(<DeckBreadcrumb />));
 
     await screen.findByRole("link", { name: "Decks" });
@@ -116,9 +116,9 @@ describe("DeckBreadcrumb", () => {
 
   it("sets the full deck name on title for a truncated link", async () => {
     const longName = "A Very Long Deck Name That Will Overflow Twenty Four Characters";
-    const deck = makeDeckRow.build({ name: longName });
+    const deck = makePublicDeck.build({ name: longName });
     mockPathname = `/deck/${deck.id}/edit/new`;
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
     render(wrap(<DeckBreadcrumb />));
 
     const link = await screen.findByRole("link", { name: longName });

@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
-import { makeCardRow, makeDeckRow } from "../test/factories";
+import { makeCardRow, makeDeckSummary, makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
 import { useDeck, useDeckCards, useDecks } from "./queries";
 
@@ -17,31 +17,26 @@ function wrapper() {
 }
 
 describe("useDecks", () => {
-  it("returns the user's decks", async () => {
-    const decks = [makeDeckRow.build(), makeDeckRow.build()];
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json(decks)));
-    const { result } = renderHook(() => useDecks("user-id"), { wrapper: wrapper() });
+  it("returns the user's decks via list_my_decks RPC", async () => {
+    const decks = [makeDeckSummary.build(), makeDeckSummary.build()];
+    server.use(http.post(`${SB}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json(decks)));
+    const { result } = renderHook(() => useDecks(), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(decks);
-  });
-
-  it("is disabled when ownerId is undefined", async () => {
-    const { result } = renderHook(() => useDecks(undefined), { wrapper: wrapper() });
-    expect(result.current.fetchStatus).toBe("idle");
   });
 });
 
 describe("useDeck", () => {
-  it("returns a single deck by id", async () => {
-    const deck = makeDeckRow.build();
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+  it("returns a PublicDeck via get_public_deck RPC", async () => {
+    const deck = makePublicDeck.build({ is_owner: true });
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
     const { result } = renderHook(() => useDeck(deck.id), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(deck);
   });
 
   it("returns null when the deck doesn't exist", async () => {
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])));
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(null)));
     const { result } = renderHook(() => useDeck("missing"), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBeNull();
@@ -49,9 +44,13 @@ describe("useDeck", () => {
 });
 
 describe("useDeckCards", () => {
-  it("returns cards for the given deck, mapped to the Card type", async () => {
+  it("returns cards for a deck via get_public_deck_cards RPC", async () => {
     const [firstRow, secondRow] = [makeCardRow.build(), makeCardRow.build()];
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([firstRow, secondRow])));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () =>
+        HttpResponse.json([firstRow, secondRow]),
+      ),
+    );
     const { result } = renderHook(() => useDeckCards("deck-id"), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const cards = result.current.data ?? [];

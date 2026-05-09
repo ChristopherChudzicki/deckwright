@@ -18,21 +18,27 @@ function wrap(ui: ReactNode) {
 describe("<PrintView>", () => {
   test("renders one page at 4-up for up to 4 cards", async () => {
     const cards = makeCardRow.buildList(3);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
   });
 
   test("renders two pages when there are 5 cards at 4-up", async () => {
     const cards = makeCardRow.buildList(5);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(2));
   });
 
   test("switches to 2-up and repaginates accordingly", async () => {
     const cards = makeCardRow.buildList(3);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: /cards per page/i }), "2");
@@ -41,7 +47,9 @@ describe("<PrintView>", () => {
 
   test("2-up pages carry the landscape layout class", async () => {
     const cards = makeCardRow.buildList(2);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: /cards per page/i }), "2");
@@ -56,7 +64,9 @@ describe("<PrintView>", () => {
     vi.spyOn(layoutPaginatorModule, "layoutPaginate").mockImplementation(({ bodyHtml }) =>
       bodyHtml === "" ? [""] : ["chunk-a", "chunk-b", "chunk-c"],
     );
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([card])),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => {
       const indicators = screen.getAllByTestId("card-pagination");
@@ -68,7 +78,9 @@ describe("<PrintView>", () => {
 
   test("does not emit back pages when the toggle is off", async () => {
     const cards = makeCardRow.buildList(4);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     expect(document.querySelectorAll('[data-page-side="back"]')).toHaveLength(0);
@@ -76,7 +88,9 @@ describe("<PrintView>", () => {
 
   test("emits one back page per front page when the toggle is on", async () => {
     const cards = makeCardRow.buildList(5);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(2));
     await userEvent.click(screen.getByRole("switch", { name: /print backs/i }));
@@ -87,7 +101,9 @@ describe("<PrintView>", () => {
 
   test("places back tiles in the horizontally-mirrored slot order at 4-up", async () => {
     const cards = makeCardRow.buildList(4);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     await userEvent.click(screen.getByRole("switch", { name: /print backs/i }));
@@ -106,7 +122,9 @@ describe("<PrintView>", () => {
 
   test("partial last front page produces a back page with only the populated slots filled", async () => {
     const cards = makeCardRow.buildList(3);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     await userEvent.click(screen.getByRole("switch", { name: /print backs/i }));
@@ -118,7 +136,9 @@ describe("<PrintView>", () => {
 
   test("shows the long-edge duplex tip at 4-up when backs are on", async () => {
     const cards = makeCardRow.buildList(2);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     // Toggle off: tip absent
@@ -130,7 +150,9 @@ describe("<PrintView>", () => {
 
   test("tip switches to short-edge when layout changes to 2-up", async () => {
     const cards = makeCardRow.buildList(2);
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     await userEvent.click(screen.getByRole("switch", { name: /print backs/i }));

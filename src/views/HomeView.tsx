@@ -17,7 +17,7 @@ export function HomeView() {
   const session = useSession();
   const navigate = useNavigate();
   const ownerId = session.status === "authenticated" ? session.user.id : undefined;
-  const decks = useDecks(ownerId);
+  const decks = useDecks();
   const createDeck = useCreateDeck();
   const deleteDeck = useDeleteDeck();
   const saveCard = useSaveCard();

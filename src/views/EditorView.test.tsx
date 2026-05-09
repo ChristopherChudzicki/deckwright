@@ -30,7 +30,7 @@ describe("EditorView", () => {
   });
 
   it("renders 'Card not found' when cardId is missing from server", async () => {
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([])));
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([])));
     render(wrap(<EditorView deckId="d1" cardId="missing" />));
     await waitFor(() => expect(screen.getByText(/card not found/i)).toBeInTheDocument());
   });
@@ -69,7 +69,7 @@ describe("EditorView", () => {
     const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
     const onPatch = vi.fn();
     server.use(
-      http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([card])),
       http.patch(`${SB}/rest/v1/cards`, async ({ request }) => {
         onPatch(await request.json());
         return HttpResponse.json([card]);
@@ -94,7 +94,9 @@ describe("EditorView", () => {
 
   it("does NOT show the import hint when editing an existing card", async () => {
     const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([card])),
+    );
     render(wrap(<EditorView deckId="d1" cardId="c1" />));
     await screen.findByRole("button", { name: /save/i });
     expect(screen.queryByTestId("import-hint")).not.toBeInTheDocument();
@@ -128,7 +130,9 @@ describe("EditorView", () => {
 
   it("shows '1 card' counts label when body fits", async () => {
     const card = makeCardRow.build({ id: "c1", deck_id: "d1" });
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([card])),
+    );
     render(wrap(<EditorView deckId="d1" cardId="c1" />));
     expect(await screen.findByText("1 card")).toBeInTheDocument();
   });
@@ -138,7 +142,9 @@ describe("EditorView", () => {
     vi.spyOn(layoutPaginatorModule, "layoutPaginate").mockImplementation(({ bodyHtml }) =>
       bodyHtml === "" ? [""] : ["chunk-a", "chunk-b", "chunk-c"],
     );
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([card])),
+    );
     render(wrap(<EditorView deckId="d1" cardId="c1" />));
     expect(await screen.findByRole("button", { name: /next preview page/i })).toBeInTheDocument();
     expect(screen.getByText("3 cards")).toBeInTheDocument();
@@ -152,7 +158,9 @@ describe("EditorView", () => {
       callCount += 1;
       return callCount === 1 ? ["chunk-a", "chunk-b", "chunk-c"] : ["chunk-x", "chunk-y"];
     });
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([card])),
+    );
     render(wrap(<EditorView deckId="d1" cardId="c1" />));
     expect(
       await screen.findByText("3 cards (4 per page) | 2 cards (2 per page)"),
