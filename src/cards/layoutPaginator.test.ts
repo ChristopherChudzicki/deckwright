@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import { layoutPaginate } from "./layoutPaginator";
+import * as sliceAtModule from "./sliceAt";
 
 function setRect(el: Element, top: number, height: number) {
   vi.spyOn(el, "getBoundingClientRect").mockReturnValue({
@@ -138,6 +139,33 @@ describe("layoutPaginate", () => {
       }),
     });
     expect(result).toEqual(["<div>a</div><div>b</div>"]);
+  });
+
+  test("breaks out and logs on MAX_CHUNKS instead of throwing through render", () => {
+    // Simulate a non-progressing slice: pretend to extract a chunk while
+    // leaving the container untouched. The loop should hit the safety valve
+    // and bail with what it has, not throw.
+    const sliceSpy = vi.spyOn(sliceAtModule, "sliceFirstChunk").mockImplementation(() => "x");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = layoutPaginate({
+      bodyHtml: "<div>1</div><div>2</div>",
+      width: 100,
+      firstHeight: 40,
+      continuationHeight: 40,
+      mount: makeMount((c) => {
+        setRect(c, 0, 60);
+        setRect(c.children[0], 0, 30);
+        setRect(c.children[1], 30, 30);
+      }),
+    });
+
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.length).toBeLessThanOrEqual(1024);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("exceeded MAX_CHUNKS"));
+
+    sliceSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   test("clears the mounted container after pagination so the measurer can reuse it", () => {

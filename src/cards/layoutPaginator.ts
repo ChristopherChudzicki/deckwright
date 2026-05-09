@@ -12,8 +12,12 @@ export type LayoutPaginateOpts = {
 };
 
 // Safety bound: a body that produced this many chunks is almost certainly a
-// runaway loop (something is failing to make forward progress). Throwing
-// turns a hung renderer into a visible error.
+// runaway loop (something is failing to make forward progress). Forward
+// progress is *already* guaranteed by per-candidate offset >= 1 invariants
+// in breakCandidates.ts; this constant is belt-and-suspenders. If a real
+// card body legitimately needs more than this many chunks, raise it. If
+// the cap is hit, we log and return what we have so far — preferable to
+// throwing through React's render path with no error boundary.
 const MAX_CHUNKS = 1024;
 
 export function layoutPaginate(opts: LayoutPaginateOpts): string[] {
@@ -35,9 +39,10 @@ export function layoutPaginate(opts: LayoutPaginateOpts): string[] {
     let budget = firstHeight;
     while (container.children.length > 0) {
       if (chunks.length >= MAX_CHUNKS) {
-        throw new Error(
-          `layoutPaginate: exceeded MAX_CHUNKS=${MAX_CHUNKS} — likely a non-progressing slice. Dumping container as one final chunk.`,
+        console.error(
+          `layoutPaginate: exceeded MAX_CHUNKS=${MAX_CHUNKS} — likely a non-progressing slice. Returning chunks accumulated so far.`,
         );
+        break;
       }
       const candidates = collectBreakCandidates(container);
       if (candidates.length === 0) {

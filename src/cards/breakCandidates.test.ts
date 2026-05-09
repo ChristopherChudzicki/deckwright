@@ -39,7 +39,10 @@ describe("collectBreakCandidates", () => {
     root.remove();
   });
 
-  test("treats <pre> as atomic (no candidates inside)", () => {
+  test("unrecognized tags are opaque: one candidate after, no internal split points", () => {
+    // PRE/IMG/HR/etc. don't have specific dispatch entries; the default
+    // branch emits exactly one between-children candidate after the element
+    // with no recursion into it.
     const root = document.createElement("div");
     root.innerHTML = "<p>before</p><pre>code\nblock</pre><p>after</p>";
     document.body.appendChild(root);
