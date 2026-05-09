@@ -30,7 +30,7 @@
 
 .skip {
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   border-radius: var(--radius-md);
   color: var(--color-text-muted);
   font-size: var(--fs-sm);
@@ -40,7 +40,7 @@
 
 .skip:hover {
   color: var(--color-danger);
-  border-color: var(--color-border);
+  background: var(--color-surface-2);
 }
 
 .skip:focus-visible {
