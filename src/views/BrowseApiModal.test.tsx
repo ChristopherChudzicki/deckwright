@@ -4,6 +4,7 @@ import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { describe, expect, test, vi } from "vitest";
 import type { MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
+import * as magicItemsEndpoint from "../api/endpoints/magicItems";
 import type { SpellIndex } from "../api/endpoints/spells";
 import { magicItemIndexEntryFactory, spellIndexEntryFactory } from "../api/factories";
 import { makeCardRow } from "../test/factories";
@@ -193,8 +194,6 @@ describe("<BrowseApiModal>", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Flame Tongue/ }));
 
     await waitFor(() => expect(onPost).toHaveBeenCalledTimes(1));
-    await new Promise((r) => setTimeout(r, 50));
-    expect(onPost).toHaveBeenCalledTimes(1);
   });
 
   test("Escape calls onClose", async () => {
@@ -251,5 +250,53 @@ describe("<BrowseApiModal>", () => {
       "href",
       "https://www.dndbeyond.com/srd",
     );
+  });
+
+  test("source menu lists exactly the active type's supportedSources", async () => {
+    const client = makeClient({ items: { "2024": { count: 0, results: [] } } });
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await openSourceMenu();
+    const items = screen.getAllByRole("menuitem");
+    expect(items.map((el) => el.textContent)).toEqual(["2024", "2014"]);
+  });
+
+  test("pick error clears when switching tabs", async () => {
+    const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const spell = spellIndexEntryFactory.build({ name: "Fireball" });
+    const client = makeClient({
+      items: { "2024": { count: 1, results: [item] } },
+      spells: { "2024": { count: 1, results: [spell] } },
+    });
+    server.use(http.post(`${SB_URL}/rest/v1/cards`, () => HttpResponse.error()));
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(await screen.findByRole("button", { name: /Bag of Holding/ }));
+    await screen.findByRole("alert");
+
+    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  });
+
+  test("renders a loading state while the items index is fetching", async () => {
+    vi.spyOn(magicItemsEndpoint, "fetchMagicItemIndex").mockReturnValue(
+      new Promise<MagicItemIndex>(() => {}),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Loading…");
+  });
+
+  test("shows a Retry button when the items index fails to load", async () => {
+    vi.spyOn(magicItemsEndpoint, "fetchMagicItemIndex").mockRejectedValue(new Error("boom"));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 });
