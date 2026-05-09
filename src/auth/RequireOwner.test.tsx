@@ -4,6 +4,7 @@ import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
+import { AnnouncementProvider } from "../lib/ui/Announcement";
 import { makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
 import { signInTestUser } from "../test/signInTestUser";
@@ -22,7 +23,9 @@ function wrap(ui: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={client}>
-      <AuthProvider>{ui}</AuthProvider>
+      <AnnouncementProvider>
+        <AuthProvider>{ui}</AuthProvider>
+      </AnnouncementProvider>
     </QueryClientProvider>
   );
 }
