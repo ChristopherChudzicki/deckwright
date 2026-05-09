@@ -73,7 +73,7 @@ The library uses `document.execCommand("insertText")` internally with a fallback
 
 ### TypeScript intrinsics
 
-The package doesn't ship JSX type augmentations. We declare them once in `src/types/jsx-markdown-toolbar.d.ts`:
+The package doesn't ship JSX type augmentations. We declare them once in `src/types/jsx-markdown-toolbar.d.ts`. Project tsconfig is on `"jsx": "react-jsx"`, so intrinsics resolve from `React.JSX.IntrinsicElements`, not the global `JSX.IntrinsicElements`. Augment via module declaration on `react`:
 
 ```ts
 import type { DetailedHTMLProps, HTMLAttributes } from "react";
@@ -83,7 +83,7 @@ type MarkdownToolbarAttrs = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLE
 };
 type MdButtonAttrs = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>;
 
-declare global {
+declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
       "markdown-toolbar": MarkdownToolbarAttrs;
@@ -96,7 +96,7 @@ declare global {
 }
 ```
 
-(Project tsconfig uses the classic JSX namespace; if it switches to `react-jsx`, the same shape lives under `React.JSX` instead.)
+`for` is added explicitly (the web component reads the lowercase attribute; React passes unknown lowercase props verbatim on intrinsics). `className` is type-correct on these declarations and React 18 translates it to `class` on the DOM. `ref` typed as `RefObject<HTMLElement>` works — React attaches it to the underlying DOM node.
 
 ### `MarkdownToolbar.tsx`
 
@@ -117,25 +117,35 @@ type Props = {
 
 export function MarkdownToolbar({ htmlFor, boldRef, italicRef }: Props) {
   return (
-    <markdown-toolbar for={htmlFor} className={styles.toolbar}>
-      <md-bold ref={boldRef} className={styles.button} aria-label="Bold (⌘B)">
-        <BoldIcon />
+    <markdown-toolbar
+      for={htmlFor}
+      role="toolbar"
+      aria-label="Formatting"
+      className={styles.toolbar}
+    >
+      <md-bold ref={boldRef} tabIndex={0} className={styles.button} aria-label="Bold (⌘B)">
+        <BoldIcon aria-hidden="true" />
       </md-bold>
-      <md-italic ref={italicRef} className={styles.button} aria-label="Italic (⌘I)">
-        <ItalicIcon />
+      <md-italic ref={italicRef} tabIndex={-1} className={styles.button} aria-label="Italic (⌘I)">
+        <ItalicIcon aria-hidden="true" />
       </md-italic>
-      <md-unordered-list className={styles.button} aria-label="Bullet list">
-        <BulletListIcon />
+      <md-unordered-list tabIndex={-1} className={styles.button} aria-label="Bullet list">
+        <BulletListIcon aria-hidden="true" />
       </md-unordered-list>
-      <md-ordered-list className={styles.button} aria-label="Numbered list">
-        <NumberedListIcon />
+      <md-ordered-list tabIndex={-1} className={styles.button} aria-label="Numbered list">
+        <NumberedListIcon aria-hidden="true" />
       </md-ordered-list>
     </markdown-toolbar>
   );
 }
 ```
 
-Use `className`, not `class` — React 18 still translates `className` → `class` for custom-element JSX intrinsics typed as `HTMLElement`. The `DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>` type already includes `className`.
+A few details worth calling out:
+
+- **`tabIndex={0}` on the first button, `tabIndex={-1}` on the rest.** The library implements roving tabindex (arrow keys move focus among buttons it sees as part of the toolbar) but it does *not* initialize the first button into the tab order. Without these explicit attributes, a keyboard-only user cannot reach the toolbar at all.
+- **`role="toolbar"` + `aria-label="Formatting"` on `<markdown-toolbar>`.** Required by WAI-ARIA's Toolbar pattern; the library doesn't set them.
+- **`aria-hidden="true"` on each icon `<svg>`.** Prevents double-announcement alongside the button's `aria-label`.
+- **`className`, not `class`.** React 18 translates `className` → `class` on the DOM for custom-element JSX intrinsics typed as `HTMLElement`.
 
 ### `MarkdownToolbar.module.css`
 
@@ -154,26 +164,25 @@ Use `className`, not `class` — React 18 still translates `className` → `clas
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
+  color: var(--color-text-muted);
   cursor: pointer;
   user-select: none;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .button:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-surface-2);
+  color: var(--color-text);
 }
 
 .button:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
-}
-
-.button[aria-disabled="true"] {
-  opacity: 0.5;
-  pointer-events: none;
 }
 
 .button > svg {
@@ -243,11 +252,13 @@ Web components register via the `customElements` registry, which jsdom supports.
 
 - **`MarkdownToolbar.test.tsx`** —
   - Renders four buttons; each has the expected `aria-label` (`getByRole("button", { name: /bold/i })`, etc.).
-  - The `<markdown-toolbar>` element has the right `for` attribute pointing at the linked textarea id.
-  - Clicking a button does not throw (the library's `execCommand` path will exercise jsdom's behavior; jsdom does not implement `execCommand`, so the library's fallback runs — that's fine, we're only asserting the React/DOM glue here, not formatting behavior).
+  - The `<markdown-toolbar>` element has the right `for` attribute, and the value matches a textarea `id` rendered in the same harness — easy to regress when `useId` is rewired.
+  - The first `md-*` button has `tabIndex="0"`, the others `"-1"` (roving-tabindex initialization).
+  - **Do not click the buttons in unit tests.** The library calls `document.execCommand`, whose return-value semantics in jsdom are inconsistent across versions. Behavior assertions live in Playwright; unit tests assert structure and DOM glue only.
 
 - **`CardEditor.test.tsx`** — extend.
-  - `Cmd+B` keystroke on the body textarea calls `boldRef.current.click()`. Spy on the click via `userEvent` + `addEventListener`, assert dispatched.
+  - `Cmd+B` keystroke on the body textarea calls the bold button's click. Spy by replacing `boldRef.current.click` with a `vi.fn()` (or attaching a listener directly to the ref'd node), assert called once.
+  - The handler calls `event.preventDefault()` (assert via the synthetic event spy) — without it, the browser may swallow the keystroke for its own bookmarks/menu actions.
   - `Cmd+I` similarly.
   - `Cmd+Shift+B` does not trigger bold (modifier guard).
 
