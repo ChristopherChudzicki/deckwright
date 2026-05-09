@@ -1,10 +1,19 @@
-import { useMemo, useState } from "react";
-import { TextField } from "react-aria-components";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
+  Button as RACButton,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+  TextField,
+} from "react-aria-components";
+import { CONTENT_TYPES, type ContentType } from "../api/content-types";
 import type { Ruleset } from "../api/endpoints/magicItems";
-import { useMagicItemIndex, useSpellIndex } from "../api/hooks";
-import { magicItemDetailToCard } from "../api/mappers/magicItems";
-import { spellDetailToCard } from "../api/mappers/spells";
-import type { MagicItem, Spell } from "../data/srd-schema";
+import type { Card } from "../cards/types";
 import { useSaveCard } from "../decks/mutations";
 import { Button } from "../lib/ui/Button";
 import { DialogHeader } from "../lib/ui/DialogHeader";
@@ -12,30 +21,7 @@ import { DialogShell } from "../lib/ui/DialogShell";
 import { Input } from "../lib/ui/Input";
 import { Link } from "../lib/ui/Link";
 import { LoadingState } from "../lib/ui/LoadingState";
-import { ToggleButton } from "../lib/ui/ToggleButton";
-import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import styles from "./BrowseApiModal.module.css";
-
-type Kind = "items" | "spells";
-
-type Pickable = { kind: "items"; entry: MagicItem } | { kind: "spells"; entry: Spell };
-
-const ordinal = (n: number): string => {
-  if (n === 1) return "1st";
-  if (n === 2) return "2nd";
-  if (n === 3) return "3rd";
-  return `${n}th`;
-};
-
-const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-
-const itemMeta = (item: MagicItem): string => capitalize(item.rarity.name);
-
-const spellMeta = (spell: Spell): string => {
-  const school = spell.school.name.toLowerCase();
-  if (spell.level === 0) return `${capitalize(school)} cantrip`;
-  return `${ordinal(spell.level)}-level ${school}`;
-};
 
 type Props = {
   deckId: string;
@@ -44,39 +30,37 @@ type Props = {
 };
 
 export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
-  const [kind, setKind] = useState<Kind>("items");
-  const [ruleset, setRuleset] = useState<Ruleset>("2024");
+  const [typeId, setTypeId] = useState<string>(() => CONTENT_TYPES[0]?.id ?? "");
+  const activeType = CONTENT_TYPES.find((t) => t.id === typeId) ?? CONTENT_TYPES[0];
+  if (!activeType) {
+    throw new Error("CONTENT_TYPES is empty");
+  }
+
+  const [source, setSource] = useState<Ruleset>("2024");
+  useEffect(() => {
+    if (!activeType.supportedSources.includes(source)) {
+      const fallback = activeType.supportedSources[0];
+      if (fallback) setSource(fallback);
+    }
+  }, [activeType, source]);
+
   const [query, setQuery] = useState("");
   const [pickingKey, setPickingKey] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
 
-  const itemIndex = useMagicItemIndex(ruleset);
-  const spellIndex = useSpellIndex(ruleset);
-  const index = kind === "items" ? itemIndex : spellIndex;
+  const handleTabChange = (next: string) => {
+    if (next === typeId) return;
+    setTypeId(next);
+    setQuery("");
+    setPickError(null);
+  };
+
   const saveCard = useSaveCard();
-
-  const filtered = useMemo<Pickable[]>(() => {
-    const q = query.trim().toLowerCase();
-    const matches = (name: string) => q === "" || name.toLowerCase().includes(q);
-    if (kind === "items") {
-      return (itemIndex.data?.results ?? [])
-        .filter((e) => matches(e.name))
-        .map((entry) => ({ kind: "items", entry }));
-    }
-    return (spellIndex.data?.results ?? [])
-      .filter((e) => matches(e.name))
-      .map((entry) => ({ kind: "spells", entry }));
-  }, [kind, itemIndex.data, spellIndex.data, query]);
-
-  const handlePick = async (item: Pickable) => {
+  const handlePick = async (rowKey: string, card: Card) => {
     if (pickingKey !== null) return;
-    setPickingKey(item.entry.key);
+    setPickingKey(rowKey);
     setPickError(null);
     try {
-      const card =
-        item.kind === "items"
-          ? magicItemDetailToCard({ ...item.entry, ruleset })
-          : spellDetailToCard({ ...item.entry, ruleset });
       await saveCard.mutateAsync({ card, deckId, isNew: true });
       onSelected(card.id);
     } catch (err) {
@@ -88,11 +72,6 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
     }
   };
 
-  const placeholder = kind === "items" ? "Search items…" : "Search spells…";
-  const emptyMessage =
-    kind === "items" ? "No items match your search." : "No spells match your search.";
-  const errorMessage = "Couldn't load the list.";
-
   return (
     <DialogShell
       isOpen
@@ -100,101 +79,58 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
         if (!open) onClose();
       }}
       aria-label="Browse SRD"
-      size="md"
+      size="lg"
       height={{ fixed: "min(70vh, 640px)" }}
       bleed
     >
       {() => (
         <>
           <DialogHeader title="Browse SRD" onClose={onClose}>
-            <div className={styles.toggles}>
-              <ToggleButtonGroup
-                aria-label="Browse kind"
-                selectionMode="single"
-                disallowEmptySelection
-                selectedKeys={[kind]}
-                onSelectionChange={(keys) => {
-                  const next = Array.from(keys)[0];
-                  if (next === "items" || next === "spells") setKind(next);
-                }}
-              >
-                <ToggleButton id="items">Items</ToggleButton>
-                <ToggleButton id="spells">Spells</ToggleButton>
-              </ToggleButtonGroup>
-              <ToggleButtonGroup
-                aria-label="Ruleset"
-                selectionMode="single"
-                disallowEmptySelection
-                selectedKeys={[ruleset]}
-                onSelectionChange={(keys) => {
-                  const next = Array.from(keys)[0];
-                  if (next === "2014" || next === "2024") setRuleset(next);
-                }}
-              >
-                <ToggleButton id="2014">2014</ToggleButton>
-                <ToggleButton id="2024">2024</ToggleButton>
-              </ToggleButtonGroup>
-            </div>
+            <SourceMenu
+              source={source}
+              options={activeType.supportedSources}
+              onChange={setSource}
+            />
           </DialogHeader>
 
-          <div className={styles.searchRow}>
-            <TextField aria-label={placeholder} className={styles.searchField}>
-              <Input
-                type="search"
-                placeholder={placeholder}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                autoFocus
-              />
-            </TextField>
-          </div>
-
-          <div className={styles.results}>
-            {index.isLoading && <LoadingState />}
-            {index.isError && (
-              <div className={styles.state} role="alert">
-                {errorMessage}
-                <div className={styles.errorActions}>
-                  <Button variant="secondary" size="sm" onPress={() => index.refetch()}>
-                    Retry
-                  </Button>
-                </div>
-              </div>
-            )}
-            {index.isSuccess && filtered.length === 0 && (
-              <div className={styles.state}>{emptyMessage}</div>
-            )}
-            {pickError && (
-              <div className={styles.state} role="alert">
-                {pickError}
-              </div>
-            )}
-            {index.isSuccess &&
-              filtered.map((item) => {
-                const meta = item.kind === "items" ? itemMeta(item.entry) : spellMeta(item.entry);
-                return (
-                  <button
-                    key={item.entry.key}
-                    type="button"
-                    className={styles.row}
-                    onClick={() => handlePick(item)}
-                    disabled={pickingKey !== null}
-                  >
-                    <span className={styles.rowName}>{item.entry.name}</span>
-                    <span className={styles.rowMeta}>
-                      {pickingKey === item.entry.key ? "Loading…" : meta}
-                    </span>
-                  </button>
-                );
-              })}
+          <div className={styles.layout}>
+            <Tabs
+              orientation="vertical"
+              selectedKey={typeId}
+              onSelectionChange={(k) => handleTabChange(String(k))}
+              className={styles.tabs}
+            >
+              <TabList aria-label="Content type" className={styles.tabList}>
+                {CONTENT_TYPES.map((t) => (
+                  <Tab key={t.id} id={t.id} className={styles.tab}>
+                    {t.label}
+                  </Tab>
+                ))}
+              </TabList>
+              {CONTENT_TYPES.map((t) => (
+                <TabPanel key={t.id} id={t.id} className={styles.tabPanel}>
+                  {t.id === typeId && (
+                    <TypePanel
+                      type={t}
+                      source={source}
+                      query={query}
+                      onQueryChange={setQuery}
+                      pickingKey={pickingKey}
+                      pickError={pickError}
+                      onPick={handlePick}
+                    />
+                  )}
+                </TabPanel>
+              ))}
+            </Tabs>
           </div>
 
           <p className={styles.footer}>
-            Only{" "}
+            All content shown is from the{" "}
             <Link href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">
               SRD
             </Link>{" "}
-            spells and items are available — content by Wizards of the Coast, licensed under{" "}
+            — content by Wizards of the Coast, licensed under{" "}
             <Link
               href="https://creativecommons.org/licenses/by/4.0/"
               target="_blank"
@@ -207,5 +143,108 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
         </>
       )}
     </DialogShell>
+  );
+}
+
+function SourceMenu({
+  source,
+  options,
+  onChange,
+}: {
+  source: Ruleset;
+  options: readonly Ruleset[];
+  onChange: (next: Ruleset) => void;
+}) {
+  return (
+    <MenuTrigger>
+      <RACButton aria-label={`Source: SRD ${source}`} className={styles.sourceTrigger}>
+        Source: SRD {source} <span aria-hidden="true">▾</span>
+      </RACButton>
+      <Popover className={styles.sourcePopover} placement="bottom end">
+        <Menu className={styles.sourceMenu} onAction={(key) => onChange(String(key) as Ruleset)}>
+          {options.map((opt) => (
+            <MenuItem key={opt} id={opt} className={styles.sourceItem}>
+              {opt}
+            </MenuItem>
+          ))}
+        </Menu>
+      </Popover>
+    </MenuTrigger>
+  );
+}
+
+type TypePanelProps = {
+  type: ContentType;
+  source: Ruleset;
+  query: string;
+  onQueryChange: (q: string) => void;
+  pickingKey: string | null;
+  pickError: string | null;
+  onPick: (rowKey: string, card: Card) => void;
+};
+
+function TypePanel({
+  type,
+  source,
+  query,
+  onQueryChange,
+  pickingKey,
+  pickError,
+  onPick,
+}: TypePanelProps) {
+  const results = type.useResults(source, query);
+  const emptyMessage = useMemo(
+    () => `No ${type.label.toLowerCase()} match your search.`,
+    [type.label],
+  );
+
+  return (
+    <>
+      <div className={styles.searchRow}>
+        <TextField aria-label={type.searchPlaceholder} className={styles.searchField}>
+          <Input
+            type="search"
+            placeholder={type.searchPlaceholder}
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            autoFocus
+          />
+        </TextField>
+      </div>
+
+      <div className={styles.results}>
+        {results.isLoading && <LoadingState />}
+        {results.isError && (
+          <div className={styles.state} role="alert">
+            Couldn't load the list.
+            <div className={styles.errorActions}>
+              <Button variant="secondary" size="sm" onPress={() => results.refetch()}>
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+        {!results.isLoading && !results.isError && results.rows.length === 0 && (
+          <div className={styles.state}>{emptyMessage}</div>
+        )}
+        {pickError && (
+          <div className={styles.state} role="alert">
+            {pickError}
+          </div>
+        )}
+        {results.rows.map((row) => (
+          <button
+            key={row.key}
+            type="button"
+            className={styles.row}
+            onClick={() => onPick(row.key, row.toCard())}
+            disabled={pickingKey !== null}
+          >
+            <span className={styles.rowName}>{row.name}</span>
+            <span className={styles.rowMeta}>{pickingKey === row.key ? "Loading…" : row.meta}</span>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }

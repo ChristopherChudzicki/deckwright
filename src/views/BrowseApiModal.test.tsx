@@ -33,7 +33,19 @@ const makeClient = (seeds: Seeds = {}) => {
 const wrap = (ui: ReactNode, client: QueryClient) =>
   render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 
+const openSourceMenu = async () => {
+  await userEvent.click(screen.getByRole("button", { name: /^Source:/ }));
+};
+
 describe("<BrowseApiModal>", () => {
+  test("renders the registered types as a vertical tablist in registry order", async () => {
+    const client = makeClient({ items: { "2024": { count: 0, results: [] } } });
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual(["Items", "Spells"]);
+  });
+
   test("shows index entries once the items list loads", async () => {
     const entryA = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const entryB = magicItemIndexEntryFactory.build({ name: "Cloak of Protection" });
@@ -59,7 +71,7 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /Cloak of Protection/ })).not.toBeInTheDocument();
   });
 
-  test("switching ruleset loads a different items list", async () => {
+  test("switching source loads a different items list", async () => {
     const v2024 = magicItemIndexEntryFactory.build({ name: "Ring A" });
     const v2014 = magicItemIndexEntryFactory.build({ name: "Ring Z" });
     const client = makeClient({
@@ -72,13 +84,14 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     await screen.findByRole("button", { name: /Ring A/ });
-    await userEvent.click(screen.getByRole("radio", { name: "2014" }));
+    await openSourceMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: "2014" }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: /Ring Z/ })).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: /Ring A/ })).not.toBeInTheDocument();
   });
 
-  test("switching kind to Spells swaps the list source", async () => {
+  test("switching to the Spells tab swaps the list source", async () => {
     const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const spell = spellIndexEntryFactory.build({ name: "Fireball" });
     const client = makeClient({
@@ -89,12 +102,32 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     await screen.findByRole("button", { name: /Bag of Holding/ });
-    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Fireball/ })).toBeInTheDocument(),
     );
     expect(screen.queryByRole("button", { name: /Bag of Holding/ })).not.toBeInTheDocument();
+  });
+
+  test("switching tabs clears the search query", async () => {
+    const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const spell = spellIndexEntryFactory.build({ name: "Fireball" });
+    const client = makeClient({
+      items: { "2024": { count: 1, results: [item] } },
+      spells: { "2024": { count: 1, results: [spell] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await screen.findByRole("button", { name: /Bag of Holding/ });
+    await userEvent.type(screen.getByRole("searchbox"), "bag");
+
+    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+
+    const spellsSearch = await screen.findByRole("searchbox");
+    expect(spellsSearch).toHaveValue("");
+    expect(spellsSearch).toHaveAttribute("placeholder", "Search spells…");
   });
 
   test("clicking an item POSTs a card with kind:item", async () => {
@@ -132,7 +165,7 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />, client);
 
-    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
     await userEvent.click(await screen.findByRole("button", { name: /Fireball/ }));
 
     await waitFor(() => expect(onPost).toHaveBeenCalled());
@@ -204,7 +237,7 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
     const cantripRow = await screen.findByRole("button", { name: /Light/ });
     expect(cantripRow).toHaveTextContent("Evocation cantrip");
     const leveledRow = screen.getByRole("button", { name: /Fireball/ });

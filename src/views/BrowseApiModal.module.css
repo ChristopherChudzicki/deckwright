@@ -1,3 +1,62 @@
+.layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  container-type: inline-size;
+}
+
+.tabs {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.tabList {
+  width: 10rem;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) var(--space-2);
+  gap: var(--space-1);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  outline: none;
+}
+
+.tab {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-family: var(--font-body);
+  color: var(--color-text);
+  cursor: pointer;
+  outline: none;
+}
+
+.tab[data-hovered]:not([data-selected]) {
+  background: var(--color-surface);
+}
+
+.tab[data-selected] {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  font-weight: 600;
+}
+
+.tab[data-focus-visible] {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.tabPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  outline: none;
+}
+
 .searchRow {
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
@@ -66,12 +125,6 @@
   margin-top: var(--space-2);
 }
 
-.toggles {
-  display: flex;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
 .footer {
   margin: 0;
   padding: var(--space-3) var(--space-4);
@@ -80,4 +133,53 @@
   font-size: var(--fs-sm);
   color: var(--color-text-muted);
   line-height: 1.4;
+}
+
+.sourceTrigger {
+  font: inherit;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.sourceTrigger[data-focus-visible] {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.sourcePopover {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  outline: none;
+}
+
+.sourceMenu {
+  padding: var(--space-1);
+  outline: none;
+}
+
+.sourceItem {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  outline: none;
+}
+
+.sourceItem[data-hovered],
+.sourceItem[data-focused] {
+  background: var(--color-surface-2);
+}
+
+@container (max-width: 559px) {
+  .tabList {
+    display: none;
+  }
 }
