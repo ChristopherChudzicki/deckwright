@@ -64,7 +64,6 @@ export function CardEditor({ card, onChange }: Props) {
     typeLabel: `${idBase}-typeLabel`,
   };
 
-  // Wired but unread — exposes the textarea node for future toolbar features without re-plumbing.
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const boldRef = useRef<HTMLElement>(null);
   const italicRef = useRef<HTMLElement>(null);
