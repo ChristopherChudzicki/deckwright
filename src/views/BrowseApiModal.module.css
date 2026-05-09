@@ -34,7 +34,7 @@
 }
 
 .tab[data-hovered]:not([data-selected]) {
-  background: var(--color-surface);
+  background: var(--color-border);
 }
 
 .tab[data-selected] {
@@ -121,6 +121,19 @@
   color: var(--color-text-muted);
 }
 
+.stateError {
+  color: var(--color-danger);
+  background: var(--color-danger-bg-hover);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.statePane {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .errorActions {
   margin-top: var(--space-2);
 }
@@ -145,6 +158,15 @@
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
+}
+
+.sourceTrigger[data-hovered] {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+}
+
+.sourceTrigger[data-pressed] {
+  background: var(--color-border);
 }
 
 .sourceTrigger[data-focus-visible] {

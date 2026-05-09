@@ -96,7 +96,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
               onSelectionChange={(k) => handleTabChange(String(k))}
               className={styles.tabs}
             >
-              <TabList aria-label="Content type" className={styles.tabList}>
+              <TabList aria-label="Content types" className={styles.tabList}>
                 {CONTENT_TYPES.map((t) => (
                   <Tab key={t.id} id={t.id} className={styles.tab}>
                     {t.label}
@@ -152,7 +152,7 @@ function SourceMenu({
   return (
     <MenuTrigger>
       <RACButton aria-label={`Source: SRD ${source}`} className={styles.sourceTrigger}>
-        Source: SRD {source} <span aria-hidden="true">▾</span>
+        Source: {source} <span aria-hidden="true">▾</span>
       </RACButton>
       <Popover className={styles.sourcePopover} placement="bottom end">
         <Menu className={styles.sourceMenu} onAction={(key) => onChange(String(key) as Ruleset)}>
@@ -192,7 +192,7 @@ function TypePanel({
   return (
     <>
       <div className={styles.searchRow}>
-        <TextField aria-label={type.searchPlaceholder} className={styles.searchField}>
+        <TextField aria-label="Search" className={styles.searchField}>
           <Input
             type="search"
             placeholder={type.searchPlaceholder}
@@ -204,9 +204,13 @@ function TypePanel({
       </div>
 
       <div className={styles.results}>
-        {results.isLoading && <LoadingState />}
+        {results.isLoading && (
+          <div className={styles.statePane}>
+            <LoadingState />
+          </div>
+        )}
         {results.isError && (
-          <div className={styles.state} role="alert">
+          <div className={`${styles.state} ${styles.stateError}`} role="alert">
             Couldn't load the list.
             <div className={styles.errorActions}>
               <Button variant="secondary" size="sm" onPress={() => results.refetch()}>
@@ -219,7 +223,7 @@ function TypePanel({
           <div className={styles.state}>{emptyMessage}</div>
         )}
         {pickError && (
-          <div className={styles.state} role="alert">
+          <div className={`${styles.state} ${styles.stateError}`} role="alert">
             {pickError}
           </div>
         )}
