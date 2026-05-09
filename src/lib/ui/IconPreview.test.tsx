@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
+import { render, screen, waitFor } from "../../test/render";
 import { IconPreview } from "./IconPreview";
 
 describe("<IconPreview>", () => {

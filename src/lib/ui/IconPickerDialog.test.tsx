@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, test } from "vitest";
+import { render, screen } from "../../test/render";
 import { IconPickerDialog } from "./IconPickerDialog";
 
 function Harness({ initial, autoHint }: { initial: string | undefined; autoHint?: string }) {

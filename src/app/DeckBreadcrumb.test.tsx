@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
+import { render, screen, waitFor } from "../test/render";
 import { DeckBreadcrumb } from "./DeckBreadcrumb";
 
 const SB = "http://localhost:54321";

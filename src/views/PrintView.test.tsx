@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
@@ -7,6 +6,7 @@ import { describe, expect, test, vi } from "vitest";
 import * as layoutPaginatorModule from "../cards/layoutPaginator";
 import { makeCardRow, makeItemPayload } from "../test/factories";
 import { SB_URL as SB, server } from "../test/msw";
+import { render, screen, waitFor } from "../test/render";
 import { PrintView } from "./PrintView";
 import styles from "./PrintView.module.css";
 

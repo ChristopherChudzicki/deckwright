@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
@@ -9,6 +8,7 @@ import { magicItemIndexEntryFactory } from "../api/factories";
 import * as layoutPaginatorModule from "../cards/layoutPaginator";
 import { makeCardRow } from "../test/factories";
 import { SB_URL as SB, server } from "../test/msw";
+import { render, screen, waitFor, within } from "../test/render";
 import { EditorView } from "./EditorView";
 
 const navigate = vi.fn();

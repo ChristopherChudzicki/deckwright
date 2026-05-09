@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, test } from "vitest";
+import { renderHook, waitFor } from "../test/render";
 import { magicItemIndexFactory } from "./factories";
 import { useMagicItemIndex } from "./hooks";
 

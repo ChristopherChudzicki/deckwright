@@ -1,9 +1,9 @@
-import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { supabase } from "../../api/supabase";
 import { SessionContext, type SessionState } from "../../auth/useSession";
+import { render, screen } from "../../test/render";
 import { UserMenu } from "./UserMenu";
 
 vi.mock("@tanstack/react-router", async () => {
