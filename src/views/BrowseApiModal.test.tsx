@@ -44,7 +44,7 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Items", "Spells"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Magic Items", "Spells"]);
   });
 
   test("shows index entries once the items list loads", async () => {

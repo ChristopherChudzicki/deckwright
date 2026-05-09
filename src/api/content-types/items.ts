@@ -5,8 +5,8 @@ import type { ContentType } from "./types";
 
 export const itemsContentType: ContentType = {
   id: "items",
-  label: "Items",
-  searchPlaceholder: "Search items…",
+  label: "Magic Items",
+  searchPlaceholder: "Search magic items…",
   supportedSources: ["2024", "2014"],
   useResults: (source, query) => {
     const idx = useMagicItemIndex(source);
