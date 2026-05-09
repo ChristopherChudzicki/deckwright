@@ -71,3 +71,29 @@
 .menuItem[data-hovered] {
   background: var(--color-surface-2);
 }
+
+.pillCta {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  transition:
+    background 0.12s,
+    box-shadow 0.12s,
+    transform 0.05s;
+}
+
+.pillCta:hover {
+  background: var(--color-accent-hover);
+  box-shadow: var(--shadow-accent);
+}
+
+.pillCta:active {
+  background: var(--color-accent-active);
+  transform: translateY(1px);
+}

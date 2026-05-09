@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { supabase } from "../api/supabase";
+import { isAnonUsersEnabled } from "../lib/anonEnabled";
 import { SessionContext, type SessionState } from "./useSession";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -11,17 +12,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    // onAuthStateChange synthesizes an INITIAL_SESSION event on subscribe,
-    // so we don't need a separate getSession() call — the listener seeds
-    // initial state and tracks changes uniformly. (This matches the pattern
-    // Supabase recommends for React contexts.)
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const anonEnabled = isAnonUsersEnabled();
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      setState(
-        session
-          ? { status: "authenticated", user: session.user, session }
-          : { status: "unauthenticated", user: null, session: null },
-      );
+      if (session) {
+        setState({ status: "authenticated", user: session.user, session });
+        return;
+      }
+      if (event === "INITIAL_SESSION" && anonEnabled) {
+        // Stay "loading"; signInAnonymously will fire SIGNED_IN, which we'll
+        // pick up on the next listener invocation. If it fails (e.g. server
+        // has anon sign-ins disabled), fall back to "unauthenticated" so the
+        // app doesn't deadlock at the loading screen.
+        void supabase.auth.signInAnonymously().then((result) => {
+          if (cancelled) return;
+          if (result.error) {
+            setState({ status: "unauthenticated", user: null, session: null });
+          }
+        });
+        return;
+      }
+      setState({ status: "unauthenticated", user: null, session: null });
     });
 
     return () => {

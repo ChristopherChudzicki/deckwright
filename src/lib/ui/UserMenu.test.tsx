@@ -74,4 +74,23 @@ describe("<UserMenu>", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: /sign out/i }));
     expect(spy).toHaveBeenCalled();
   });
+
+  it("renders an accent pill linking to /login when the user is anonymous", () => {
+    wrap({
+      status: "authenticated",
+      user: { id: "anon-1", email: null, is_anonymous: true } as never,
+      session: {} as never,
+    });
+    const link = screen.getByRole("link", { name: /sign in to save your work/i });
+    expect(link).toHaveAttribute("href", "/login");
+  });
+
+  it("does NOT render the avatar/menu when the user is anonymous", () => {
+    wrap({
+      status: "authenticated",
+      user: { id: "anon-1", email: null, is_anonymous: true } as never,
+      session: {} as never,
+    });
+    expect(screen.queryByRole("button", { name: /account menu/i })).not.toBeInTheDocument();
+  });
 });
