@@ -1,7 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
 import { collectBreakCandidates, type LineBoxProvider } from "./breakCandidates";
 
-function setRect(el: Element, top: number, height: number) {
+function setRect(el: Element | undefined, top: number, height: number) {
+  if (!el) throw new Error("setRect: missing element (test setup bug)");
   vi.spyOn(el, "getBoundingClientRect").mockReturnValue({
     top,
     bottom: top + height,
