@@ -2,25 +2,23 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../api/supabase";
 import type { Card } from "../cards/types";
 import { rowToCard } from "./rowMappers";
-import type { CardRow, DeckRow } from "./types";
+import type { CardRow, DeckRow, DeckSummary } from "./types";
 
-export const decksKey = (ownerId: string | undefined) => ["decks", ownerId] as const;
+export const decksKey = () => ["decks"] as const;
 export const deckKey = (deckId: string | undefined) => ["deck", deckId] as const;
 export const deckCardsKey = (deckId: string | undefined) => ["deck-cards", deckId] as const;
 
-export function useDecks(ownerId: string | undefined) {
-  return useQuery<DeckRow[]>({
-    queryKey: decksKey(ownerId),
-    enabled: Boolean(ownerId),
+/**
+ * Decks owned by the current user — for the home view's deck list.
+ * Server-side: RPC list_my_decks reads auth.uid().
+ */
+export function useDecks() {
+  return useQuery<DeckSummary[]>({
+    queryKey: decksKey(),
     queryFn: async () => {
-      if (!ownerId) return [];
-      const { data, error } = await supabase
-        .from("decks")
-        .select("*")
-        .eq("owner_id", ownerId)
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.rpc("list_my_decks");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as DeckSummary[];
     },
   });
 }

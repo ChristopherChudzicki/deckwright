@@ -25,7 +25,7 @@ export function useCreateDeck() {
       return data as DeckRow;
     },
     onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: decksKey(vars.ownerId) });
+      qc.invalidateQueries({ queryKey: decksKey() });
     },
   });
 }
@@ -46,7 +46,7 @@ export function useRenameDeck() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: deckKey(data.id) });
-      qc.invalidateQueries({ queryKey: decksKey(data.owner_id) });
+      qc.invalidateQueries({ queryKey: decksKey() });
     },
   });
 }

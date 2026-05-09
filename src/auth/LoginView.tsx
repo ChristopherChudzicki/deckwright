@@ -38,9 +38,10 @@ export function LoginView() {
 
       if (isAnon && userId) {
         const decks = await queryClient.fetchQuery({
-          queryKey: decksKey(userId),
+          queryKey: decksKey(),
           queryFn: async () => {
-            const { data } = await supabase.from("decks").select("id").eq("owner_id", userId);
+            const { data, error } = await supabase.rpc("list_my_decks");
+            if (error) throw error;
             return data ?? [];
           },
           staleTime: 0,
@@ -82,9 +83,10 @@ export function LoginView() {
         // OAuth identity_already_exists flow: if the anon has decks, prompt
         // to import them; otherwise switch silently.
         const decks = await queryClient.fetchQuery({
-          queryKey: decksKey(userId),
+          queryKey: decksKey(),
           queryFn: async () => {
-            const { data } = await supabase.from("decks").select("id").eq("owner_id", userId);
+            const { data, error } = await supabase.rpc("list_my_decks");
+            if (error) throw error;
             return data ?? [];
           },
           staleTime: 0,

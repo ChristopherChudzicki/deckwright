@@ -131,8 +131,8 @@ describe("LoginView OAuth branching", () => {
     } as never);
 
     server.use(
-      http.get(`${SB_URL}/rest/v1/decks`, () =>
-        HttpResponse.json([{ id: "d1", owner_id: "anon-1", name: "Goblins" }]),
+      http.post(`${SB_URL}/rest/v1/rpc/list_my_decks`, () =>
+        HttpResponse.json([{ id: "d1", name: "Goblins" }]),
       ),
     );
 
@@ -160,7 +160,7 @@ describe("LoginView OAuth branching", () => {
       data: { provider: "google", url: "https://example.com" },
       error: null,
     } as never);
-    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([])));
+    server.use(http.post(`${SB_URL}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([])));
 
     render(
       wrap(<LoginView />, {
@@ -209,7 +209,7 @@ describe("LoginView dev path conflict", () => {
       error: { message: "email already exists" },
     } as never);
     server.use(
-      http.get(`${SB_URL}/rest/v1/decks`, () =>
+      http.post(`${SB_URL}/rest/v1/rpc/list_my_decks`, () =>
         HttpResponse.json([{ id: "d1" }, { id: "d2" }, { id: "d3" }]),
       ),
     );
@@ -244,7 +244,9 @@ describe("LoginView dev path conflict", () => {
       error: null,
     } as never);
     const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
-    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([{ id: "d1" }])));
+    server.use(
+      http.post(`${SB_URL}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([{ id: "d1" }])),
+    );
 
     render(
       wrap(<LoginView />, {
@@ -276,7 +278,9 @@ describe("LoginView dev path conflict", () => {
     const signInSpy = vi
       .spyOn(supabase.auth, "signInWithPassword")
       .mockResolvedValue({ data: { user: { id: "dev-1" }, session: {} }, error: null } as never);
-    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([{ id: "d1" }])));
+    server.use(
+      http.post(`${SB_URL}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([{ id: "d1" }])),
+    );
     window.localStorage.setItem(
       "dndCards.pendingAnonImport",
       JSON.stringify({ version: 1, anonUuid: "anon-old", importedDeckIds: [] }),
@@ -311,7 +315,9 @@ describe("LoginView dev path conflict", () => {
     const signInSpy = vi
       .spyOn(supabase.auth, "signInWithPassword")
       .mockResolvedValue({ data: { user: { id: "dev-1" }, session: {} }, error: null } as never);
-    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([{ id: "d1" }])));
+    server.use(
+      http.post(`${SB_URL}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([{ id: "d1" }])),
+    );
 
     render(
       wrap(<LoginView />, {
@@ -341,7 +347,7 @@ describe("LoginView dev path conflict", () => {
     const signInSpy = vi
       .spyOn(supabase.auth, "signInWithPassword")
       .mockResolvedValue({ data: { user: { id: "dev-1" }, session: {} }, error: null } as never);
-    server.use(http.get(`${SB_URL}/rest/v1/decks`, () => HttpResponse.json([])));
+    server.use(http.post(`${SB_URL}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([])));
 
     render(
       wrap(<LoginView />, {
