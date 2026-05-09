@@ -62,9 +62,8 @@ test("editor preview re-paginates after the debounce window on body edits", asyn
   const initialCounts = await counts.innerText();
 
   // Replace the body with something tiny — counts should drop to a single
-  // card, but not before the debounce window elapses. The body field is the
-  // (single) <textarea> on the editor route.
-  const bodyField = page.locator("textarea");
+  // card, but not before the debounce window elapses.
+  const bodyField = page.getByRole("textbox", { name: /^Body/ });
   await bodyField.fill("Tiny body.");
 
   // Within 100 ms of the edit, counts should not have repainted.
