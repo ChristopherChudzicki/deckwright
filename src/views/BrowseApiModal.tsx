@@ -80,8 +80,9 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
       bleed
     >
       {() => (
-        <>
+        <div className={styles.modalContainer}>
           <DialogHeader title="Browse SRD" onClose={onClose}>
+            <TypeMenu activeId={typeId} onChange={handleTabChange} />
             <SourceMenu
               source={source}
               options={activeType.supportedSources}
@@ -134,7 +135,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
             </Link>
             .
           </p>
-        </>
+        </div>
       )}
     </DialogShell>
   );
@@ -159,6 +160,29 @@ function SourceMenu({
           {options.map((opt) => (
             <MenuItem key={opt} id={opt} className={styles.sourceItem}>
               {opt}
+            </MenuItem>
+          ))}
+        </Menu>
+      </Popover>
+    </MenuTrigger>
+  );
+}
+
+function TypeMenu({ activeId, onChange }: { activeId: string; onChange: (next: string) => void }) {
+  const active = CONTENT_TYPES.find((t) => t.id === activeId) ?? CONTENT_TYPES[0];
+  return (
+    <MenuTrigger>
+      <RACButton
+        aria-label={`Type: ${active.label}`}
+        className={`${styles.sourceTrigger} ${styles.typeMenuTrigger}`}
+      >
+        {active.label} <span aria-hidden="true">▾</span>
+      </RACButton>
+      <Popover className={styles.sourcePopover} placement="bottom end">
+        <Menu className={styles.sourceMenu} onAction={(key) => onChange(String(key))}>
+          {CONTENT_TYPES.map((t) => (
+            <MenuItem key={t.id} id={t.id} className={styles.sourceItem}>
+              {t.label}
             </MenuItem>
           ))}
         </Menu>
