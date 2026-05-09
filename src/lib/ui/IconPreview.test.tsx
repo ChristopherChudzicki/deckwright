@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "../../test/render";
 import { IconPreview } from "./IconPreview";
 
 describe("<IconPreview>", () => {
-  test("renders an icon for a curated key", async () => {
+  test("renders an icon for a known key", async () => {
     render(<IconPreview iconKey="trident" label="trident" />);
     const wrapper = screen.getByLabelText("trident");
     expect(wrapper).toBeInTheDocument();

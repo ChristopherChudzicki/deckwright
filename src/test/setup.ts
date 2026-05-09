@@ -3,6 +3,23 @@ import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { SB_URL, server } from "./msw";
 
+// Replace the ~4000-icon game-icons bundle with a tiny fixture so picker
+// tests don't pay full-collection filter/render cost on every keystroke.
+// Add a key here if a test references it; resolveIcon's dev-time warning
+// fires (loudly) for any name not in this set, so missing keys surface fast.
+const STUB_ICON = { body: "<path d='M0 0h512v512H0z'/>" };
+vi.mock("@iconify-json/game-icons/icons.json", () => ({
+  default: {
+    prefix: "game-icons",
+    width: 512,
+    height: 512,
+    icons: {
+      trident: STUB_ICON,
+      broadsword: STUB_ICON,
+    },
+  },
+}));
+
 vi.stubEnv("VITE_SUPABASE_URL", SB_URL);
 vi.stubEnv(
   "VITE_SUPABASE_ANON_KEY",

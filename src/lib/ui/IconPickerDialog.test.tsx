@@ -17,6 +17,7 @@ function Harness({ initial, autoHint }: { initial: string | undefined; autoHint?
 // react-aria-components' GridListItem uses role="row" (not "option").
 // Each tile carries the kebab key (or "Auto") as its accessible name via textValue.
 const tile = (name: RegExp | string) => screen.getByRole("row", { name });
+const findTile = (name: RegExp | string) => screen.findByRole("row", { name });
 const queryTile = (name: RegExp | string) => screen.queryByRole("row", { name });
 
 describe("<IconPickerDialog>", () => {
@@ -42,10 +43,11 @@ describe("<IconPickerDialog>", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  test("selecting a curated tile sets the kebab key and closes", async () => {
+  test("selecting an icon tile sets the kebab key and closes", async () => {
     render(<Harness initial={undefined} />);
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
-    await userEvent.click(tile("trident"));
+    await userEvent.type(screen.getByRole("searchbox"), "trident");
+    await userEvent.click(await findTile("trident"));
     expect(screen.getByTestId("value")).toHaveTextContent("trident");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -54,7 +56,7 @@ describe("<IconPickerDialog>", () => {
     render(<Harness initial={undefined} />);
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
     await userEvent.type(screen.getByRole("searchbox"), "trident");
-    expect(tile("trident")).toBeInTheDocument();
+    expect(await findTile("trident")).toBeInTheDocument();
     expect(queryTile("broadsword")).not.toBeInTheDocument();
   });
 
@@ -68,34 +70,37 @@ describe("<IconPickerDialog>", () => {
     expect(screen.getByRole("button", { name: /pick icon.*auto/i })).toBeInTheDocument();
   });
 
-  test("hovering a curated tile shows a tooltip with the kebab key", async () => {
+  test("hovering an icon tile shows a tooltip with the kebab key", async () => {
     render(<Harness initial={undefined} />);
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
-    await userEvent.hover(tile("trident"));
+    await userEvent.type(screen.getByRole("searchbox"), "trident");
+    await userEvent.hover(await findTile("trident"));
     expect(await screen.findByRole("tooltip")).toHaveTextContent("trident");
   });
 
   test("leaving the tile hides the tooltip", async () => {
     render(<Harness initial={undefined} />);
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
-    await userEvent.hover(tile("trident"));
+    await userEvent.type(screen.getByRole("searchbox"), "trident");
+    const tridentTile = await findTile("trident");
+    await userEvent.hover(tridentTile);
     await screen.findByRole("tooltip");
-    await userEvent.unhover(tile("trident"));
+    await userEvent.unhover(tridentTile);
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
   test("pre-selects the Auto tile when value is undefined", async () => {
     render(<Harness initial={undefined} />);
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
-    expect(tile(/auto/i)).toHaveAttribute("data-selected", "true");
-    expect(tile("trident")).not.toHaveAttribute("data-selected", "true");
+    expect(tile(/auto/i)).toHaveAttribute("data-current", "true");
   });
 
   test("pre-selects the chosen tile when value is set", async () => {
     render(<Harness initial="trident" />);
     await userEvent.click(screen.getByRole("button", { name: /pick icon/i }));
-    expect(tile("trident")).toHaveAttribute("data-selected", "true");
-    expect(tile(/auto/i)).not.toHaveAttribute("data-selected", "true");
+    await userEvent.type(screen.getByRole("searchbox"), "trident");
+    expect(await findTile("trident")).toHaveAttribute("data-current", "true");
+    expect(tile(/auto/i)).not.toHaveAttribute("data-current", "true");
   });
 
   test("shows autoHint inside the dialog when value is undefined", async () => {
