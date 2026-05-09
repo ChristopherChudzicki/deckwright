@@ -37,6 +37,7 @@ export function PrintView({ deckId }: Props) {
   const cardsQuery = useDeckCards(deckId);
   const [perPage, setPerPage] = useState<CardsPerPage>(4);
   const [printBacks, setPrintBacks] = useState(false);
+  const [contentOnBack, setContentOnBack] = useState(false);
   const perPageId = useId();
 
   const cards = cardsQuery.data ?? [];
@@ -80,6 +81,18 @@ export function PrintView({ deckId }: Props) {
                 <em>{flipLabel}</em>).
               </p>
             )}
+          </div>
+          <div className={styles.subSwitch}>
+            <Switch isSelected={contentOnBack} onChange={setContentOnBack} isDisabled={!printBacks}>
+              Continue content on back
+            </Switch>
+            <div className={styles.helptext}>
+              <p>
+                Print page 2 of a multi-page card on the back of page 1, instead of using a separate
+                slot.
+              </p>
+              {!printBacks && <p>Enable Print backs to use this option.</p>}
+            </div>
           </div>
         </div>
 

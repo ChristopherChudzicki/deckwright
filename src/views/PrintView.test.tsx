@@ -161,4 +161,38 @@ describe("<PrintView>", () => {
     expect(screen.queryByText(/long edge/i)).not.toBeInTheDocument();
     expect(screen.getByText(/short edge/i)).toBeInTheDocument();
   });
+
+  test("renders a 'Continue content on back' switch", async () => {
+    const cards = makeCardRow.buildList(2);
+    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
+    expect(screen.getByRole("switch", { name: /continue content on back/i })).toBeInTheDocument();
+  });
+
+  test("'Continue content on back' is disabled when 'Print backs' is off", async () => {
+    const cards = makeCardRow.buildList(2);
+    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
+    const continueSwitch = screen.getByRole("switch", {
+      name: /continue content on back/i,
+    });
+    expect(continueSwitch).toBeDisabled();
+    await userEvent.click(screen.getByRole("switch", { name: /print backs/i }));
+    expect(continueSwitch).not.toBeDisabled();
+  });
+
+  test("sub-toggle helptext shows the disabled-state hint only when 'Print backs' is off", async () => {
+    const cards = makeCardRow.buildList(2);
+    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json(cards)));
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
+    expect(
+      screen.getByText(/Print page 2 of a multi-page card on the back of page 1/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Enable Print backs to use this option/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("switch", { name: /print backs/i }));
+    expect(screen.queryByText(/Enable Print backs to use this option/i)).not.toBeInTheDocument();
+  });
 });
