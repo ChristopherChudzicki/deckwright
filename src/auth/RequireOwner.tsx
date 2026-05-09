@@ -12,7 +12,7 @@ export function RequireOwner({ deckId, children }: Props) {
 
   const sessionLoading = session.status === "loading";
   const userId = session.status === "authenticated" ? session.user.id : null;
-  const ownerId = deckQuery.data?.owner_id;
+  const isOwner = deckQuery.data?.is_owner;
 
   useEffect(() => {
     if (sessionLoading || deckQuery.isLoading) return;
@@ -22,13 +22,13 @@ export function RequireOwner({ deckId, children }: Props) {
       navigate({ to: "/login", search: { next } });
       return;
     }
-    if (ownerId && ownerId !== userId) {
+    if (isOwner === false) {
       navigate({ to: "/deck/$deckId", params: { deckId } });
     }
-  }, [sessionLoading, deckQuery.isLoading, userId, ownerId, deckId, navigate]);
+  }, [sessionLoading, deckQuery.isLoading, userId, isOwner, deckId, navigate]);
 
   if (sessionLoading || deckQuery.isLoading) return null;
   if (!userId) return null;
-  if (ownerId !== userId) return null;
+  if (isOwner !== true) return null;
   return <>{children}</>;
 }

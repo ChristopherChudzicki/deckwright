@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
 import { AuthProvider } from "../auth/AuthProvider";
-import { makeCardRow, makeDeckRow } from "../test/factories";
+import { makeCardRow, makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
 import { signInTestUser } from "../test/signInTestUser";
 import { DeckView } from "./DeckView";
@@ -51,10 +51,10 @@ describe("DeckView (logged-out)", () => {
   });
 
   it("renders cards but no edit/new/delete controls", async () => {
-    const deck = makeDeckRow.build();
+    const deck = makePublicDeck.build({ is_owner: false });
     const card = makeCardRow.build({ deck_id: deck.id });
     server.use(
-      http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
       http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])),
     );
     render(wrap(<DeckView deckId={deck.id} />));
@@ -69,7 +69,7 @@ describe("DeckView (logged-out)", () => {
   });
 
   it("renders a not-found message when the deck doesn't exist", async () => {
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])));
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(null)));
     render(wrap(<DeckView deckId="missing" />));
     await waitFor(() =>
       expect(screen.getByText(/this deck no longer exists/i)).toBeInTheDocument(),
@@ -83,12 +83,12 @@ describe("DeckView (owner)", () => {
   });
 
   it("shows edit + delete controls and deletes a card on click", async () => {
-    const user = await signInTestUser();
-    const deck = makeDeckRow.build({ owner_id: user.id });
+    await signInTestUser();
+    const deck = makePublicDeck.build({ is_owner: true });
     const card = makeCardRow.build({ deck_id: deck.id });
     const onDelete = vi.fn();
     server.use(
-      http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
       http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])),
       http.delete(`${SB}/rest/v1/cards`, () => {
         onDelete();

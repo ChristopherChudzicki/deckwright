@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useSession } from "../auth/useSession";
 import { serializeDeck } from "../decks/io";
 import { useDeleteCard, useRenameDeck } from "../decks/mutations";
 import { useDeck, useDeckCards } from "../decks/queries";
@@ -17,7 +16,6 @@ import styles from "./DeckView.module.css";
 type Props = { deckId: string };
 
 export function DeckView({ deckId }: Props) {
-  const session = useSession();
   const deckQuery = useDeck(deckId);
   const cardsQuery = useDeckCards(deckId);
   const renameDeck = useRenameDeck();
@@ -29,7 +27,7 @@ export function DeckView({ deckId }: Props) {
 
   const deck = deckQuery.data;
   const cards = cardsQuery.data ?? [];
-  const isOwner = session.status === "authenticated" && session.user.id === deck.owner_id;
+  const isOwner = deck.is_owner;
 
   const handleExport = () => {
     downloadText(`${deck.name}.json`, serializeDeck({ version: 1, cards }));

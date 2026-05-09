@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
-import { makeCardRow, makeDeckRow, makeDeckSummary } from "../test/factories";
+import { makeCardRow, makeDeckSummary, makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
 import { useDeck, useDeckCards, useDecks } from "./queries";
 
@@ -27,16 +27,16 @@ describe("useDecks", () => {
 });
 
 describe("useDeck", () => {
-  it("returns a single deck by id", async () => {
-    const deck = makeDeckRow.build();
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([deck])));
+  it("returns a PublicDeck via get_public_deck RPC", async () => {
+    const deck = makePublicDeck.build({ is_owner: true });
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
     const { result } = renderHook(() => useDeck(deck.id), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(deck);
   });
 
   it("returns null when the deck doesn't exist", async () => {
-    server.use(http.get(`${SB}/rest/v1/decks`, () => HttpResponse.json([])));
+    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(null)));
     const { result } = renderHook(() => useDeck("missing"), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBeNull();
