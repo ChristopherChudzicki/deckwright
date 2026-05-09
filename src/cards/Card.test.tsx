@@ -127,6 +127,20 @@ describe("<Card> with pagination", () => {
     expect(screen.queryByText(card.body)).not.toBeInTheDocument();
   });
 
+  test("renders bodyHtml directly without re-running markdown", () => {
+    const card = itemCardFactory.build();
+    const { unmount } = render(
+      <Card card={card} cardsPerPage={4} bodyHtml="<p>pre-rendered</p>" />,
+    );
+    expect(screen.getByText("pre-rendered")).toBeInTheDocument();
+    expect(screen.queryByText(card.body)).not.toBeInTheDocument();
+    unmount();
+
+    // Markdown markers must NOT be processed when bodyHtml is provided.
+    render(<Card card={card} cardsPerPage={4} bodyHtml="**not bold**" />);
+    expect(screen.getByText("**not bold**")).toBeInTheDocument();
+  });
+
   test("hides footer tags on continuation pages but keeps pagination", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 2, total: 2 }} />);
