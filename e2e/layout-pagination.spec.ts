@@ -10,21 +10,15 @@ test("a long paragraph splits between line boxes (no mid-word break)", async ({ 
   const total = await indicators.count();
   expect(total).toBeGreaterThan(1);
 
-  // Concatenate all visible card body text. Lines join with a space (since
-  // each chunk is a partial paragraph and Playwright reads visual text).
+  // Concatenate card bodies in DOM order and assert they reconstruct the
+  // original body (modulo whitespace normalization). This is strictly
+  // stronger than per-marker counting: it catches dropped/duplicated content
+  // AND inverted chunk ordering.
   const bodies = page.locator('[data-role="card-body"]');
   const parts = await bodies.allInnerTexts();
   const joined = parts.join(" ").replace(/\s+/g, " ").trim();
   const original = longItem.body.replace(/\s+/g, " ").trim();
-
-  // Every (n) sentence marker should appear exactly once across chunks — no
-  // marker is dropped or duplicated by mid-word splits.
-  const markers = original.match(/\(\d+\)/g) ?? [];
-  expect(markers.length).toBeGreaterThan(20);
-  for (const marker of markers) {
-    const occurrences = joined.split(marker).length - 1;
-    expect(occurrences, `marker ${marker} should appear once in concatenated chunks`).toBe(1);
-  }
+  expect(joined).toBe(original);
 });
 
 test("a multi-row table splits at row boundaries with <thead> repeated on each card", async ({

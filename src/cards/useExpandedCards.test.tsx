@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { itemCardFactory } from "./factories";
+import * as measurerModule from "./measurer";
 import { useExpandedCards } from "./useExpandedCards";
 
 beforeEach(() => {
@@ -26,15 +27,20 @@ describe("useExpandedCards", () => {
     expect(result.current.physicalCards.every((p) => p.pagination === undefined)).toBe(true);
   });
 
-  test("layout change re-runs measurement", () => {
+  test("layout change rebuilds the measurer for the new cardsPerPage", () => {
+    const spy = vi.spyOn(measurerModule, "getMeasurer");
     const items = itemCardFactory.buildList(2);
     const { result, rerender } = renderHook(
       ({ cardsPerPage }: { cardsPerPage: 4 | 2 }) => useExpandedCards(items, cardsPerPage),
       { initialProps: { cardsPerPage: 4 as 4 | 2 } },
     );
+    expect(spy).toHaveBeenCalledWith(4);
     const before = result.current.physicalCards;
+
     rerender({ cardsPerPage: 2 });
+    expect(spy).toHaveBeenCalledWith(2);
     expect(result.current.physicalCards).toHaveLength(before.length);
+    spy.mockRestore();
   });
 
   describe("with debounceMs", () => {

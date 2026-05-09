@@ -18,6 +18,14 @@ export function layoutPaginate(opts: LayoutPaginateOpts): string[] {
   const container = mount(bodyHtml, width);
   const chunks: string[] = [];
 
+  // No element children means there's nothing the walker can split (e.g.
+  // whitespace-only HTML). Return the body as a single chunk so the card
+  // renders with whatever it had — better than dropping the card entirely.
+  if (container.children.length === 0) {
+    container.replaceChildren();
+    return [bodyHtml];
+  }
+
   try {
     let budget = firstHeight;
     while (container.children.length > 0) {

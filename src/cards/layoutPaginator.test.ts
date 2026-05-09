@@ -40,6 +40,21 @@ describe("layoutPaginate", () => {
     expect(result).toEqual([""]);
   });
 
+  test("whitespace-only body returns one chunk equal to input (does not drop the card)", () => {
+    const result = layoutPaginate({
+      bodyHtml: "   \n  ",
+      width: 100,
+      firstHeight: 50,
+      continuationHeight: 50,
+      // Whitespace HTML produces only text nodes — no element children. The
+      // mount factory still gets called; mocked rects won't even be consulted.
+      mount: makeMount((c) => {
+        setRect(c, 0, 0);
+      }),
+    });
+    expect(result).toEqual(["   \n  "]);
+  });
+
   test("returns one chunk equal to input when everything fits", () => {
     const html = "<div>a</div><div>b</div>";
     const result = layoutPaginate({
@@ -86,24 +101,43 @@ describe("layoutPaginate", () => {
   });
 
   test("uses continuationHeight (not firstHeight) for chunks 2+", () => {
-    // 3 single-line divs at heights 0..30, 30..60, 60..90.
-    // firstHeight=40 (first chunk: just div 1 at y=30 fits, div 2 at y=60 doesn't).
-    // continuationHeight=70 (second chunk: residual is div 2 + div 3, y values
-    // unchanged since mocks don't shift on slice; div 2 y=60 still <= 70, div 3
-    // y=90 > 70 → take div 2 only). Third chunk: div 3 alone (y=90, accept).
+    // 4 single-line divs at heights 0..30, 30..60, 60..90, 90..120.
+    // firstHeight=35 (only div1 at y=30 fits in first card).
+    // continuationHeight=200 (residual divs 2..4 fit on the second card).
+    // If the paginator wrongly used firstHeight for chunks 2+, we'd see
+    // 4 chunks instead of 2.
     const result = layoutPaginate({
-      bodyHtml: "<div>1</div><div>2</div><div>3</div>",
+      bodyHtml: "<div>1</div><div>2</div><div>3</div><div>4</div>",
       width: 100,
-      firstHeight: 40,
-      continuationHeight: 70,
+      firstHeight: 35,
+      continuationHeight: 200,
       mount: makeMount((c) => {
-        setRect(c, 0, 90);
+        setRect(c, 0, 120);
         setRect(c.children[0], 0, 30);
         setRect(c.children[1], 30, 30);
         setRect(c.children[2], 60, 30);
+        setRect(c.children[3], 90, 30);
       }),
     });
-    expect(result).toEqual(["<div>1</div>", "<div>2</div>", "<div>3</div>"]);
+    expect(result).toEqual(["<div>1</div>", "<div>2</div><div>3</div><div>4</div>"]);
+  });
+
+  test("picks a candidate exactly at the budget (inclusive boundary)", () => {
+    // Two divs with bottoms 30 and 60. With firstHeight=60 the second
+    // candidate matches the budget exactly. A wrong < (strict) comparison
+    // would split unnecessarily and produce two chunks instead of one.
+    const result = layoutPaginate({
+      bodyHtml: "<div>a</div><div>b</div>",
+      width: 100,
+      firstHeight: 60,
+      continuationHeight: 60,
+      mount: makeMount((c) => {
+        setRect(c, 0, 60);
+        setRect(c.children[0], 0, 30);
+        setRect(c.children[1], 30, 30);
+      }),
+    });
+    expect(result).toEqual(["<div>a</div><div>b</div>"]);
   });
 
   test("clears the mounted container after pagination so the measurer can reuse it", () => {
