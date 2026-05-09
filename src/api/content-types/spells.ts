@@ -22,7 +22,7 @@ export const spellsContentType: ContentType = {
   id: "spells",
   label: "Spells",
   searchPlaceholder: "Search spells…",
-  supportedSources: ["2014", "2024"] as const,
+  supportedSources: ["2024", "2014"] as const,
   useResults: (source, query) => {
     const idx = useSpellIndex(source);
     const rows = useMemo(() => {

@@ -36,7 +36,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
     throw new Error("CONTENT_TYPES is empty");
   }
 
-  const [source, setSource] = useState<Ruleset>("2024");
+  const [source, setSource] = useState<Ruleset>(() => activeType.supportedSources[0] ?? "2024");
   useEffect(() => {
     if (!activeType.supportedSources.includes(source)) {
       const fallback = activeType.supportedSources[0];
@@ -109,17 +109,15 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
               </TabList>
               {CONTENT_TYPES.map((t) => (
                 <TabPanel key={t.id} id={t.id} className={styles.tabPanel}>
-                  {t.id === typeId && (
-                    <TypePanel
-                      type={t}
-                      source={source}
-                      query={query}
-                      onQueryChange={setQuery}
-                      pickingKey={pickingKey}
-                      pickError={pickError}
-                      onPick={handlePick}
-                    />
-                  )}
+                  <TypePanel
+                    type={t}
+                    source={source}
+                    query={query}
+                    onQueryChange={setQuery}
+                    pickingKey={pickingKey}
+                    pickError={pickError}
+                    onPick={handlePick}
+                  />
                 </TabPanel>
               ))}
             </Tabs>

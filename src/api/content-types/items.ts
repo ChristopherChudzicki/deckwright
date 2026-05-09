@@ -9,7 +9,7 @@ export const itemsContentType: ContentType = {
   id: "items",
   label: "Items",
   searchPlaceholder: "Search items…",
-  supportedSources: ["2014", "2024"] as const,
+  supportedSources: ["2024", "2014"] as const,
   useResults: (source, query) => {
     const idx = useMagicItemIndex(source);
     const rows = useMemo(() => {
