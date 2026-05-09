@@ -68,7 +68,7 @@ create or replace function public.get_public_deck_cards(deck_id uuid)
 returns table(
   id          uuid,
   deck_id     uuid,
-  position    integer,
+  "position"  integer,
   payload     jsonb,
   created_at  timestamptz,
   updated_at  timestamptz
