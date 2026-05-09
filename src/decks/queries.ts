@@ -47,17 +47,16 @@ export function useDeck(deckId: string | undefined) {
   });
 }
 
+/**
+ * Cards for a deck. Same PUBLIC READ semantics as useDeck.
+ */
 export function useDeckCards(deckId: string | undefined) {
   return useQuery<Card[]>({
     queryKey: deckCardsKey(deckId),
     enabled: Boolean(deckId),
     queryFn: async () => {
       if (!deckId) return [];
-      const { data, error } = await supabase
-        .from("cards")
-        .select("*")
-        .eq("deck_id", deckId)
-        .order("created_at", { ascending: true });
+      const { data, error } = await supabase.rpc("get_public_deck_cards", { deck_id: deckId });
       if (error) throw error;
       return ((data ?? []) as CardRow[]).map(rowToCard);
     },

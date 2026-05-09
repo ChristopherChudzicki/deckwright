@@ -55,7 +55,7 @@ describe("DeckView (logged-out)", () => {
     const card = makeCardRow.build({ deck_id: deck.id });
     server.use(
       http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
-      http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([card])),
     );
     render(wrap(<DeckView deckId={deck.id} />));
     await waitFor(() => expect(screen.getByText(card.payload.name)).toBeInTheDocument());
@@ -89,7 +89,7 @@ describe("DeckView (owner)", () => {
     const onDelete = vi.fn();
     server.use(
       http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
-      http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([card])),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([card])),
       http.delete(`${SB}/rest/v1/cards`, () => {
         onDelete();
         return HttpResponse.json([]);

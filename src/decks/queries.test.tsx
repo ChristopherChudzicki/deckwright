@@ -44,9 +44,13 @@ describe("useDeck", () => {
 });
 
 describe("useDeckCards", () => {
-  it("returns cards for the given deck, mapped to the Card type", async () => {
+  it("returns cards for a deck via get_public_deck_cards RPC", async () => {
     const [firstRow, secondRow] = [makeCardRow.build(), makeCardRow.build()];
-    server.use(http.get(`${SB}/rest/v1/cards`, () => HttpResponse.json([firstRow, secondRow])));
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () =>
+        HttpResponse.json([firstRow, secondRow]),
+      ),
+    );
     const { result } = renderHook(() => useDeckCards("deck-id"), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const cards = result.current.data ?? [];
