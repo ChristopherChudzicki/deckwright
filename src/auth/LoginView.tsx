@@ -23,7 +23,6 @@ export function LoginView() {
   const [pending, setPending] = useState<"google" | "github" | "dev" | null>(null);
   const [importPrompt, setImportPrompt] = useState<{
     deckCount: number;
-    anonUuid: string;
   } | null>(null);
 
   const isAnon = session.status === "authenticated" && session.user.is_anonymous === true;
@@ -93,7 +92,7 @@ export function LoginView() {
         });
         const deckCount = decks.length;
         if (deckCount > 0) {
-          setImportPrompt({ deckCount, anonUuid: userId });
+          setImportPrompt({ deckCount });
           return;
         }
         await switchToExistingDevAccount(next);
@@ -128,7 +127,8 @@ export function LoginView() {
     const next = readNextFromUrl();
     const { data: anonDecks, error: listError } = await supabase.rpc("list_my_decks");
     if (listError) {
-      setAnnouncement("Couldn't fetch your decks for import.");
+      setAnnouncement("Couldn't start the import. Please try again.");
+      setPending(null);
       return;
     }
     const anonDeckIds = (anonDecks ?? []).map((d: { id: string }) => d.id);

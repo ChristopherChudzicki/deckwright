@@ -102,7 +102,8 @@ export function AuthCallback() {
     if (session.status !== "authenticated") return;
     const { data: anonDecks, error: listError } = await supabase.rpc("list_my_decks");
     if (listError) {
-      setAnnouncement("Couldn't fetch your decks for import.");
+      setErrorMessage("Couldn't start the import. Please try again.");
+      setPhase("error");
       return;
     }
     const anonDeckIds = (anonDecks ?? []).map((d: { id: string }) => d.id);

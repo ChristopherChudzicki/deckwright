@@ -106,6 +106,39 @@ describe("AuthCallback", () => {
     expect(oauthSpy).toHaveBeenCalledWith(expect.objectContaining({ provider: "github" }));
   });
 
+  it("on import click: aborts before signOut and shows error when list_my_decks errors", async () => {
+    setLocation({ hash: "#error_code=identity_already_exists" });
+    // First call (deck count for the dialog) succeeds; second (prefetch) errors.
+    let callCount = 0;
+    vi.spyOn(supabase, "rpc").mockImplementation((() => {
+      callCount += 1;
+      if (callCount === 1) {
+        return Promise.resolve({ data: [{ id: "d1" }], error: null });
+      }
+      return Promise.resolve({ data: null, error: { message: "boom" } });
+    }) as never);
+    const signOutSpy = vi
+      .spyOn(supabase.auth, "signOut")
+      .mockResolvedValue({ error: null } as never);
+    const oauthSpy = vi
+      .spyOn(supabase.auth, "signInWithOAuth")
+      .mockResolvedValue({ data: {}, error: null } as never);
+
+    render(
+      wrap(<AuthCallback />, {
+        status: "authenticated",
+        user: { id: "anon-1", is_anonymous: true } as never,
+        session: {} as never,
+      }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /yes, import 1 deck$/i }));
+
+    await waitFor(() => expect(screen.getByText(/couldn't start the import/i)).toBeInTheDocument());
+    expect(signOutSpy).not.toHaveBeenCalled();
+    expect(oauthSpy).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
+  });
+
   it("on dismiss (X / Esc): navigates without signOut or signInWithOAuth", async () => {
     setLocation({ hash: "#error_code=identity_already_exists" });
     vi.spyOn(supabase, "rpc").mockImplementation((() =>
