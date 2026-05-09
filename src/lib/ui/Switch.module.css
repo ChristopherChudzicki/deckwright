@@ -36,6 +36,11 @@
   transform: translateX(1rem);
 }
 
+.switch[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .switch[data-focus-visible] .indicator {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
