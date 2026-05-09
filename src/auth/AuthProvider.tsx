@@ -21,8 +21,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (event === "INITIAL_SESSION" && anonEnabled) {
         // Stay "loading"; signInAnonymously will fire SIGNED_IN, which we'll
-        // pick up on the next listener invocation.
-        void supabase.auth.signInAnonymously();
+        // pick up on the next listener invocation. If it fails (e.g. server
+        // has anon sign-ins disabled), fall back to "unauthenticated" so the
+        // app doesn't deadlock at the loading screen.
+        void supabase.auth.signInAnonymously().then((result) => {
+          if (cancelled) return;
+          if (result.error) {
+            setState({ status: "unauthenticated", user: null, session: null });
+          }
+        });
         return;
       }
       setState({ status: "unauthenticated", user: null, session: null });

@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
+import { SB_URL, server } from "../test/msw";
 import { AuthProvider } from "./AuthProvider";
 import { useSession } from "./useSession";
 
@@ -56,6 +58,26 @@ describe("AuthProvider with anon flag on", () => {
     await waitFor(() => expect(spy).toHaveBeenCalled());
     await waitFor(() => {
       expect(screen.getByTestId("status").textContent).toBe("authenticated");
+    });
+  });
+
+  it("falls back to 'unauthenticated' when signInAnonymously fails", async () => {
+    server.use(
+      http.post(
+        `${SB_URL}/auth/v1/signup`,
+        () =>
+          new HttpResponse(JSON.stringify({ msg: "anonymous sign-ins are disabled" }), {
+            status: 422,
+          }),
+      ),
+    );
+    render(
+      <AuthProvider>
+        <ShowSession />
+      </AuthProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("status").textContent).toBe("unauthenticated");
     });
   });
 });
