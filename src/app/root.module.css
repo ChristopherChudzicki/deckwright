@@ -20,6 +20,12 @@
   color: var(--color-text);
   text-decoration: none;
   letter-spacing: 0.02em;
+  border-radius: var(--radius-sm);
+}
+
+.brand:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .link {
@@ -31,6 +37,11 @@
 
 .link:hover {
   background: var(--color-surface-2);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
 }
 
 .iconLink {
