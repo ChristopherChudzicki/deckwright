@@ -1,10 +1,11 @@
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, test, vi } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 import { makeSpellPayload } from "../test/factories";
 import { render, screen } from "../test/render";
 import { CardEditor } from "./CardEditor";
 import { itemCardFactory } from "./factories";
+import { ensureIcons } from "./resolveIcon";
 import type { RenderableCard, SpellCard } from "./types";
 
 type HarnessProps = {
@@ -26,6 +27,10 @@ function Harness({ initial, onEach }: HarnessProps) {
 }
 
 describe("<CardEditor>", () => {
+  beforeAll(async () => {
+    await ensureIcons();
+  });
+
   test("typing in the name field updates the rendered value", async () => {
     const card = itemCardFactory.build({ name: "" });
     render(<Harness initial={card} />);
