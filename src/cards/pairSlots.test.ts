@@ -6,7 +6,7 @@ import type { ItemCard } from "./types";
 
 const physical = (card: ItemCard, page?: number, total?: number): PhysicalCard => ({
   card,
-  bodyChunk: "",
+  bodyHtml: "",
   pagination: page !== undefined && total !== undefined ? { page, total } : undefined,
 });
 

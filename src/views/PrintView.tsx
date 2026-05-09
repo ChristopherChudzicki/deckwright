@@ -43,7 +43,9 @@ export function PrintView({ deckId }: Props) {
   const cards = cardsQuery.data ?? [];
   const printable = cards.filter(isRenderableCard);
   const { physicalCards } = useExpandedCards(printable, perPage);
-  const printSlots = pairSlots(physicalCards, { contentOnBack: false });
+  const printSlots = pairSlots(physicalCards, {
+    contentOnBack: printBacks && contentOnBack,
+  });
 
   if (cardsQuery.isLoading) return <LoadingState />;
 
