@@ -186,6 +186,92 @@ describe("<CardEditor>", () => {
     expect(nameField?.parentElement?.tagName).toBe("DIV");
     expect(nameField?.parentElement?.contains(typeRadio)).toBe(true);
   });
+
+  test("renders the markdown toolbar associated with the body field", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+
+    const toolbar = screen.getByRole("toolbar", { name: /formatting/i });
+    const body = screen.getByLabelText(/body/i);
+
+    // Toolbar's for= attribute targets the body textarea.
+    expect(toolbar.getAttribute("for")).toBe(body.getAttribute("id"));
+  });
+
+  test("Cmd+B on the body textarea clicks the Bold toolbar button", async () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+
+    const body = screen.getByLabelText(/body/i);
+    const bold = screen.getByRole("button", { name: /bold/i });
+    const clickSpy = vi.spyOn(bold, "click");
+
+    body.focus();
+    await userEvent.keyboard("{Meta>}b{/Meta}");
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("Ctrl+B on the body textarea clicks the Bold toolbar button (non-mac)", async () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+
+    const body = screen.getByLabelText(/body/i);
+    const bold = screen.getByRole("button", { name: /bold/i });
+    const clickSpy = vi.spyOn(bold, "click");
+
+    body.focus();
+    await userEvent.keyboard("{Control>}b{/Control}");
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("Cmd+I on the body textarea clicks the Italic toolbar button", async () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+
+    const body = screen.getByLabelText(/body/i);
+    const italic = screen.getByRole("button", { name: /italic/i });
+    const clickSpy = vi.spyOn(italic, "click");
+
+    body.focus();
+    await userEvent.keyboard("{Meta>}i{/Meta}");
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("Cmd+Shift+B does not trigger Bold (modifier guard)", async () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+
+    const body = screen.getByLabelText(/body/i);
+    const bold = screen.getByRole("button", { name: /bold/i });
+    const clickSpy = vi.spyOn(bold, "click");
+
+    body.focus();
+    await userEvent.keyboard("{Meta>}{Shift>}b{/Shift}{/Meta}");
+
+    expect(clickSpy).not.toHaveBeenCalled();
+  });
+
+  test("Cmd+B on the body textarea calls preventDefault", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+
+    const body = screen.getByLabelText(/body/i);
+    body.focus();
+
+    // Use a raw KeyboardEvent so we can inspect defaultPrevented after dispatch.
+    const event = new KeyboardEvent("keydown", {
+      key: "b",
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    body.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
 });
 
 describe("<CardEditor> with a spell card", () => {
