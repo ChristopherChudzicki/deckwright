@@ -106,6 +106,92 @@ describe("collectBreakCandidates", () => {
     root.remove();
   });
 
+  test("a single-pair <dl> emits only the after-dl candidate (no internal split)", () => {
+    const root = document.createElement("div");
+    root.innerHTML = "<dl><dt>k</dt><dd>v</dd></dl>";
+    document.body.appendChild(root);
+
+    const dl = root.children[0] as HTMLElement;
+    const kids = Array.from(dl.children) as HTMLElement[];
+    setRect(root, 0, 40);
+    setRect(dl, 0, 40);
+    setRect(kids[0] as HTMLElement, 0, 20);
+    setRect(kids[1] as HTMLElement, 20, 20);
+
+    const cs = collectBreakCandidates(root);
+    expect(cs.map((c) => c.y)).toEqual([40]);
+    expect(cs[0]?.splitAt).toMatchObject({ parent: root, childIndex: 1 });
+    root.remove();
+  });
+
+  test("nested splittable containers are not recursed into (sibling boundaries only)", () => {
+    // The walker only inspects top-level children. A <ul> nested inside an
+    // <li> contributes no candidates of its own — the outer <ul>'s between-li
+    // boundaries are the only available split points.
+    const root = document.createElement("div");
+    root.innerHTML =
+      "<ul><li>outer1<ul><li>inner-a</li><li>inner-b</li></ul></li><li>outer2</li></ul>";
+    document.body.appendChild(root);
+
+    const outerUl = root.children[0] as HTMLElement;
+    const outerItems = Array.from(outerUl.children) as HTMLElement[];
+    setRect(root, 0, 100);
+    setRect(outerUl, 0, 100);
+    setRect(outerItems[0] as HTMLElement, 0, 60);
+    setRect(outerItems[1] as HTMLElement, 60, 40);
+
+    const cs = collectBreakCandidates(root);
+    // Two candidates: between outer1 and outer2 (y=60), after the outer ul
+    // (y=100). No candidates referencing the inner ul.
+    expect(cs.map((c) => c.y)).toEqual([60, 100]);
+    expect(cs[0]?.splitAt).toMatchObject({ parent: outerUl, childIndex: 1 });
+    expect(cs[1]?.splitAt).toMatchObject({ parent: root, childIndex: 1 });
+    root.remove();
+  });
+
+  test("inline-flow blocks emit one line-box-provider call per text node descendant", () => {
+    // <p>before <strong>middle</strong> after</p> contains three text nodes;
+    // the line-box provider is called once per node. Each call's emitted
+    // candidates use *that* node's textNode reference.
+    const root = document.createElement("div");
+    root.innerHTML = "<p>before <strong>middle</strong> after</p>";
+    document.body.appendChild(root);
+
+    const p = root.children[0] as HTMLElement;
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    let n = walker.nextNode() as Text | null;
+    while (n) {
+      textNodes.push(n);
+      n = walker.nextNode() as Text | null;
+    }
+    expect(textNodes).toHaveLength(3);
+
+    setRect(root, 0, 40);
+    setRect(p, 0, 40);
+
+    const calls: Text[] = [];
+    const lineBoxes: LineBoxProvider = (node) => {
+      calls.push(node);
+      // Each node emits exactly one in-block line-box candidate at y=20.
+      return [{ bottom: 20, charOffset: Math.max(1, node.data.length - 1) }];
+    };
+
+    const cs = collectBreakCandidates(root, { lineBoxes });
+    expect(calls).toEqual(textNodes);
+    // Three line-box candidates (one per text node, all at y=20) plus the
+    // after-block candidate at y=40.
+    expect(cs.filter((c) => c.splitAt.kind === "between-line-boxes")).toHaveLength(3);
+    expect(cs.filter((c) => c.splitAt.kind === "between-children")).toHaveLength(1);
+    // Each line-box candidate references its own text node.
+    const lineBoxCandidates = cs.filter((c) => c.splitAt.kind === "between-line-boxes");
+    const referencedNodes = lineBoxCandidates.map(
+      (c) => (c.splitAt as { textNode: Text }).textNode,
+    );
+    expect(new Set(referencedNodes).size).toBe(3);
+    root.remove();
+  });
+
   test("only splits a <dl> between dt/dd pairs (after each dd)", () => {
     const root = document.createElement("div");
     root.innerHTML = "<dl><dt>k1</dt><dd>v1</dd><dt>k2</dt><dd>v2</dd></dl>";
