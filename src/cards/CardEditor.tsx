@@ -1,4 +1,4 @@
-import { type ChangeEvent, useId } from "react";
+import { type ChangeEvent, type KeyboardEvent, useId, useRef } from "react";
 import { nowIso } from "../lib/time";
 import { IconPickerDialog } from "../lib/ui/IconPickerDialog";
 import { IconPreview } from "../lib/ui/IconPreview";
@@ -10,6 +10,7 @@ import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import styles from "./CardEditor.module.css";
 import { FALLBACK_ICON_KEY, pickIconKey } from "./iconRules";
+import { MarkdownToolbar } from "./MarkdownToolbar";
 import type { RenderableCard } from "./types";
 
 type Props = {
@@ -61,6 +62,22 @@ export function CardEditor({ card, onChange }: Props) {
     footerTagsLabel: `${idBase}-footerTagsLabel`,
     footerTagsHelp: `${idBase}-footerTagsHelp`,
     typeLabel: `${idBase}-typeLabel`,
+  };
+
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const boldRef = useRef<HTMLElement>(null);
+  const italicRef = useRef<HTMLElement>(null);
+
+  const onBodyKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === "b") {
+      e.preventDefault();
+      boldRef.current?.click();
+    } else if (k === "i") {
+      e.preventDefault();
+      italicRef.current?.click();
+    }
   };
 
   return (
@@ -124,11 +141,14 @@ export function CardEditor({ card, onChange }: Props) {
       </div>
       <label className={styles.field} htmlFor={ids.body}>
         <span className={styles.label}>Body</span>
+        <MarkdownToolbar htmlFor={ids.body} boldRef={boldRef} italicRef={italicRef} />
         <Textarea
+          ref={bodyRef}
           id={ids.body}
           aria-describedby={ids.bodyHelp}
           value={card.body}
           onChange={handle("body")}
+          onKeyDown={onBodyKeyDown}
           rows={8}
         />
         <span id={ids.bodyHelp} className={styles.help}>
