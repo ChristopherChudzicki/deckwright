@@ -41,7 +41,7 @@
 }
 
 .tab[data-hovered]:not([data-selected]) {
-  background: var(--color-border);
+  background: var(--color-border-strong);
 }
 
 .tab[data-selected] {
@@ -76,6 +76,8 @@
 .results {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   padding: var(--space-1) 0;
 }
@@ -131,7 +133,6 @@
 .stateError {
   color: var(--color-danger);
   background: var(--color-danger-bg-hover);
-  border-bottom: 1px solid var(--color-border);
 }
 
 .statePane {
@@ -155,7 +156,7 @@
   line-height: 1.4;
 }
 
-.sourceTrigger {
+.menuTrigger {
   font: inherit;
   font-family: var(--font-body);
   font-size: var(--fs-sm);
@@ -167,21 +168,21 @@
   cursor: pointer;
 }
 
-.sourceTrigger[data-hovered] {
+.menuTrigger[data-hovered] {
   background: var(--color-surface-2);
   border-color: var(--color-border-strong);
 }
 
-.sourceTrigger[data-pressed] {
+.menuTrigger[data-pressed] {
   background: var(--color-border);
 }
 
-.sourceTrigger[data-focus-visible] {
+.menuTrigger[data-focus-visible] {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 
-.sourcePopover {
+.menuPopover {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -189,12 +190,12 @@
   outline: none;
 }
 
-.sourceMenu {
+.menu {
   padding: var(--space-1);
   outline: none;
 }
 
-.sourceItem {
+.menuItem {
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
   font-size: var(--fs-sm);
@@ -202,8 +203,8 @@
   outline: none;
 }
 
-.sourceItem[data-hovered],
-.sourceItem[data-focused] {
+.menuItem[data-hovered],
+.menuItem[data-focused] {
   background: var(--color-surface-2);
 }
 

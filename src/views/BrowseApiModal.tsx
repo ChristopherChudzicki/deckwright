@@ -152,13 +152,13 @@ function SourceMenu({
 }) {
   return (
     <MenuTrigger>
-      <RACButton aria-label={`Source: SRD ${source}`} className={styles.sourceTrigger}>
+      <RACButton aria-label={`Source: SRD ${source}`} className={styles.menuTrigger}>
         Source: {source} <span aria-hidden="true">▾</span>
       </RACButton>
-      <Popover className={styles.sourcePopover} placement="bottom end">
-        <Menu className={styles.sourceMenu} onAction={(key) => onChange(String(key) as Ruleset)}>
+      <Popover className={styles.menuPopover} placement="bottom end">
+        <Menu className={styles.menu} onAction={(key) => onChange(String(key) as Ruleset)}>
           {options.map((opt) => (
-            <MenuItem key={opt} id={opt} className={styles.sourceItem}>
+            <MenuItem key={opt} id={opt} className={styles.menuItem}>
               {opt}
             </MenuItem>
           ))}
@@ -174,14 +174,14 @@ function TypeMenu({ activeId, onChange }: { activeId: string; onChange: (next: s
     <MenuTrigger>
       <RACButton
         aria-label={`Type: ${active.label}`}
-        className={`${styles.sourceTrigger} ${styles.typeMenuTrigger}`}
+        className={`${styles.menuTrigger} ${styles.typeMenuTrigger}`}
       >
-        {active.label} <span aria-hidden="true">▾</span>
+        Type: {active.label} <span aria-hidden="true">▾</span>
       </RACButton>
-      <Popover className={styles.sourcePopover} placement="bottom end">
-        <Menu className={styles.sourceMenu} onAction={(key) => onChange(String(key))}>
+      <Popover className={styles.menuPopover} placement="bottom end">
+        <Menu className={styles.menu} onAction={(key) => onChange(String(key))}>
           {CONTENT_TYPES.map((t) => (
-            <MenuItem key={t.id} id={t.id} className={styles.sourceItem}>
+            <MenuItem key={t.id} id={t.id} className={styles.menuItem}>
               {t.label}
             </MenuItem>
           ))}
@@ -234,17 +234,21 @@ function TypePanel({
           </div>
         )}
         {results.isError && (
-          <div className={`${styles.state} ${styles.stateError}`} role="alert">
-            Couldn't load the list.
-            <div className={styles.errorActions}>
-              <Button variant="secondary" size="sm" onPress={() => results.refetch()}>
-                Retry
-              </Button>
+          <div className={styles.statePane}>
+            <div className={`${styles.state} ${styles.stateError}`} role="alert">
+              Couldn't load the list.
+              <div className={styles.errorActions}>
+                <Button variant="secondary" size="sm" onPress={() => results.refetch()}>
+                  Retry
+                </Button>
+              </div>
             </div>
           </div>
         )}
         {!results.isLoading && !results.isError && results.rows.length === 0 && (
-          <div className={styles.state}>{emptyMessage}</div>
+          <div className={styles.statePane}>
+            <div className={styles.state}>{emptyMessage}</div>
+          </div>
         )}
         {pickError && (
           <div className={`${styles.state} ${styles.stateError}`} role="alert">
