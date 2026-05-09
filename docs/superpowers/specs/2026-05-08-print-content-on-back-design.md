@@ -12,10 +12,17 @@ double-sided card — page 1 on the front, page 2 on the back, cut once. The
 2026-05-06 spec's "Forward compatibility" section explicitly anticipated this
 follow-up; this spec is that follow-up.
 
+**Canonical names used throughout this spec:** the user-facing toggle label is
+"Continue content on back". The internal feature is *content-on-back*. The
+boolean state is `contentOnBack`. Use these consistently in prose and code.
+
 ## Goals
 
-- A second toggle, "Continue on back", lives directly under "Print backs" in
-  `PrintView`'s sidebar. Default off. Disabled when "Print backs" is off.
+- A second toggle, "Continue content on back", lives directly under "Print
+  backs" in `PrintView`'s sidebar, visually nested as a sub-option (see
+  *Sub-toggle markup and styling* below). Default off. Disabled (not hidden)
+  when "Print backs" is off. Keyboard tab order places it immediately after
+  "Print backs" and before the divider.
 - When both toggles are on, multi-page cards continue onto the back of their
   first slot instead of taking a separate front slot. A 2-page card occupies
   one physical slot; a 3-page card occupies two; a 4-page card occupies two; in
@@ -26,8 +33,8 @@ follow-up; this spec is that follow-up.
   their backs.
 - Sheet imposition (horizontal mirror for duplex flip) is unchanged. The
   geometry constraint is independent of what's on the back.
-- "Print backs" off → no behavior change. "Print backs" on, "Continue on back"
-  off → existing icon-only back behavior, regression-tested.
+- "Print backs" off → no behavior change. "Print backs" on, "Continue content
+  on back" off → existing icon-only back behavior, regression-tested.
 
 ## Non-goals
 
@@ -87,6 +94,8 @@ export type PrintSlot = {
   back?: PhysicalCard;
 };
 
+// Assumes consecutive PhysicalCards with matching card.id are pages of the
+// same card in order — the invariant established by useExpandedCards.
 export function pairSlots(
   cards: PhysicalCard[],
   opts: { contentOnBack: boolean },
@@ -159,38 +168,70 @@ In `src/views/PrintView.tsx`:
        <CardBack card={slot.front.card} cardsPerPage={perPage} />
      );
    ```
-7. Sidebar markup gains a sub-toggle. `Switch` accepts `isDisabled` (passes
-   through to `react-aria-components`'s `Switch`):
-   ```tsx
-   <div className={styles.switchBlock}>
-     <Switch isSelected={printBacks} onChange={setPrintBacks}>
-       Print backs
-     </Switch>
-     <div className={styles.helptext}>
-       <p>Adds a second page of card backs for double-sided printing.</p>
-       {printBacks && (
-         <p>
-           In the print dialog, choose <em>Flip on {flipEdge}</em>{" "}
-           (sometimes labelled <em>{flipLabel}</em>).
-         </p>
-       )}
-     </div>
-     <Switch
-       isSelected={contentOnBack}
-       onChange={setContentOnBack}
-       isDisabled={!printBacks}
-     >
-       Continue on back
-     </Switch>
-     <div className={styles.helptext}>
-       <p>Multi-page cards continue onto the back instead of a new sheet.</p>
-     </div>
-   </div>
-   ```
-   The exact CSS structure (indentation, spacing, divider treatment for the
-   nested toggle) is at the implementer's discretion provided it reads as a
-   sub-option of "Print backs". Defer to existing `PrintView.module.css`
-   conventions.
+7. Sidebar markup gains a sub-toggle. See *Sub-toggle markup and styling*
+   below for the locked-in structure and CSS.
+
+### Sub-toggle markup and styling
+
+The sub-toggle and its helptext sit inside a child `<div>` indented from the
+parent. This is required for the nesting to read as parent/child rather than
+peer/peer; without it, the existing `gap: var(--space-2)` on `.switchBlock`
+makes four siblings look identical in weight.
+
+Markup:
+
+```tsx
+<div className={styles.switchBlock}>
+  <Switch isSelected={printBacks} onChange={setPrintBacks}>
+    Print backs
+  </Switch>
+  <div className={styles.helptext}>
+    <p>Adds a second page of card backs for double-sided printing.</p>
+    {printBacks && (
+      <p>
+        In the print dialog, choose <em>Flip on {flipEdge}</em>{" "}
+        (sometimes labelled <em>{flipLabel}</em>).
+      </p>
+    )}
+  </div>
+  <div className={styles.subSwitch}>
+    <Switch
+      isSelected={contentOnBack}
+      onChange={setContentOnBack}
+      isDisabled={!printBacks}
+    >
+      Continue content on back
+    </Switch>
+    <div className={styles.helptext}>
+      <p>
+        Print page 2 of a multi-page card on the back of page 1, instead of
+        using a separate slot.
+      </p>
+      {!printBacks && <p>Enable Print backs to use this option.</p>}
+    </div>
+  </div>
+</div>
+```
+
+CSS (add to `PrintView.module.css`):
+
+```css
+.subSwitch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+}
+```
+
+Rationale for `--space-4`: matches the sidebar's outer padding so the
+sub-block's switch indicator visually aligns to the sidebar's content
+gutter, reading as one level deeper than the parent toggle. The
+helptext-when-disabled line ("Enable Print backs to use this option.") is the
+visible counterpart to the `aria-disabled` state — screen-reader and sighted
+users both get an explanation. It is part of the helptext block so the
+`.helptext p + p` rule already in `PrintView.module.css` gives it the
+correct top margin.
 
 ### Imposition unchanged
 
@@ -208,9 +249,10 @@ these.
 
 ### `pairSlots.test.ts` (new)
 
-Inputs are constructed with the existing factories where possible, otherwise
-hand-built `PhysicalCard` literals. The factory pattern preference (no
-unnecessary overrides) applies.
+Inputs are constructed with the existing card factories from
+`src/cards/factories.ts` and hand-built `PhysicalCard` literals (no
+`expandCard` invocation needed — these are unit tests on `pairSlots` only).
+The factory pattern preference (no unnecessary overrides) applies.
 
 - `contentOnBack: false` → maps every `PhysicalCard` to a front-only slot;
   output length equals input length; no slot has a `back` property defined.
@@ -231,18 +273,36 @@ unnecessary overrides) applies.
 
 ### `PrintView.test.tsx` (extended)
 
-- "Continue on back" switch is rendered and `aria-disabled` when "Print
-  backs" is off. Toggling "Print backs" on enables it.
-- "Print backs" on, "Continue on back" off → existing icon-back behavior.
-  Regression guard: page count and back-page contents match the existing
-  print-backs assertions byte-for-byte.
+**Pagination strategy in tests.** Multi-page card behavior is driven by
+`paginateBody`. Existing tests stub it via `vi.spyOn(paginateModule,
+"paginateBody")` (see the existing pattern in `PrintView.test.tsx`) — reuse
+the same approach for the new cases below rather than passing long `body`
+strings into factories. This keeps the no-unnecessary-overrides rule
+satisfied and isolates layout from real measurement.
+
+**Slot disambiguation.** Existing 4-up imposition tests read `data-card-id`
+to verify mirrored order. With paired slots, that approach breaks: a slot's
+front and back share `card.id`. New cases below disambiguate by reading
+the rendered body text inside `data-role="card-body"`, *not* `data-card-id`.
+
+Cases to add:
+
+- "Continue content on back" switch is rendered and `aria-disabled` when
+  "Print backs" is off. Toggling "Print backs" on enables it.
+- Selected-state persistence: toggle "Print backs" on, toggle "Continue
+  content on back" on, toggle "Print backs" off, toggle "Print backs" back
+  on. The sub-toggle remains selected, and the paired flow resumes (assert
+  via the same body-text mirror check used below).
+- "Print backs" on, "Continue content on back" off → existing icon-back
+  behavior. Regression guard: page count and back-page contents match the
+  existing print-backs assertions byte-for-byte.
 - Both toggles on, deck = one 2-page card + one 1-page card, 4-up layout:
   - One front page with two filled slots in deck order: card1 page 1,
     card2 page 1.
   - One back page imposed by horizontal mirror. The slot mirroring card1
-    contains card1 page 2's body content (assert by reading `data-role=
-    "card-body"` text). The slot mirroring card2 contains an icon-back
-    (`data-role="card-back-root"`).
+    contains card1 page 2's body content (assert by reading the
+    `data-role="card-body"` text). The slot mirroring card2 contains an
+    icon-back (`data-role="card-back-root"`).
 - Both toggles on, deck = one 4-page card, 4-up layout:
   - One front page with two filled slots: pg1 and pg3 (in row-major slot
     order).
@@ -253,9 +313,13 @@ unnecessary overrides) applies.
   - One front page with two filled slots: pg1 and pg3.
   - One back page: pg2 in the slot mirroring pg1; the slot mirroring pg3
     renders an icon-back.
-- "Continue on back" helptext renders ("Multi-page cards continue onto the
-  back instead of a new sheet"). Existing flip-edge tip continues to render
-  under the same conditions as today (i.e., when "Print backs" is on).
+- Sub-toggle helptext renders the canonical copy ("Print page 2 of a
+  multi-page card on the back of page 1, instead of using a separate
+  slot."). When "Print backs" is off, the additional disabled-state line
+  ("Enable Print backs to use this option.") is also visible. With "Print
+  backs" on, only the canonical line is visible. Existing flip-edge tip
+  continues to render under the same conditions as today (i.e., when
+  "Print backs" is on).
 
 ### Unchanged test files
 
@@ -312,7 +376,13 @@ in the PR description.
   test confirms it.
 - **The `printBacks &&` guard inside `pairSlots`'s argument.** It's tempting
   to drop the guard and always honor `contentOnBack`. Don't — without the
-  guard, toggling "Continue on back" while "Print backs" is off changes the
-  front page's slot count (multi-page cards collapse), which is a confusing
-  UI state for a toggle whose effect should be invisible until backs are
-  enabled.
+  guard, toggling "Continue content on back" while "Print backs" is off
+  changes the front page's slot count (multi-page cards collapse), which is a
+  confusing UI state for a toggle whose effect should be invisible until
+  backs are enabled.
+- **`data-card-id` is unreliable on paired slots.** A paired slot's front and
+  back share `card.id`. The existing imposition test (`[B,A,D,C]` from
+  `data-card-id` order) keeps working for the toggle-off path, but new
+  paired-flow tests must disambiguate via rendered body text. The test plan
+  above codifies this; flagging here so the implementer doesn't reach for
+  `data-card-id` and burn time debugging a "wrong" result.
