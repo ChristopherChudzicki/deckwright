@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { pluralize } from "../lib/pluralize";
 import { Button } from "../lib/ui/Button";
 import { DialogHeader } from "../lib/ui/DialogHeader";
@@ -13,7 +14,21 @@ type Props = {
 };
 
 export function ImportAccountDialog({ isOpen, deckCount, onImport, onSkip, onCancel }: Props) {
+  // Both onImport and onSkip kick off network work + a redirect. A fast
+  // double-click before the parent unmounts the dialog would otherwise fire
+  // two parallel imports — disable both buttons after either one is pressed.
+  const [pressed, setPressed] = useState(false);
   if (!isOpen) return null;
+  const handleImport = () => {
+    if (pressed) return;
+    setPressed(true);
+    onImport();
+  };
+  const handleSkip = () => {
+    if (pressed) return;
+    setPressed(true);
+    onSkip();
+  };
   return (
     <DialogShell
       isOpen={isOpen}
@@ -40,10 +55,10 @@ export function ImportAccountDialog({ isOpen, deckCount, onImport, onSkip, onCan
             </p>
           </div>
           <div className={styles.actions}>
-            <button type="button" className={styles.skip} onClick={onSkip}>
+            <button type="button" className={styles.skip} onClick={handleSkip} disabled={pressed}>
               Skip — leave decks behind
             </button>
-            <Button variant="primary" onPress={onImport}>
+            <Button variant="primary" onPress={handleImport} isDisabled={pressed}>
               Yes, import {pluralize(deckCount, "deck")}
             </Button>
           </div>

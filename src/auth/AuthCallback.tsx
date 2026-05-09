@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../api/supabase";
 import { pluralize } from "../lib/pluralize";
 import { useSetNextAnnouncement } from "../lib/ui/Announcement";
@@ -28,6 +28,12 @@ export function AuthCallback() {
   const [deckCount, setDeckCount] = useState(0);
   const [progress, setProgress] = useState({ imported: 0, total: 0 });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Guards against re-entrant tryResume: supabase-js can fire multiple
+  // onAuthStateChange events back-to-back on OAuth-callback hash detection
+  // (e.g., INITIAL_SESSION then SIGNED_IN). Each event re-renders the session
+  // object, re-runs this effect, and would otherwise start a parallel
+  // tryResume that races with the first — duplicating every imported deck.
+  const importStartedRef = useRef(false);
 
   useEffect(() => {
     if (session.status !== "authenticated") return;
@@ -54,18 +60,21 @@ export function AuthCallback() {
 
     const pending = readPending();
     if (pending && !session.user.is_anonymous) {
+      if (importStartedRef.current) return;
+      importStartedRef.current = true;
       setPhase("importing");
+      // Import deliberately runs to completion without a cancellation flag:
+      // the ref guards against re-entry, and a re-rendered effect must not
+      // tell the in-flight IIFE to skip its navigate() call.
       void (async () => {
         try {
           const result = await tryResume({
             supabase,
             currentUserId: session.user.id,
             onProgress: (imported, total) => {
-              if (cancelled) return;
               setProgress({ imported, total });
             },
           });
-          if (cancelled) return;
           if (result.kind === "completed" && result.importedCount > 0) {
             setAnnouncement(`Imported ${pluralize(result.importedCount, "deck")}`);
           } else if (result.kind === "partial") {
@@ -76,16 +85,13 @@ export function AuthCallback() {
           window.localStorage.removeItem("dndCards.lastProvider");
           navigate({ to: readNextFromUrl() });
         } catch {
-          if (cancelled) return;
           setAnnouncement(
             "Couldn't finish importing your decks. We'll try again next time you sign in.",
           );
           navigate({ to: readNextFromUrl() });
         }
       })();
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
 
     if (!session.user.is_anonymous) {
@@ -93,9 +99,6 @@ export function AuthCallback() {
       window.localStorage.removeItem("dndCards.lastProvider");
     }
     navigate({ to: readNextFromUrl() });
-    return () => {
-      cancelled = true;
-    };
   }, [session, navigate, setAnnouncement]);
 
   const onImport = async () => {

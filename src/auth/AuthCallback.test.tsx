@@ -250,4 +250,69 @@ describe("AuthCallback", () => {
     await waitFor(() => expect(navigate).toHaveBeenCalled());
     expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
   });
+
+  it("does not re-enter tryResume when session re-renders mid-import", async () => {
+    // Regression for the post-OAuth-callback double-import: supabase-js can
+    // fire onAuthStateChange twice back-to-back (e.g., INITIAL_SESSION then
+    // SIGNED_IN). AuthProvider rebuilds the session object on each event, so
+    // AuthCallback's effect re-runs. Without a guard, a second tryResume
+    // races with the first and every imported deck is duplicated.
+    window.localStorage.setItem(
+      "dndCards.pendingAnonImport",
+      JSON.stringify({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [] }),
+    );
+    setLocation({});
+
+    let resolveDeck: (v: { data: unknown; error: unknown }) => void = () => {};
+    const deckPromise = new Promise<{ data: unknown; error: unknown }>((r) => {
+      resolveDeck = r;
+    });
+
+    vi.spyOn(supabase, "rpc").mockImplementation(((name: string) => {
+      if (name === "get_public_deck") {
+        return { maybeSingle: () => deckPromise };
+      }
+      if (name === "get_public_deck_cards") {
+        return Promise.resolve({ data: [], error: null });
+      }
+      return Promise.resolve({ data: [], error: null });
+    }) as never);
+
+    const insertSpy = vi.fn(() => ({
+      select: () => ({
+        single: () => Promise.resolve({ data: { id: "new-deck" }, error: null }),
+      }),
+    }));
+    vi.spyOn(supabase, "from").mockReturnValue({ insert: insertSpy } as never);
+
+    const session1: SessionState = {
+      status: "authenticated",
+      user: { id: "real-1", is_anonymous: false, email: "x@y.z" } as never,
+      session: {} as never,
+    };
+    const session2: SessionState = {
+      status: "authenticated",
+      user: { id: "real-1", is_anonymous: false, email: "x@y.z" } as never,
+      session: {} as never,
+    };
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Tree = ({ session }: { session: SessionState }) => (
+      <QueryClientProvider client={client}>
+        <AnnouncementProvider>
+          <SessionContext.Provider value={session}>
+            <AuthCallback />
+          </SessionContext.Provider>
+        </AnnouncementProvider>
+      </QueryClientProvider>
+    );
+
+    const { rerender } = render(<Tree session={session1} />);
+    rerender(<Tree session={session2} />);
+
+    resolveDeck({ data: { id: "d1", name: "Goblins" }, error: null });
+
+    await waitFor(() => expect(navigate).toHaveBeenCalled());
+    expect(insertSpy).toHaveBeenCalledTimes(1);
+  });
 });
