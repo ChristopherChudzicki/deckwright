@@ -6,217 +6,210 @@ Card bodies render as Markdown (`renderBody.ts` → `marked` → DOMPurify), but
 
 ## Goal
 
-Add a small toolbar above the body field with Bold / Italic / Bullet list / Numbered list buttons, plus `Cmd/Ctrl+B` and `Cmd/Ctrl+I` shortcuts when the textarea is focused. The editor stays a plain textarea — no WYSIWYG, no shortcut-driven inline transforms while typing. Browser-native undo (Cmd+Z) must continue to work one toolbar click at a time.
+Add a small toolbar above the body field with Bold / Italic / Bullet list / Numbered list buttons, plus `Cmd/Ctrl+B` and `Cmd/Ctrl+I` shortcuts when the textarea is focused. The editor stays a plain textarea — no WYSIWYG, no shortcut-driven inline transforms while typing. Browser-native undo (Cmd+Z) must continue to work one toolbar action at a time.
+
+## Approach
+
+Use [`@github/markdown-toolbar-element`](https://github.com/github/markdown-toolbar-element), the ~5KB web component GitHub uses on its own PR/issue textareas. It handles the parts that are easy to get wrong: selection wrap/unwrap, multi-line list toggling, mixed-prefix renumbering, edge cases around line boundaries, and undo preservation via `document.execCommand("insertText")`. We supply the icon buttons, the styling, and a small textarea-scoped keyboard handler for `Cmd/Ctrl+B/I`.
+
+This collapses what would have been ~300 lines of helper logic + tests into a thin styling and wiring layer, and outsources the edge cases to a battle-tested implementation.
 
 ## Scope
 
 In:
 
-- Toolbar with four buttons: Bold, Italic, Bullet list, Numbered list.
+- Toolbar above the body field with four buttons: Bold, Italic, Bullet list, Numbered list.
 - Keyboard: `Cmd/Ctrl+B` for bold, `Cmd/Ctrl+I` for italic, fired when the body textarea has focus.
-- Toggle semantics: clicking a button (or pressing the shortcut) on already-formatted text removes the formatting.
-- Multi-line list toggling: list buttons act on every line touched by the selection.
-- Native undo preserved via `document.execCommand("insertText", …)`, with a graceful fallback if `insertText` is unsupported.
+- Toggle semantics, multi-line list handling, undo preservation: inherited from the library.
+- Styling matches the rest of the editor (focus ring, hover state, screen tokens).
 
 Out:
 
-- Shortcuts for lists (`Cmd+Shift+8`, `Cmd+Shift+7`).
-- Enter-continues-list / Enter-on-empty-list-line-exits behavior.
-- Link, table, code-block, heading, checklist, or blockquote affordances.
-- A general-purpose `MarkdownEditor` primitive in `src/lib/ui/`. The toolbar lives next to its only consumer for now (per `src/lib/ui/README.md` extraction rules).
-- WYSIWYG, live-preview-as-you-type inline transforms, or any rich-text model. The textarea remains plain text.
+- Shortcuts for lists (`Cmd+Shift+8/7`).
+- Active-state highlighting on toolbar buttons (e.g., Bold lights up when caret is inside `**…**`).
+- Buttons for link, image, code, header, quote, task list, mention, ref. The library supports them; we don't render them.
+- Live preview, WYSIWYG, or any rich-text model. The textarea stays plain text.
+- A general-purpose `MarkdownEditor` primitive in `src/lib/ui/`. The toolbar lives next to its only consumer for now.
 
 ## UX
 
-- A row of four square `IconButton`s sits directly above the body `Textarea`, aligned with its left edge. Tooltips / `aria-label`s: "Bold", "Italic", "Bullet list", "Numbered list".
-- Clicking a button does not steal focus from the textarea (`onMouseDown` `preventDefault`; the action fires on click). After the action, the textarea retains focus and the selection is set to whatever range the helper computed.
-- Inline buttons (Bold/Italic) on a selection wrap or unwrap the selection. With no selection they insert empty markers (`****`, `__`) and place the caret between them.
-- List buttons (Bullet/Numbered) operate on the lines touched by the selection (or the caret line if collapsed). If any line lacks the prefix, the button adds the prefix to all of them. If every line already has the prefix, it strips them. The post-edit selection spans the same line range so the button is repeatable.
-- `Cmd/Ctrl+B` and `Cmd/Ctrl+I` mirror the inline buttons and `preventDefault` on the keyboard event so the browser's default chrome bolding doesn't fire.
+- A row of four buttons sits directly above the body `Textarea`, aligned with its left edge.
+- Each button shows an icon (24×24 stroke icons matching the existing `src/lib/ui/icons/` set) and has an explicit `aria-label` that includes the shortcut where applicable: "Bold (⌘B)", "Italic (⌘I)", "Bullet list", "Numbered list".
+- Clicking a button does not steal focus from the textarea (the library handles this internally).
+- Inline buttons (Bold/Italic) on a selection wrap or unwrap; on no selection, insert empty markers and place the caret between them. List buttons toggle the line(s) the selection touches.
+- `Cmd/Ctrl+B` and `Cmd/Ctrl+I` mirror the inline buttons.
 - The "Supports Markdown — bold, italic, lists, tables." help line under the textarea is unchanged.
 
 ## Architecture
 
 ```
 src/cards/
-  markdown/
-    commands.ts          — pure helpers; describe edits, no DOM
-    commands.test.ts     — Vitest, exhaustive table per helper
-    MarkdownToolbar.tsx  — 4 IconButtons; emits onCommand(name)
-    MarkdownToolbar.module.css
-    MarkdownToolbar.test.tsx
-  CardEditor.tsx         — adds ref, onKeyDown, MarkdownToolbar
-src/lib/ui/icons/        — 4 new SVG icons (bold, italic, bullet-list, numbered-list)
+  MarkdownToolbar.tsx        — renders <markdown-toolbar> + four <md-*> children
+  MarkdownToolbar.module.css — styles for <md-bold>, <md-italic>, etc.
+  MarkdownToolbar.test.tsx
+  CardEditor.tsx             — renders <MarkdownToolbar>; adds Cmd+B/I handler on textarea
+src/lib/ui/
+  Textarea.tsx               — wrap in forwardRef so CardEditor can hold a ref
+  icons/                     — 4 new SVG icons (bold, italic, bullet-list, numbered-list)
+src/types/
+  jsx-markdown-toolbar.d.ts  — JSX intrinsic declarations for the web components
 e2e/
-  editor-markdown.spec.ts — Playwright; real execCommand, undo preservation
+  editor-markdown.spec.ts    — Playwright; real execCommand, undo preservation
 ```
 
-Two concerns kept separate:
+### Dependency
 
-1. **What the edit is** — a pure function over `(value, selectionStart, selectionEnd, kind)` returning a description of the textarea mutation. Lives in `commands.ts`. Trivial to unit-test.
-2. **How the edit is applied to the DOM** — preserves browser undo via `execCommand("insertText")`. Lives inside `CardEditor` (or a tiny `applyEdit` helper colocated with it).
-
-### Helper API
-
-```ts
-// src/cards/markdown/commands.ts
-
-export type EditorState = {
-  value: string;
-  selectionStart: number;
-  selectionEnd: number;
-};
-
-export type Edit = {
-  // Range of `state.value` to replace (`[replaceStart, replaceEnd)`).
-  replaceStart: number;
-  replaceEnd: number;
-  // Text to insert in that range.
-  replacement: string;
-  // Selection on the post-edit value. (i.e. on
-  // value.slice(0, replaceStart) + replacement + value.slice(replaceEnd))
-  selectionStart: number;
-  selectionEnd: number;
-};
-
-export function toggleWrap(state: EditorState, marker: "**" | "_"): Edit;
-export function togglePrefix(state: EditorState, kind: "bullet" | "numbered"): Edit;
-
-// Test helper. Component code does not call this on the happy path —
-// it's only used by the fallback when execCommand is unavailable.
-export function applyEdit(value: string, edit: Edit): string;
+```
+npm install --save @github/markdown-toolbar-element
 ```
 
-#### `toggleWrap` rules
-
-Let `m` = the marker (`**` or `_`). Let `[s, e)` be the current selection on `value`.
-
-1. **Selection wrapped (markers inside selection):** `e - s >= 2 * m.length`, `value.slice(s, e)` starts with `m`, and ends with `m`. Strip both — emit an `Edit` that replaces `[s, e)` with `value.slice(s + m.length, e - m.length)` and sets the post-edit selection to `[s, s + (e - s) - 2 * m.length]`. (The length guard prevents `**` selected → no-op.)
-2. **Selection wrapped (markers outside selection):** `value.slice(s - m.length, s) === m && value.slice(e, e + m.length) === m`. Strip — emit an `Edit` that replaces `[s - m.length, e + m.length)` with `value.slice(s, e)` and sets the post-edit selection to `[s - m.length, e - m.length]`.
-3. **Empty selection (`s === e`):** insert `m + m` at `s`; place caret between markers. `replaceStart = replaceEnd = s`, `replacement = m + m`, post-edit selection `[s + m.length, s + m.length]`.
-4. **Otherwise:** wrap. Replace `[s, e)` with `m + value.slice(s, e) + m`; selection covers the inner text on the post-edit value.
-
-Case 1 takes precedence over case 2 when both match (defensive — should not normally co-occur).
-
-#### `togglePrefix` rules
-
-1. Determine the line range touched by `[s, e)`: line `L1` is the line containing `s`, line `L2` is the line containing `e`. (If `s === e` and the caret sits at the end of a line, that's the line.) Edge case: if the selection ends exactly on a line break (`e` is at column 0 of `L2`) and `L2 > L1`, treat the range as `[L1, L2 - 1]` (don't include the empty line below the selection).
-2. For each line in the range, check whether it already has the prefix:
-   - Bullet: `^- ` (literal hyphen + space at start of line, ignoring leading whitespace).
-   - Numbered: `^\d+\.\s+`.
-3. **Strip mode:** if every line in the range matches its prefix pattern, strip the prefix from each. The replacement string is the lines, each with its prefix removed, rejoined with `\n`.
-4. **Add mode:** otherwise, prefix each line:
-   - Bullet: `- ` prepended.
-   - Numbered: `1. `, `2. `, `3. `, … in order.
-5. Replace the full block (`[startOfL1, endOfL2)`) with the new text. Post-edit selection covers the same line block (`[startOfL1, startOfL1 + replacement.length]`).
-
-Mixed input (some lines bulleted, some not) follows case 4 — adds the prefix to all of them. This matches the standard editor convention and is what Google Docs / Notion / VS Code's markdown-list toggle do.
-
-Numbered toggle does **not** attempt to stitch into surrounding numbered lists. If the user toggles `1. 2. 3.` next to an existing `4. 5.` block, the result is two separate lists; that's `marked`'s problem, not ours, and the rendered card will still order correctly per the source numbers.
-
-#### `applyEdit` (fallback / test helper)
-
-```ts
-export function applyEdit(value: string, edit: Edit): string {
-  return value.slice(0, edit.replaceStart) + edit.replacement + value.slice(edit.replaceEnd);
-}
-```
-
-Used by `commands.test.ts` to assert resulting strings, and by the runtime fallback path described below.
-
-### DOM application — `applyEditToTextarea`
-
-```ts
-export function applyEditToTextarea(
-  textarea: HTMLTextAreaElement,
-  edit: Edit,
-  fallback: (nextValue: string) => void,
-): void {
-  textarea.focus();
-  textarea.setSelectionRange(edit.replaceStart, edit.replaceEnd);
-
-  const supported =
-    typeof document.queryCommandSupported === "function" &&
-    document.queryCommandSupported("insertText");
-
-  let ok = false;
-  if (supported) {
-    ok = document.execCommand("insertText", false, edit.replacement);
-  }
-  if (!ok) {
-    fallback(applyEdit(textarea.value, edit));
-  }
-  textarea.setSelectionRange(edit.selectionStart, edit.selectionEnd);
-}
-```
-
-`execCommand("insertText")` on a focused textarea dispatches a real `input` event. React's `onChange` runs against that event, so `card.body` flows through the existing `onChange` path with no special handling. The browser also records the edit on its native undo stack — Cmd+Z reverses one toolbar click at a time.
-
-The fallback path (`document.execCommand` missing or returning false) calls the parent's `onChange` directly with the post-edit value. Native undo collapses to one entry across the click in that path; that's the documented degradation.
-
-`execCommand` is deprecated, but MDN explicitly carves out the undo-buffer use case and recommends `queryCommandSupported` for feature detection (which is what we do). Every shipping browser still implements `insertText` for `<textarea>`s; this is the same approach used by GitHub, GitLab, Reddit, Slack's compose box, etc.
-
-### `MarkdownToolbar`
+The package registers four custom elements as a side effect on import: `markdown-toolbar`, `md-bold`, `md-italic`, `md-unordered-list`, `md-ordered-list` (and others we don't render). Import once at the top of `MarkdownToolbar.tsx`:
 
 ```tsx
-type Command = "bold" | "italic" | "bullet" | "numbered";
-
-type Props = {
-  onCommand: (cmd: Command) => void;
-};
+import "@github/markdown-toolbar-element";
 ```
 
-Renders four `IconButton`s in a row. Each button:
+The library uses `document.execCommand("insertText")` internally with a fallback to direct `value` assignment, so native undo is preserved without us doing anything.
 
-- Has an explicit `aria-label` ("Bold", "Italic", "Bullet list", "Numbered list").
-- Calls `onMouseDown` with `e.preventDefault()` so clicking does not move focus off the textarea.
-- Calls `onCommand(cmd)` on `onPress` (RAC convention).
+### TypeScript intrinsics
 
-The component knows nothing about the textarea, the value, or the command helpers. It only emits an event.
+The package doesn't ship JSX type augmentations. We declare them once in `src/types/jsx-markdown-toolbar.d.ts`:
 
-### `CardEditor` wiring
+```ts
+import type { DetailedHTMLProps, HTMLAttributes } from "react";
+
+type MarkdownToolbarAttrs = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
+  for?: string;
+};
+type MdButtonAttrs = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>;
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      "markdown-toolbar": MarkdownToolbarAttrs;
+      "md-bold": MdButtonAttrs;
+      "md-italic": MdButtonAttrs;
+      "md-unordered-list": MdButtonAttrs;
+      "md-ordered-list": MdButtonAttrs;
+    }
+  }
+}
+```
+
+(Project tsconfig uses the classic JSX namespace; if it switches to `react-jsx`, the same shape lives under `React.JSX` instead.)
+
+### `MarkdownToolbar.tsx`
+
+```tsx
+import "@github/markdown-toolbar-element";
+import { forwardRef } from "react";
+import { BoldIcon } from "../lib/ui/icons/bold";
+import { ItalicIcon } from "../lib/ui/icons/italic";
+import { BulletListIcon } from "../lib/ui/icons/bullet-list";
+import { NumberedListIcon } from "../lib/ui/icons/numbered-list";
+import styles from "./MarkdownToolbar.module.css";
+
+type Props = {
+  htmlFor: string;
+  boldRef?: React.RefObject<HTMLElement>;
+  italicRef?: React.RefObject<HTMLElement>;
+};
+
+export function MarkdownToolbar({ htmlFor, boldRef, italicRef }: Props) {
+  return (
+    <markdown-toolbar for={htmlFor} className={styles.toolbar}>
+      <md-bold ref={boldRef} className={styles.button} aria-label="Bold (⌘B)">
+        <BoldIcon />
+      </md-bold>
+      <md-italic ref={italicRef} className={styles.button} aria-label="Italic (⌘I)">
+        <ItalicIcon />
+      </md-italic>
+      <md-unordered-list className={styles.button} aria-label="Bullet list">
+        <BulletListIcon />
+      </md-unordered-list>
+      <md-ordered-list className={styles.button} aria-label="Numbered list">
+        <NumberedListIcon />
+      </md-ordered-list>
+    </markdown-toolbar>
+  );
+}
+```
+
+Use `className`, not `class` — React 18 still translates `className` → `class` for custom-element JSX intrinsics typed as `HTMLElement`. The `DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>` type already includes `className`.
+
+### `MarkdownToolbar.module.css`
+
+`<md-bold>` and friends register themselves with `role="button"` but ship with no default styling — they render as inline elements with no border, padding, or focus ring. Our CSS gives them the same look as `IconButton`, using existing screen tokens. Sketch:
+
+```css
+.toolbar {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.button:hover {
+  background: var(--color-surface-hover);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.button[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.button > svg {
+  width: 1rem;
+  height: 1rem;
+}
+```
+
+Final tuning during implementation against the existing editor visuals. No new tokens needed.
+
+### `CardEditor.tsx` wiring
+
+The body field section becomes:
 
 ```tsx
 const bodyRef = useRef<HTMLTextAreaElement>(null);
-
-const runCommand = (cmd: Command) => {
-  const ta = bodyRef.current;
-  if (!ta) return;
-  const state: EditorState = {
-    value: ta.value,
-    selectionStart: ta.selectionStart,
-    selectionEnd: ta.selectionEnd,
-  };
-  const edit =
-    cmd === "bold"     ? toggleWrap(state, "**")
-  : cmd === "italic"   ? toggleWrap(state, "_")
-  : cmd === "bullet"   ? togglePrefix(state, "bullet")
-  :                      togglePrefix(state, "numbered");
-  applyEditToTextarea(ta, edit, (nextValue) =>
-    onChange({ ...card, body: nextValue, updatedAt: nowIso() }),
-  );
-};
+const boldRef = useRef<HTMLElement>(null);
+const italicRef = useRef<HTMLElement>(null);
 
 const onBodyKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
   if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
-  if (e.key === "b" || e.key === "B") {
+  const k = e.key.toLowerCase();
+  if (k === "b") {
     e.preventDefault();
-    runCommand("bold");
-  } else if (e.key === "i" || e.key === "I") {
+    boldRef.current?.click();
+  } else if (k === "i") {
     e.preventDefault();
-    runCommand("italic");
+    italicRef.current?.click();
   }
 };
-```
 
-`onKeyDown` flows through the existing `...rest` spread on the `Textarea` primitive. `ref` does not — the primitive is a plain function component today (`src/lib/ui/Textarea.tsx`). Wrap it in `forwardRef<HTMLTextAreaElement, TextareaProps>` so `bodyRef` reaches the underlying `<textarea>`. No other call site is affected.
+// …
 
-The toolbar sits above the textarea inside the body field's `<label>`:
-
-```tsx
 <label className={styles.field} htmlFor={ids.body}>
   <span className={styles.label}>Body</span>
-  <MarkdownToolbar onCommand={runCommand} />
+  <MarkdownToolbar htmlFor={ids.body} boldRef={boldRef} italicRef={italicRef} />
   <Textarea
     ref={bodyRef}
     id={ids.body}
@@ -230,84 +223,68 @@ The toolbar sits above the textarea inside the body field's `<label>`:
 </label>
 ```
 
+Why click the `<md-*>` element instead of dispatching directly: the library reads the textarea state on every click event it receives. Triggering a click is the public API; reaching past it isn't.
+
+`bodyRef` is included for completeness (a focused textarea is what the library targets, located via the `for=` attribute on `<markdown-toolbar>`). It also lets future features hook in without re-plumbing.
+
+### `Textarea` ref forwarding
+
+`src/lib/ui/Textarea.tsx` is a plain function component today and doesn't forward `ref`. Wrap it in `forwardRef<HTMLTextAreaElement, TextareaProps>` so `bodyRef` reaches the underlying `<textarea>`. No call site is affected — none currently pass a ref.
+
 ### Icons
 
-Four new SVGs under `src/lib/ui/icons/` — `bold.tsx`, `italic.tsx`, `bullet-list.tsx`, `numbered-list.tsx` — matching the existing icon pattern (24×24 stroke icons). Sourced from the same set as the other editor icons; final visual choice tuned during implementation.
-
-### Styling
-
-`MarkdownToolbar.module.css` is short:
-
-```css
-.toolbar {
-  display: flex;
-  gap: var(--space-1);
-  margin-top: var(--space-1);
-}
-```
-
-No new tokens required. Buttons inherit `IconButton`'s focus ring, hover state, and disabled state.
+Four new SVGs under `src/lib/ui/icons/` matching the existing 24×24 stroke style: `bold.tsx`, `italic.tsx`, `bullet-list.tsx`, `numbered-list.tsx`. Visual choice tuned during implementation against representative cards.
 
 ## Testing
 
 ### Vitest (jsdom)
 
-- **`commands.test.ts`** — the bulk of the coverage. Table-driven tests for every branch of `toggleWrap` and `togglePrefix`:
-  - `toggleWrap`:
-    - Empty value, empty selection → `****`, caret between.
-    - Selection plain text → wrap.
-    - Selection includes markers (`**foo**`) → strip.
-    - Selection between markers (`foo` with `**` immediately around) → strip.
-    - Multi-line selection wraps the whole range as one (single pair of markers).
-    - Selection at start / end of value (no out-of-bounds when probing for outer markers).
-    - `_` italic marker behaves identically to `**`.
-  - `togglePrefix`:
-    - Single-line caret, no prefix → adds prefix.
-    - Single-line caret, has prefix → strips.
-    - Multi-line selection, none prefixed → adds to all.
-    - Multi-line selection, all prefixed → strips from all.
-    - Multi-line selection, mixed → adds to all.
-    - Numbered renumbers from `1.` regardless of any source numbering.
-    - Selection ending exactly on a newline doesn't pull in the next line.
-    - Empty value (caret at 0) — adds prefix on the current empty line, no crash.
-- **`MarkdownToolbar.test.tsx`** — renders, `getByRole("button", { name: "Bold" })` etc. exist, `userEvent.click(boldButton)` calls `onCommand` with `"bold"`. `onMouseDown.preventDefault` is exercised implicitly by `userEvent`.
-- **`CardEditor.test.tsx`** — extend. `Cmd+B` keystroke on the body textarea triggers the bold command path; assert via the `onChange` it receives. Does **not** assert on the result of DOM mutation (that's Playwright's job — execCommand isn't real here).
+Web components register via the `customElements` registry, which jsdom supports.
+
+- **`MarkdownToolbar.test.tsx`** —
+  - Renders four buttons; each has the expected `aria-label` (`getByRole("button", { name: /bold/i })`, etc.).
+  - The `<markdown-toolbar>` element has the right `for` attribute pointing at the linked textarea id.
+  - Clicking a button does not throw (the library's `execCommand` path will exercise jsdom's behavior; jsdom does not implement `execCommand`, so the library's fallback runs — that's fine, we're only asserting the React/DOM glue here, not formatting behavior).
+
+- **`CardEditor.test.tsx`** — extend.
+  - `Cmd+B` keystroke on the body textarea calls `boldRef.current.click()`. Spy on the click via `userEvent` + `addEventListener`, assert dispatched.
+  - `Cmd+I` similarly.
+  - `Cmd+Shift+B` does not trigger bold (modifier guard).
+
+The pure-helper tests from the previous design are gone — the helpers no longer exist.
 
 ### Playwright (`e2e/editor-markdown.spec.ts`)
 
-Real Chromium; this is where the DOM-mutating behavior is verified end-to-end.
+Real Chromium; the only place we verify formatting actually happens.
 
-- Load the editor for a card.
 - **Toolbar bold:** type "hello world", select "hello", click Bold. Textarea reads `**hello** world`. Click Bold again — back to `hello world`.
-- **Keyboard bold:** type "abc", select "abc", press Cmd+B. Reads `**abc**`.
+- **Keyboard bold:** type "abc", select "abc", press Cmd/Meta+B. Reads `**abc**`.
 - **Italic:** same pair of cases for `Cmd+I` / italic button.
 - **Bullet multi-line:** type three lines, select all, click Bullet. All three lines get `- ` prefix. Click again — prefixes gone.
-- **Numbered multi-line:** same setup, click Numbered. Lines read `1. one\n2. two\n3. three`.
-- **Undo preservation:** type "hello world", select "world", click Bold (now `hello **world**`). Press Cmd+Z (or `keyboard.press("Meta+z")` / `Control+z` per platform). Textarea reverts to `hello world`. Press Cmd+Z again — typed text begins to undo character by character.
+- **Numbered multi-line:** same setup, click Numbered. Lines read `1. one\n2. two\n3. three` (or whatever the library produces — assert on the actual library behavior, not a guess).
+- **Undo preservation:** type "hello world", select "world", click Bold (now `hello **world**`). Press Cmd/Meta+Z. Textarea reverts to `hello world`. Press Cmd/Meta+Z again — typed text begins to undo character by character.
 - **Focus retention:** click a toolbar button; `document.activeElement` is still the textarea.
 
 ## Edge cases
 
-- **execCommand returns false / unsupported.** Fallback path (`onChange` with computed value); Cmd+Z then collapses the toolbar click into one undo entry. Documented behavior.
-- **Selection at value boundary** when checking for outer markers (case 2 of `toggleWrap`). Helper guards `s - m.length >= 0` and `e + m.length <= value.length` before slicing.
-- **Multi-byte characters in selection.** JS string indices are UTF-16 code units, which is what `selectionStart`/`selectionEnd` already use. No special handling needed.
-- **Numbered list >9 items.** `1. … 10. … 11.` — works fine; helper just counts.
-- **Caret at end of an empty line** when toggling a list. Treated as a line of zero characters; gets `- ` (or `1. `) prepended; caret remains after the prefix. (The `replacement` ends with the prefix, and post-edit selection is at `replaceStart + replacement.length`.)
-- **A line that is whitespace-only** (e.g., spaces). Gets prefixed in add mode; the prefix-detection regex on strip mode requires the prefix at the start of the line content (not before the leading whitespace), so a line like `   - foo` strips to `   foo`. We anchor the strip regex to `^[ \t]*(- |\d+\.\s+)?` and re-emit the leading whitespace.
-- **Selection of just the marker characters** (e.g., user selects `**` and presses Cmd+B). `e - s === 2` fails the case-1 length guard, so the helper falls through to case 4 (wrap), producing `****`. Acceptable and matches what GitHub does.
+- **`execCommand` unsupported.** The library falls back to direct `value` assignment with `ms-beginUndoUnit`/`ms-endUndoUnit` wrapping (its existing fallback). Cmd+Z then collapses the toolbar action into one undo entry. Documented degradation; no work for us.
+- **`<markdown-toolbar>` rendered without a matching textarea id.** The library's click handlers no-op; nothing else breaks. Not a real failure mode in our app — `htmlFor` always matches a real id from `useId`.
+- **Form submission.** `<md-bold>` etc. set `role="button"` but are not `<button type=…>` elements; they will not submit a parent form. The card editor's `<form>` already has `onSubmit={(e) => e.preventDefault()}`, so this is a non-issue.
+- **Keyboard layout.** `e.key` reads the produced character, which on most layouts gives `b`/`i` as expected. On non-Latin layouts where Cmd+B types something else, the shortcut won't fire — same behavior as Google Docs and similar editors. Not worth complicating with `e.code`.
 
 ## Risks
 
-- **`execCommand` removal in some future browser.** Mitigated by feature detection + fallback. The fallback is functionally correct; only the granularity of native undo degrades.
-- **`Textarea` `forwardRef` change.** Shared primitive change, but unobservable to existing call sites — they pass no `ref`, and `forwardRef` is type-compatible with the current `(props) => JSX` shape.
-- **Keyboard shortcut conflict with browser bookmarks bar (`Cmd+B`).** `preventDefault` on the textarea-scoped handler is sufficient; Chrome/Firefox/Safari all let the page swallow `Cmd+B` when fired on a focused editable element.
-- **Toolbar icons not yet picked.** Visual choice is small but real; expect a brief tuning step during implementation. Spec doesn't gate on it.
+- **Library maintenance / removal.** GitHub uses the library on github.com daily; archival risk is low. If it ever happens, the library is small enough to vendor.
+- **Web-component lifecycle in tests.** jsdom supports custom elements but quirks exist. Mitigated by keeping Vitest assertions DOM-shaped (aria-labels, attributes) rather than formatting-shaped, and pushing real-behavior assertions into Playwright.
+- **TypeScript intrinsic drift.** If the project's tsconfig flips to `react-jsx`, the JSX namespace declaration moves from `JSX.IntrinsicElements` to `React.JSX.IntrinsicElements`. One-line fix when it happens.
+- **Visual drift from `IconButton`.** The toolbar buttons replicate IconButton's appearance via a separate CSS module rather than reusing the React primitive (we can't nest a real `<button>` inside `role="button"`). If IconButton's styling evolves, MarkdownToolbar's CSS may lag. Mitigated by referencing the same screen tokens; flagged here so a future design-system pass knows to check both.
 
 ## Out of scope
 
 - Cmd+Shift+8 / Cmd+Shift+7 list shortcuts.
-- Enter-continues-list / Enter-on-empty-list-line-exits.
+- Enter-continues-list / Enter-on-empty-list-line-exits — not provided by the library.
+- Active-state highlighting on toolbar buttons.
 - Live preview, WYSIWYG, or any rich-text model.
-- Link, table, code-block, heading, checklist, blockquote affordances.
+- Link, table, code-block, heading, checklist, blockquote, mention, or ref affordances.
 - A `MarkdownEditor` primitive in `src/lib/ui/`. Re-evaluate if a second consumer ever appears.
 - A migration that auto-formats existing cards.
