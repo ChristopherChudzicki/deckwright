@@ -1,5 +1,4 @@
 .signInLink {
-  margin-left: auto;
   color: var(--color-text);
   text-decoration: none;
   padding: var(--space-1) var(--space-2);
@@ -10,8 +9,12 @@
   background: var(--color-surface-2);
 }
 
+.signInLink:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 .trigger {
-  margin-left: auto;
   width: 2rem;
   height: 2rem;
   border-radius: 50%;

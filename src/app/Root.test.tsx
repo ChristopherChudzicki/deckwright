@@ -41,7 +41,9 @@ describe("<Root>", () => {
   it("does not render the GitHub link inside the header", () => {
     renderRoot();
     const banner = screen.getByRole("banner");
-    expect(within(banner).queryByRole("link", { name: /github/i })).not.toBeInTheDocument();
+    expect(
+      within(banner).queryByRole("link", { name: /view source on github/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders the GitHub link inside the footer", () => {
