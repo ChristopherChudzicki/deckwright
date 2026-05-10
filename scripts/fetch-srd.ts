@@ -2,7 +2,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { z } from "zod";
-import { magicItemListSchema, spellListSchema } from "../src/data/srd-schema";
+import {
+  magicItemListSchema,
+  mundaneItemListSchema,
+  spellListSchema,
+} from "../src/data/srd-schema";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -34,6 +38,11 @@ const RESOURCES: ResourceConfig[] = [
     url: (r) =>
       `https://api.open5e.com/v2/spells/?document__key=${documentKey(r)}&limit=${FETCH_LIMIT}`,
     schema: spellListSchema,
+  },
+  {
+    name: "mundane-items",
+    url: (r) => `https://api.open5e.com/v2/items/?document=${documentKey(r)}&limit=${FETCH_LIMIT}`,
+    schema: mundaneItemListSchema,
   },
 ];
 
