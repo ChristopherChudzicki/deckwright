@@ -8,7 +8,7 @@ The browse dialog currently exposes two SRD content types: magic items (sourced 
 
 Add a third content type, **Mundane Items**, sourced one-for-one from Open5e v2 `/items/` for both srd-2014 and srd-2024 rulesets. Surface it as a sidebar entry in the existing browse dialog. Each row converts to a card whose header tags carry the item's mechanical structure (damage, AC, properties, mastery, range), body carries the item's `desc`, and footer tags carry cost and weight. No db migration. No new card kind.
 
-The tabs ↔ endpoints mapping is the spec's mental model: rarity-bearing items are magic and live in `/magicitems/`; rarity-less items are mundane and live in `/items/`. We adopt Open5e's categorization as authoritative even when individual entries (e.g., Airship, Ioun Stone) are arguably magical in flavor — they have no rarity, aren't on the DMG rarity tables, and Open5e places them in `/items/`, so the Mundane Items tab is where they appear.
+The browse dialog exposes a single "Items" tab that merges entries from both `/v2/magicitems/` (rarity-bearing magic items) and `/v2/items/` (the SRD's umbrella item list, which also includes rarity-less magical entries that Open5e didn't denormalize — generic Potion of Healing, Spell Scroll, Potion of Giant Strength, etc.). Combining them avoids a confusing UX in which a user searching for "ioun stone" or "potion of healing" would have to know Open5e's classification quirks. Both endpoints feed one tab; each row carries enough origin context (its slug + which mapper to use) to produce a card with the correct shape regardless of source.
 
 ## Non-goals
 
@@ -24,12 +24,11 @@ The tabs ↔ endpoints mapping is the spec's mental model: rarity-bearing items 
 
 ### Coverage
 
-| Tab | Source | srd-2024 | srd-2014 |
+| Tab | Sources | srd-2024 | srd-2014 |
 |---|---|---|---|
-| Magic Items (existing) | `/v2/magicitems/?document=srd-{ruleset}` | 757 | 499 |
-| Mundane Items (new) | `/v2/items/?document=srd-{ruleset}` | 203 | 237 |
+| Items | `/v2/magicitems/` + `/v2/items/` (`?document=srd-{ruleset}`) | 960 | 736 |
 
-The two endpoints are completely disjoint by key (verified empirically — zero shared slugs in either direction). No deduplication or merging is required. `/items/` does include a handful of entries categorized as `potion` / `wondrous-item` / `scroll` / `ring` / `wand` etc.; these surface in the Mundane Items tab — that's where Open5e puts them, and they lack a rarity field. The full list:
+The two endpoints are completely disjoint by key (verified empirically — zero shared slugs in either direction). No deduplication or merging is required. `/items/` does include a handful of entries categorized as `potion` / `wondrous-item` / `scroll` / `ring` / `wand` etc.; these surface in the unified Items tab — that's where Open5e puts them, and they lack a rarity field. The full list:
 
 - **srd-2024 (8):** `airship`, `antitoxin`, `case-map-or-scroll`, `ioun-stone`, `potion-of-giant-strength`, `potion-of-healing`, `potions-of-healing`, `spell-scroll`. The four `potion-*` / `spell-scroll` entries are generic parents whose individual variants (`Potion of Hill Giant Strength`, `Spell Scroll, 1st Level`, …) live in `/magicitems/`.
 - **srd-2014 (5):** `rod`, `staff`, `wand` (generic parents; variants in `/magicitems/`); `signet-ring`, `yew-wand` (mundane items Open5e categorizes as ring/wand).
@@ -128,20 +127,15 @@ Open5e returns cost as a non-null decimal-gold string (`"10.00"`, `"0.05"`, `"0.
 
 All real SRD costs across both rulesets fall on integer cp / sp / gp values; the mapper does not need to render fractional denominations.
 
-### Internal rename of the magic-items module
+### Internal: unified `items.ts` content type
 
-The existing magic-items content type registers itself with `id: "items"` and is exported as `itemsContentType` from `src/api/content-types/items.ts`. With a second item-shaped content type entering the registry, the bare name "items" becomes ambiguous (which one — magic or mundane?). Rename the existing module fully, in the same change as adding the new tab:
-
-| What | Before | After |
-|---|---|---|
-| File path | `src/api/content-types/items.ts` | `src/api/content-types/magic-items.ts` |
-| Exported symbol | `itemsContentType` | `magicItemsContentType` |
-| `id` literal | `"items"` | `"magic-items"` |
-| Label (no change) | `"Magic Items"` | `"Magic Items"` |
-
-The id is used only as a React Aria tab key inside `BrowseApiModal.tsx` (no persistence, no URL state, no db reference). The user-facing change is zero. The new mundane content type registers with `id: "mundane-items"` and is exported as `mundaneItemsContentType` from `src/api/content-types/mundane-items.ts`.
-
-The endpoint, mapper, hook, and bundled-JSON file names already use the unambiguous `magicItems` / `magicitems` prefixes (`endpoints/magicItems.ts`, `mappers/magicItems.ts`, `useMagicItemIndex`, `srd-{ruleset}-magicitems.json`); they do not change.
+Earlier in the branch, the existing `content-types/items.ts` module was renamed to
+`content-types/magic-items.ts` to make room for a sibling `content-types/mundane-items.ts`.
+The unified design supersedes that split: a single `content-types/items.ts` module calls
+both `useMagicItemIndex` and `useMundaneItemIndex`, merges and sorts the rows
+alphabetically, and routes each row through the appropriate mapper at click time.
+The two intermediate sibling modules (`magic-items.ts`, `mundane-items.ts`) are
+deleted; only the unified `items.ts` remains.
 
 ### Files added
 
@@ -149,7 +143,7 @@ The endpoint, mapper, hook, and bundled-JSON file names already use the unambigu
 |---|---|
 | `src/api/endpoints/mundaneItems.ts` | `fetchMundaneItemsIndex(ruleset)` — loads `src/data/srd-{ruleset}-mundane-items.json`. Mirrors `endpoints/magicItems.ts`. |
 | `src/api/mappers/mundaneItems.ts` | `mundaneItemDetailToCard(detail)` — produces an `ItemCard`. |
-| `src/api/content-types/mundane-items.ts` | `mundaneItemsContentType` (id `mundane-items`, label "Mundane Items"). |
+| `src/api/content-types/items.ts` | `itemsContentType` (id `items`, label "Items") — unified module calling both `useMagicItemIndex` and `useMundaneItemIndex`, replacing the former `magic-items.ts` and `mundane-items.ts` siblings. |
 | `src/data/srd-2014-mundane-items.json` | Bundled fetch output (committed, like the existing magic-item / spell bundles). |
 | `src/data/srd-2024-mundane-items.json` | Bundled fetch output. |
 
@@ -160,8 +154,7 @@ The endpoint, mapper, hook, and bundled-JSON file names already use the unambigu
 | `src/data/srd-schema.ts` | Add `mundaneItemSchema` (Zod) and `mundaneItemDetailSchema`. |
 | `scripts/fetch-srd.ts` | Add a `mundane-items` resource entry with endpoint URL, schema, and output filenames per ruleset. |
 | `src/api/hooks.ts` | Add `useMundaneItemIndex(ruleset)` (TanStack Query wrap; mirror existing `useMagicItemIndex` naming). |
-| `src/api/content-types/index.ts` | Update import: `itemsContentType` → `magicItemsContentType` from `./magic-items`. Add `mundaneItemsContentType` import from `./mundane-items`. Registry array becomes `[magicItemsContentType, mundaneItemsContentType, spellsContentType]`. |
-| `src/api/content-types/items.ts` → `src/api/content-types/magic-items.ts` | File rename. Inside, rename exported symbol `itemsContentType` → `magicItemsContentType` and change `id` literal to `"magic-items"`. Label unchanged. |
+| `src/api/content-types/index.ts` | Update imports to use unified `itemsContentType` from `./items`. Registry array becomes `[itemsContentType, spellsContentType]`. |
 | `src/api/factories.ts` | Add `mundaneItemDetailFactory`, `mundaneItemIndexEntryFactory`, `mundaneItemIndexFactory` for parity with the three existing magic-item factories. |
 
 ### Files left alone
@@ -192,18 +185,15 @@ Mirror the existing magic-item test structure.
 - Sanity floor: each ruleset's bundle has at least 150 entries (catches partial-page bundling failures; actual counts are 203 / 237).
 
 `src/views/BrowseApiModal.test.tsx`:
-- Update existing tab-presence assertions: the sidebar list grows from `["Magic Items", "Spells"]` to `["Magic Items", "Mundane Items", "Spells"]`.
-- New: switch to "Mundane Items", filter the results, click a row, and assert the saved card carries the expected `headerTags` / `footerTags` shape (e.g., a Battleaxe save persists `Weapon` / `Martial` / `1d8 slashing` / property tags / `4 lb`).
-- The new tab inherits the existing loading / empty / error / Retry behavior via `TypePanel`; the mapping-level tests above are sufficient and we do not duplicate the panel-state assertions per content type.
-- Source dropdown: assert that switching ruleset within the Mundane Items tab refetches and re-renders.
-
-Sidebar order is `[Magic Items, Mundane Items, Spells]` to preserve the existing first-tab default — users opening the dialog land on the same tab they did before this change.
+- Update the tab-presence assertion: the sidebar list stays at `["Items", "Spells"]` (the existing "Items" tab is reused; no third tab is added).
+- New: click a mundane item row from the Items tab and assert the saved card carries the expected `headerTags` / `footerTags` shape (e.g., a Battleaxe save persists `Weapon` / `Martial` / `1d8 slashing` / property tags / `4 lb`).
+- Add a test that the unified Items tab merges magic and mundane sources alphabetically (a magic item and a mundane item are both visible, ordered by name).
+- The unified tab inherits the existing loading / empty / error / Retry behavior via `TypePanel`; the mapping-level tests above are sufficient and we do not duplicate the panel-state assertions per content type.
 
 ## Risks and follow-ups
 
-- **Label honesty / discoverability.** A user who searches for "ioun stone" or "airship" in the Magic Items tab gets zero results, because Open5e places those entries in `/items/`. The "rarity → magic, no rarity → mundane" rule is honest about why, but the user has to know it. Cheap follow-up: when a search returns zero results in one item tab, surface a hint "no results in {Magic|Mundane} Items — try the other tab?". Out of scope here.
 - **Sparse mundane weapon/armor descs.** Battleaxe's body is literally `"A battleaxe."`. Header tags carry the mechanical content; body is intentionally thin. Users wanting richer prose can edit the card after saving. A planned follow-up is build-time LLM summarization of bodies (some are too long to fit a card and need shrinking; mundane bodies could go the other way and get fleshed out, with structured-field tag extraction as a side benefit).
 - **Range info lives in property `(detail)` strings.** Header tags read `Ammunition (Range 150/600; Arrow)` rather than a clean `Range 150/600 ft` tag. Verbose but factually correct. The same future LLM extraction step could promote range to its own tag.
-- **Open5e categorization quirks.** A handful of items per ruleset (8 in srd-2024, 5 in srd-2014, enumerated in Coverage) are arguably mis-categorized by Open5e. We don't curate; the mundane tab includes whatever Open5e chose to put in `/items/`.
+- **Open5e categorization quirks.** A handful of items per ruleset (8 in srd-2024, 5 in srd-2014, enumerated in Coverage) are arguably mis-categorized by Open5e (e.g., Ioun Stone, generic Potion of Healing entries). The unified Items tab incorporates these transparently — users see all items in one place without needing to know Open5e's classification.
 - **Future `/weapons/` and `/armor/` integration.** If we ever want a richer body composition for these categories, the dedicated endpoints are available; we already proved `/items/` carries the same structured fields, so it's a body-composition decision rather than a fetch decision.
 - **Future `apiRef.contentType` field.** Not needed today (slugs are disjoint between endpoints), but if a "refresh from source" feature ever lands, the cheap path is to add an optional `contentType: "items" | "magicitems" | "spells"` to `apiRef` so cards know which endpoint to refetch from. Out of scope here.
