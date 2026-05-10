@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { invariant } from "../lib/invariant";
 import type { PhysicalCard } from "./expandCard";
 import { itemCardFactory } from "./factories";
 import { pairSlots } from "./pairSlots";
@@ -30,7 +31,9 @@ describe("pairSlots", () => {
     const card = itemCardFactory.build();
     const slots = pairSlots([physical(card)], { contentOnBack: true });
     expect(slots).toHaveLength(1);
-    expect(slots[0]!.back).toBeUndefined();
+    const [slot0] = slots;
+    invariant(slot0, "expected slots[0]");
+    expect(slot0.back).toBeUndefined();
   });
 
   test("single 2-page card collapses to one paired slot", () => {
@@ -38,8 +41,10 @@ describe("pairSlots", () => {
     const cards = [physical(card, 1, 2), physical(card, 2, 2)];
     const slots = pairSlots(cards, { contentOnBack: true });
     expect(slots).toHaveLength(1);
-    expect(slots[0]!.front.pagination?.page).toBe(1);
-    expect(slots[0]!.back?.pagination?.page).toBe(2);
+    const [slot0] = slots;
+    invariant(slot0, "expected slots[0]");
+    expect(slot0.front.pagination?.page).toBe(1);
+    expect(slot0.back?.pagination?.page).toBe(2);
   });
 
   test("single 3-page card produces two slots, last with no back", () => {
@@ -47,10 +52,13 @@ describe("pairSlots", () => {
     const cards = [physical(card, 1, 3), physical(card, 2, 3), physical(card, 3, 3)];
     const slots = pairSlots(cards, { contentOnBack: true });
     expect(slots).toHaveLength(2);
-    expect(slots[0]!.front.pagination?.page).toBe(1);
-    expect(slots[0]!.back?.pagination?.page).toBe(2);
-    expect(slots[1]!.front.pagination?.page).toBe(3);
-    expect(slots[1]!.back).toBeUndefined();
+    const [slot0, slot1] = slots;
+    invariant(slot0, "expected slots[0]");
+    invariant(slot1, "expected slots[1]");
+    expect(slot0.front.pagination?.page).toBe(1);
+    expect(slot0.back?.pagination?.page).toBe(2);
+    expect(slot1.front.pagination?.page).toBe(3);
+    expect(slot1.back).toBeUndefined();
   });
 
   test("single 4-page card produces two paired slots", () => {
@@ -63,10 +71,13 @@ describe("pairSlots", () => {
     ];
     const slots = pairSlots(cards, { contentOnBack: true });
     expect(slots).toHaveLength(2);
-    expect(slots[0]!.front.pagination?.page).toBe(1);
-    expect(slots[0]!.back?.pagination?.page).toBe(2);
-    expect(slots[1]!.front.pagination?.page).toBe(3);
-    expect(slots[1]!.back?.pagination?.page).toBe(4);
+    const [slot0, slot1] = slots;
+    invariant(slot0, "expected slots[0]");
+    invariant(slot1, "expected slots[1]");
+    expect(slot0.front.pagination?.page).toBe(1);
+    expect(slot0.back?.pagination?.page).toBe(2);
+    expect(slot1.front.pagination?.page).toBe(3);
+    expect(slot1.back?.pagination?.page).toBe(4);
   });
 
   test("two distinct 1-page cards stay unpaired", () => {
@@ -76,10 +87,13 @@ describe("pairSlots", () => {
       contentOnBack: true,
     });
     expect(slots).toHaveLength(2);
-    expect(slots[0]!.front.card).toBe(cardA);
-    expect(slots[0]!.back).toBeUndefined();
-    expect(slots[1]!.front.card).toBe(cardB);
-    expect(slots[1]!.back).toBeUndefined();
+    const [slot0, slot1] = slots;
+    invariant(slot0, "expected slots[0]");
+    invariant(slot1, "expected slots[1]");
+    expect(slot0.front.card).toBe(cardA);
+    expect(slot0.back).toBeUndefined();
+    expect(slot1.front.card).toBe(cardB);
+    expect(slot1.back).toBeUndefined();
   });
 
   test("two consecutive 2-page cards each pair within their own card", () => {
@@ -93,9 +107,12 @@ describe("pairSlots", () => {
     ];
     const slots = pairSlots(cards, { contentOnBack: true });
     expect(slots).toHaveLength(2);
-    expect(slots[0]!.front.card).toBe(cardA);
-    expect(slots[0]!.back?.card).toBe(cardA);
-    expect(slots[1]!.front.card).toBe(cardB);
-    expect(slots[1]!.back?.card).toBe(cardB);
+    const [slot0, slot1] = slots;
+    invariant(slot0, "expected slots[0]");
+    invariant(slot1, "expected slots[1]");
+    expect(slot0.front.card).toBe(cardA);
+    expect(slot0.back?.card).toBe(cardA);
+    expect(slot1.front.card).toBe(cardB);
+    expect(slot1.back?.card).toBe(cardB);
   });
 });
