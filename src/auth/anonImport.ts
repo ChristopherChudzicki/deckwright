@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "../api/database.types";
 
 const STORAGE_KEY = "dndCards.pendingAnonImport";
 
@@ -34,7 +35,7 @@ export type ResumeResult =
   | { kind: "partial"; importedCount: number; total: number };
 
 export async function tryResume(args: {
-  supabase: SupabaseClient;
+  supabase: SupabaseClient<Database>;
   currentUserId: string;
   onProgress?: (imported: number, total: number) => void;
 }): Promise<ResumeResult> {
@@ -68,11 +69,9 @@ export async function tryResume(args: {
       continue;
     }
 
-    const oldDeckRow = oldDeck as { id: string; name: string };
-
     const { data: newDeck, error: insertDeckError } = await args.supabase
       .from("decks")
-      .insert({ owner_id: args.currentUserId, name: oldDeckRow.name })
+      .insert({ owner_id: args.currentUserId, name: oldDeck.name })
       .select()
       .single();
     if (insertDeckError) {
@@ -88,10 +87,10 @@ export async function tryResume(args: {
       return { kind: "partial", importedCount: imported, total };
     }
 
-    const cardRows = (cards ?? []) as Array<{ position: number; payload: unknown }>;
+    const cardRows = cards ?? [];
     if (cardRows.length > 0) {
       const rows = cardRows.map((c) => ({
-        deck_id: (newDeck as { id: string }).id,
+        deck_id: newDeck.id,
         position: c.position,
         payload: c.payload,
       }));

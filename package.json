@@ -17,6 +17,7 @@
     "typecheck": "tsc -b --noEmit",
     "gen:schema": "tsx scripts/gen-card-schema.ts",
     "check:schema": "tsx scripts/gen-card-schema.ts --check",
+    "gen:db-types": "supabase gen types typescript --local --schema public > src/api/database.types.ts",
     "fetch:srd": "tsx scripts/fetch-srd.ts",
     "gen:og": "tsx scripts/generate-og.ts"
   },

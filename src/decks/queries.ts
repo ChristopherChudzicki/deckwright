@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../api/supabase";
 import type { Card } from "../cards/types";
 import { rowToCard } from "./rowMappers";
-import type { CardRow, DeckSummary, PublicDeck } from "./types";
+import type { DeckSummary, PublicDeck } from "./types";
 
 export const decksKey = () => ["decks"] as const;
 export const deckKey = (deckId: string | undefined) => ["deck", deckId] as const;
@@ -18,7 +18,7 @@ export function useDecks() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("list_my_decks");
       if (error) throw error;
-      return (data ?? []) as DeckSummary[];
+      return data ?? [];
     },
   });
 }
@@ -42,7 +42,7 @@ export function useDeck(deckId: string | undefined) {
       if (error) throw error;
       // Return null (not undefined) on miss: TanStack Query v5 throws if a
       // queryFn returns undefined.
-      return (data ?? null) as PublicDeck | null;
+      return data ?? null;
     },
   });
 }
@@ -58,7 +58,7 @@ export function useDeckCards(deckId: string | undefined) {
       if (!deckId) return [];
       const { data, error } = await supabase.rpc("get_public_deck_cards", { deck_id: deckId });
       if (error) throw error;
-      return ((data ?? []) as CardRow[]).map(rowToCard);
+      return (data ?? []).map(rowToCard);
     },
   });
 }
