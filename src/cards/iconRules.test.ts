@@ -180,228 +180,53 @@ describe("pickSpellIconKey — school detection", () => {
 });
 
 describe("pickSpellIconKey — name keyword rules (run before school)", () => {
-  test("Fireball → fireball (specific icon, overrides generic fire rule)", () => {
-    const card = spellCardFactory.build({
-      name: "Fireball",
-      headerTags: ["3rd-level evocation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("fireball");
+  // Default factory headerTags ("1 action", "60 feet", "Instantaneous") don't
+  // trigger any name rule, so name alone determines the iconKey for these.
+  test.each([
+    // Specific-name overrides that beat more generic patterns later in the list
+    { name: "Faerie Fire", expected: "sun" },
+    { name: "Sacred Flame", expected: "holy-symbol" },
+    { name: "Fireball", expected: "fireball" },
+    // Element / damage-type rules
+    { name: "Wall of Fire", expected: "fire-flower" },
+    { name: "Lightning Bolt", expected: "lightning-arc" },
+    { name: "Thunderwave", expected: "lightning-arc" },
+    { name: "Cone of Cold", expected: "ice-cube" },
+    { name: "Cloudkill", expected: "poison-cloud" },
+    // Healing / divine — note: heal rule fires before power-word, so
+    // "Power Word Heal" intentionally lands on caduceus, not skull.
+    { name: "Cure Wounds", expected: "caduceus" },
+    { name: "Bless", expected: "holy-symbol" },
+    { name: "Searing Smite", expected: "holy-symbol" },
+    { name: "Power Word Heal", expected: "caduceus" },
+    { name: "Power Word Kill", expected: "skull-crossed-bones" },
+    // Protection / movement
+    { name: "Shield", expected: "magic-shield" },
+    { name: "Fly", expected: "feathered-wing" },
+    { name: "Feather Fall", expected: "feathered-wing" },
+    // Mind effects
+    { name: "Sleep", expected: "night-sleep" },
+    { name: "Charm Person", expected: "charm" },
+    { name: "Hold Person", expected: "charm" },
+    { name: "Cause Fear", expected: "evil-eyes" },
+    { name: "Bestow Curse", expected: "cursed-star" },
+    // Conjuration / detection / light
+    { name: "Find Familiar", expected: "magic-portal" },
+    { name: "Misty Step", expected: "magic-portal" },
+    { name: "Detect Magic", expected: "evil-eyes" },
+    { name: "Daylight", expected: "sun" },
+    { name: "Moonbeam", expected: "moon" },
+  ])("'$name' picks '$expected'", ({ name, expected }) => {
+    const card = spellCardFactory.build({ name });
+    expect(pickSpellIconKey(card)).toBe(expected);
   });
 
-  test("Wall of Fire → fire-flower (generic fire rule still fires for non-Fireball spells)", () => {
-    const card = spellCardFactory.build({
-      name: "Wall of Fire",
-      headerTags: ["4th-level evocation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("fire-flower");
-  });
-
-  test("Lightning Bolt → lightning-arc", () => {
-    const card = spellCardFactory.build({
-      name: "Lightning Bolt",
-      headerTags: ["3rd-level evocation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("lightning-arc");
-  });
-
-  test("Thunderwave → lightning-arc", () => {
-    const card = spellCardFactory.build({
-      name: "Thunderwave",
-      headerTags: ["1st-level evocation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("lightning-arc");
-  });
-
-  test("Cone of Cold → ice-cube", () => {
-    const card = spellCardFactory.build({
-      name: "Cone of Cold",
-      headerTags: ["5th-level evocation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("ice-cube");
-  });
-
-  test("Cloudkill → poison-cloud", () => {
-    const card = spellCardFactory.build({
-      name: "Cloudkill",
-      headerTags: ["5th-level conjuration"],
-    });
-    expect(pickSpellIconKey(card)).toBe("poison-cloud");
-  });
-
-  test("Cure Wounds → caduceus", () => {
-    const card = spellCardFactory.build({
-      name: "Cure Wounds",
-      headerTags: ["1st-level abjuration"],
-    });
-    expect(pickSpellIconKey(card)).toBe("caduceus");
-  });
-
-  test("Bless → holy-symbol", () => {
-    const card = spellCardFactory.build({
-      name: "Bless",
-      headerTags: ["1st-level enchantment"],
-    });
-    expect(pickSpellIconKey(card)).toBe("holy-symbol");
-  });
-
-  test("Shield (the spell) → magic-shield", () => {
-    const card = spellCardFactory.build({
-      name: "Shield",
-      headerTags: ["1st-level abjuration"],
-    });
-    expect(pickSpellIconKey(card)).toBe("magic-shield");
-  });
-
-  test("Fly → feathered-wing", () => {
-    const card = spellCardFactory.build({
-      name: "Fly",
-      headerTags: ["3rd-level transmutation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("feathered-wing");
-  });
-
-  test("Sleep → night-sleep", () => {
-    const card = spellCardFactory.build({
-      name: "Sleep",
-      headerTags: ["1st-level enchantment"],
-    });
-    expect(pickSpellIconKey(card)).toBe("night-sleep");
-  });
-
-  test("Charm Person → charm", () => {
-    const card = spellCardFactory.build({
-      name: "Charm Person",
-      headerTags: ["1st-level enchantment"],
-    });
-    expect(pickSpellIconKey(card)).toBe("charm");
-  });
-
-  test("Hold Person → charm", () => {
-    const card = spellCardFactory.build({
-      name: "Hold Person",
-      headerTags: ["2nd-level enchantment"],
-    });
-    expect(pickSpellIconKey(card)).toBe("charm");
-  });
-
-  test("Cause Fear → evil-eyes", () => {
-    const card = spellCardFactory.build({
-      name: "Cause Fear",
-      headerTags: ["1st-level necromancy"],
-    });
-    expect(pickSpellIconKey(card)).toBe("evil-eyes");
-  });
-
-  test("Bestow Curse → cursed-star", () => {
-    const card = spellCardFactory.build({
-      name: "Bestow Curse",
-      headerTags: ["3rd-level necromancy"],
-    });
-    expect(pickSpellIconKey(card)).toBe("cursed-star");
-  });
-
-  test("Find Familiar → magic-portal", () => {
-    const card = spellCardFactory.build({
-      name: "Find Familiar",
-      headerTags: ["1st-level conjuration"],
-    });
-    expect(pickSpellIconKey(card)).toBe("magic-portal");
-  });
-
-  test("Misty Step → magic-portal", () => {
-    const card = spellCardFactory.build({
-      name: "Misty Step",
-      headerTags: ["2nd-level conjuration"],
-    });
-    expect(pickSpellIconKey(card)).toBe("magic-portal");
-  });
-
-  test("Daylight → sun (and Lightning Bolt is unaffected — order check)", () => {
-    expect(
-      pickSpellIconKey(
-        spellCardFactory.build({ name: "Daylight", headerTags: ["3rd-level evocation"] }),
-      ),
-    ).toBe("sun");
-    expect(
-      pickSpellIconKey(
-        spellCardFactory.build({
-          name: "Lightning Bolt",
-          headerTags: ["3rd-level evocation"],
-        }),
-      ),
-    ).toBe("lightning-arc");
-  });
-
-  test("Moonbeam → moon", () => {
-    const card = spellCardFactory.build({
-      name: "Moonbeam",
-      headerTags: ["2nd-level evocation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("moon");
-  });
-
-  test("Detect Magic → evil-eyes", () => {
-    const card = spellCardFactory.build({
-      name: "Detect Magic",
-      headerTags: ["1st-level divination"],
-    });
-    expect(pickSpellIconKey(card)).toBe("evil-eyes");
-  });
-
-  test("school-only fallback works when no name keyword matches (Counterspell → abjuration → magic-shield)", () => {
+  test("falls through to school dispatch when no name keyword matches (Counterspell → abjuration)", () => {
     const card = spellCardFactory.build({
       name: "Counterspell",
       headerTags: ["3rd-level abjuration"],
     });
     expect(pickSpellIconKey(card)).toBe("magic-shield");
-  });
-
-  test("Faerie Fire → sun (override beats fire rule)", () => {
-    const card = spellCardFactory.build({
-      name: "Faerie Fire",
-      headerTags: ["1st-level evocation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("sun");
-  });
-
-  test("Sacred Flame → holy-symbol (override beats fire rule)", () => {
-    const card = spellCardFactory.build({
-      name: "Sacred Flame",
-      headerTags: ["Evocation cantrip"],
-    });
-    expect(pickSpellIconKey(card)).toBe("holy-symbol");
-  });
-
-  test("Power Word Kill → skull-crossed-bones", () => {
-    const card = spellCardFactory.build({
-      name: "Power Word Kill",
-      headerTags: ["9th-level enchantment"],
-    });
-    expect(pickSpellIconKey(card)).toBe("skull-crossed-bones");
-  });
-
-  test("Power Word Heal → caduceus (heal rule wins over power-word)", () => {
-    const card = spellCardFactory.build({
-      name: "Power Word Heal",
-      headerTags: ["9th-level evocation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("caduceus");
-  });
-
-  test("Feather Fall → feathered-wing", () => {
-    const card = spellCardFactory.build({
-      name: "Feather Fall",
-      headerTags: ["1st-level transmutation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("feathered-wing");
-  });
-
-  test("Searing Smite → holy-symbol", () => {
-    const card = spellCardFactory.build({
-      name: "Searing Smite",
-      headerTags: ["1st-level evocation"],
-    });
-    expect(pickSpellIconKey(card)).toBe("holy-symbol");
   });
 });
 

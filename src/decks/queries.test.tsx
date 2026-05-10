@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HttpResponse, http } from "msw";
+import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { makeCardRow, makeDeckSummary, makePublicDeck } from "../test/factories";
 import { server } from "../test/msw";
@@ -10,8 +11,7 @@ const SB = "http://localhost:54321";
 
 function wrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  // biome-ignore lint/suspicious/noExplicitAny: test wrapper
-  return ({ children }: { children: any }) => (
+  return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
 }

@@ -31,12 +31,13 @@ vi.stubEnv(
 // returns 0 for clientWidth/clientHeight; without these stubs the Virtualizer
 // either falls back to Infinity (NaN math in GridLayout) or sees a 0x0
 // container and renders no items.
-class ResizeObserverMock {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+class ResizeObserverMock implements ResizeObserver {
+  constructor(_callback: ResizeObserverCallback) {}
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
 }
-globalThis.ResizeObserver ??= ResizeObserverMock as unknown as typeof ResizeObserver;
+globalThis.ResizeObserver ??= ResizeObserverMock;
 
 // Hard-coded dimensions are large enough for ~150 60px tiles to land in the
 // initial visible window — the actual layout in browsers is responsive.
