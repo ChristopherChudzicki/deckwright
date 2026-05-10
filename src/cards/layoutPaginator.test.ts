@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
+import { invariant } from "../lib/invariant";
 import { layoutPaginate } from "./layoutPaginator";
 import * as sliceAtModule from "./sliceAt";
 
@@ -170,7 +171,7 @@ describe("layoutPaginate", () => {
   });
 
   test("clears the mounted container after pagination so the measurer can reuse it", () => {
-    let mounted: HTMLElement | null = null;
+    const ref: { current: HTMLElement | null } = { current: null };
     layoutPaginate({
       bodyHtml: "<div>x</div>",
       width: 100,
@@ -182,12 +183,12 @@ describe("layoutPaginate", () => {
         document.body.appendChild(c);
         setRect(c, 0, 30);
         setRect(c.children[0], 0, 30);
-        mounted = c;
+        ref.current = c;
         return c;
       },
     });
-    expect(mounted).not.toBeNull();
-    expect(mounted!.children.length).toBe(0);
-    mounted!.remove();
+    invariant(ref.current, "mount callback should have populated ref.current");
+    expect(ref.current.children.length).toBe(0);
+    ref.current.remove();
   });
 });

@@ -1,3 +1,4 @@
+import { invariant } from "../lib/invariant";
 import type { PhysicalCard } from "./expandCard";
 
 export type PrintSlot = {
@@ -12,7 +13,8 @@ export function pairSlots(cards: PhysicalCard[], opts: { contentOnBack: boolean 
 
   const slots: PrintSlot[] = [];
   for (let i = 0; i < cards.length; i++) {
-    const front = cards[i]!;
+    const front = cards[i];
+    invariant(front, "loop bound guarantees cards[i] is defined");
     const next = cards[i + 1];
     if (next && next.card.id === front.card.id) {
       slots.push({ front, back: next });

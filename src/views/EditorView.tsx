@@ -7,6 +7,7 @@ import { useExpandedCards } from "../cards/useExpandedCards";
 import { useDeleteCard, useSaveCard } from "../decks/mutations";
 import { useDeckCards } from "../decks/queries";
 import { newId } from "../lib/id";
+import { invariant } from "../lib/invariant";
 import { nowIso } from "../lib/time";
 import { Button } from "../lib/ui/Button";
 import { LoadingState } from "../lib/ui/LoadingState";
@@ -24,7 +25,9 @@ type Bucket = { perPage: number; count: number };
 
 function countsLabel(buckets: Bucket[]): string {
   if (buckets.length === 0) return "0 cards";
-  const first = buckets[0]!.count;
+  const head = buckets[0];
+  invariant(head, "buckets is non-empty after the length guard");
+  const first = head.count;
   const allEqual = buckets.every((b) => b.count === first);
   if (allEqual) {
     return `${first} card${first === 1 ? "" : "s"}`;
