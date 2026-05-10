@@ -72,6 +72,23 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /Cloak of Protection/ })).not.toBeInTheDocument();
   });
 
+  test("fuzzy search matches across whitespace in spell names", async () => {
+    const fireBolt = spellIndexEntryFactory.build({ name: "Fire Bolt" });
+    const acidSplash = spellIndexEntryFactory.build({ name: "Acid Splash" });
+    const client = makeClient({
+      spells: { "2024": { count: 2, results: [fireBolt, acidSplash] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    await screen.findByRole("button", { name: /Fire Bolt/ });
+    await userEvent.type(screen.getByRole("searchbox"), "firebolt");
+
+    expect(screen.getByRole("button", { name: /Fire Bolt/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Acid Splash/ })).not.toBeInTheDocument();
+  });
+
   test("switching source loads a different items list", async () => {
     const v2024 = magicItemIndexEntryFactory.build({ name: "Ring A" });
     const v2014 = magicItemIndexEntryFactory.build({ name: "Ring Z" });
