@@ -4,6 +4,7 @@ import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { describe, expect, test, vi } from "vitest";
 import * as layoutPaginatorModule from "../cards/layoutPaginator";
+import { invariant } from "../lib/invariant";
 import { makeCardRow, makeItemPayload } from "../test/factories";
 import { SB_URL as SB, server } from "../test/msw";
 import { render, screen, waitFor } from "../test/render";
@@ -107,8 +108,8 @@ describe("<PrintView>", () => {
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     await userEvent.click(screen.getByRole("switch", { name: /print backs/i }));
-    const backPage = document.querySelector('[data-page-side="back"]') as HTMLElement;
-    expect(backPage).not.toBeNull();
+    const backPage = document.querySelector<HTMLElement>('[data-page-side="back"]');
+    invariant(backPage, "expected back page element");
     // Read the rendered slot order from the back page's data-card-id attrs and
     // assert it matches the imposition rule: [A, B, C, D] front → [B, A, D, C] back.
     // The back page's direct children are the slot divs in DOM (= CSS grid) order.
@@ -117,7 +118,9 @@ describe("<PrintView>", () => {
     const slotIds = slots.map(
       (s) => s.querySelector<HTMLElement>("[data-card-id]")?.dataset.cardId ?? null,
     );
-    expect(slotIds).toEqual([cards[1]!.id, cards[0]!.id, cards[3]!.id, cards[2]!.id]);
+    const [c0, c1, c2, c3] = cards;
+    invariant(c0 && c1 && c2 && c3, "expected 4 cards");
+    expect(slotIds).toEqual([c1.id, c0.id, c3.id, c2.id]);
   });
 
   test("partial last front page produces a back page with only the populated slots filled", async () => {
@@ -128,8 +131,8 @@ describe("<PrintView>", () => {
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
     await userEvent.click(screen.getByRole("switch", { name: /print backs/i }));
-    const backPage = document.querySelector('[data-page-side="back"]') as HTMLElement;
-    expect(backPage).not.toBeNull();
+    const backPage = document.querySelector<HTMLElement>('[data-page-side="back"]');
+    invariant(backPage, "expected back page element");
     // 3 fronts → 3 back tiles; the 4th slot is an empty .slot div.
     expect(backPage.querySelectorAll('[data-role="card-back-root"]')).toHaveLength(3);
   });
@@ -220,11 +223,13 @@ describe("<PrintView>", () => {
     // Front: two populated slots — twoPager pg1 (slot 0), onePager (slot 1).
     // Back imposition (4-up, cols=2): back-slot 0 = back-of front-slot-1 (onePager → icon),
     //                                 back-slot 1 = back-of front-slot-0 (twoPager pg2).
-    const backPage = document.querySelector('[data-page-side="back"]') as HTMLElement;
-    expect(backPage).not.toBeNull();
+    const backPage = document.querySelector<HTMLElement>('[data-page-side="back"]');
+    invariant(backPage, "expected back page element");
     const slots = Array.from(backPage.children) as HTMLElement[];
-    expect(slots[0]!.querySelector('[data-role="card-back-root"]')).not.toBeNull();
-    expect(slots[1]!.querySelector('[data-role="card-body"]')).toHaveTextContent("TWO-pg2");
+    const [slot0, slot1] = slots;
+    invariant(slot0 && slot1, "expected at least 2 back slots");
+    expect(slot0.querySelector('[data-role="card-back-root"]')).not.toBeNull();
+    expect(slot1.querySelector('[data-role="card-body"]')).toHaveTextContent("TWO-pg2");
   });
 
   test("4-page card paired flow at 4-up", async () => {
@@ -242,15 +247,21 @@ describe("<PrintView>", () => {
     // Front: slot 0 = pg1, slot 1 = pg3.
     // Back imposition: back-slot 0 = back-of front-slot-1 (pg4),
     //                  back-slot 1 = back-of front-slot-0 (pg2).
-    const frontPage = document.querySelector('[data-page-side="front"]') as HTMLElement;
+    const frontPage = document.querySelector<HTMLElement>('[data-page-side="front"]');
+    invariant(frontPage, "expected front page element");
     const frontSlots = Array.from(frontPage.children) as HTMLElement[];
-    expect(frontSlots[0]!.querySelector('[data-role="card-body"]')).toHaveTextContent("pg1");
-    expect(frontSlots[1]!.querySelector('[data-role="card-body"]')).toHaveTextContent("pg3");
+    const [front0, front1] = frontSlots;
+    invariant(front0 && front1, "expected at least 2 front slots");
+    expect(front0.querySelector('[data-role="card-body"]')).toHaveTextContent("pg1");
+    expect(front1.querySelector('[data-role="card-body"]')).toHaveTextContent("pg3");
 
-    const backPage = document.querySelector('[data-page-side="back"]') as HTMLElement;
+    const backPage = document.querySelector<HTMLElement>('[data-page-side="back"]');
+    invariant(backPage, "expected back page element");
     const backSlots = Array.from(backPage.children) as HTMLElement[];
-    expect(backSlots[0]!.querySelector('[data-role="card-body"]')).toHaveTextContent("pg4");
-    expect(backSlots[1]!.querySelector('[data-role="card-body"]')).toHaveTextContent("pg2");
+    const [back0, back1] = backSlots;
+    invariant(back0 && back1, "expected at least 2 back slots");
+    expect(back0.querySelector('[data-role="card-body"]')).toHaveTextContent("pg4");
+    expect(back1.querySelector('[data-role="card-body"]')).toHaveTextContent("pg2");
   });
 
   test("3-page card paired flow at 4-up — last back slot falls back to icon", async () => {
@@ -268,10 +279,13 @@ describe("<PrintView>", () => {
     // Front: slot 0 = pg1, slot 1 = pg3.
     // Back imposition: back-slot 0 = back-of front-slot-1 (pg3 → no back → icon),
     //                  back-slot 1 = back-of front-slot-0 (pg2).
-    const backPage = document.querySelector('[data-page-side="back"]') as HTMLElement;
+    const backPage = document.querySelector<HTMLElement>('[data-page-side="back"]');
+    invariant(backPage, "expected back page element");
     const backSlots = Array.from(backPage.children) as HTMLElement[];
-    expect(backSlots[0]!.querySelector('[data-role="card-back-root"]')).not.toBeNull();
-    expect(backSlots[1]!.querySelector('[data-role="card-body"]')).toHaveTextContent("pg2");
+    const [back0, back1] = backSlots;
+    invariant(back0 && back1, "expected at least 2 back slots");
+    expect(back0.querySelector('[data-role="card-back-root"]')).not.toBeNull();
+    expect(back1.querySelector('[data-role="card-body"]')).toHaveTextContent("pg2");
   });
 
   test("'Continue content on back' selected state persists across disable/re-enable", async () => {
@@ -298,8 +312,11 @@ describe("<PrintView>", () => {
     expect(continueOnBack).not.toBeDisabled();
     expect(continueOnBack).toBeChecked();
     // Paired flow resumes: pg2 lands on the back.
-    const backPage = document.querySelector('[data-page-side="back"]') as HTMLElement;
+    const backPage = document.querySelector<HTMLElement>('[data-page-side="back"]');
+    invariant(backPage, "expected back page element");
     const backSlots = Array.from(backPage.children) as HTMLElement[];
-    expect(backSlots[1]!.querySelector('[data-role="card-body"]')).toHaveTextContent("pg2");
+    const [, back1] = backSlots;
+    invariant(back1, "expected at least 2 back slots");
+    expect(back1.querySelector('[data-role="card-body"]')).toHaveTextContent("pg2");
   });
 });
