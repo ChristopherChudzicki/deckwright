@@ -91,6 +91,10 @@
   max-width: 1400px;
 }
 
+.spacer {
+  flex: 1;
+}
+
 @media (max-width: 640px) {
   .header {
     gap: var(--space-3);

@@ -14,6 +14,7 @@ export function Root() {
             D&amp;D Cards
           </Link>
           <DeckBreadcrumb />
+          <div className={styles.spacer} />
           <UserMenu />
         </header>
         <main className={styles.main}>
