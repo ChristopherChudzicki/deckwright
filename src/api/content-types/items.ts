@@ -1,5 +1,5 @@
+import fuzzysort from "fuzzysort";
 import { useMemo } from "react";
-import { fuzzyMatch } from "../../lib/fuzzyMatch";
 import { useMagicItemIndex } from "../hooks";
 import { magicItemDetailToCard } from "../mappers/magicItems";
 import type { ContentType } from "./types";
@@ -15,15 +15,7 @@ export const itemsContentType: ContentType = {
       const q = query.trim();
       const entries = idx.data?.results ?? [];
       const ordered =
-        q === ""
-          ? entries
-          : entries
-              .flatMap((entry) => {
-                const m = fuzzyMatch(q, entry.name);
-                return m ? [{ entry, score: m.score }] : [];
-              })
-              .sort((a, b) => b.score - a.score)
-              .map(({ entry }) => entry);
+        q === "" ? entries : fuzzysort.go(q, entries, { key: "name" }).map((r) => r.obj);
       return ordered.map((entry) => ({
         key: entry.key,
         name: entry.name,

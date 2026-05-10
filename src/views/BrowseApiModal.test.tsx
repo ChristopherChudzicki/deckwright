@@ -89,6 +89,24 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /^Acid Splash/ })).not.toBeInTheDocument();
   });
 
+  test("ranks compact subsequence matches above spread-out ones", async () => {
+    const flame = magicItemIndexEntryFactory.build({ name: "Flame Tongue Battleaxe" });
+    const rod = magicItemIndexEntryFactory.build({ name: "Rod of Lordly Might" });
+    const client = makeClient({
+      items: { "2024": { count: 2, results: [rod, flame] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await screen.findByRole("button", { name: /^Rod of Lordly Might/ });
+    await userEvent.type(screen.getByRole("searchbox"), "flm");
+
+    const matches = await screen.findAllByRole("button", {
+      name: /^(Flame Tongue Battleaxe|Rod of Lordly Might)/,
+    });
+    expect(matches[0]).toHaveAccessibleName(/^Flame Tongue Battleaxe/);
+  });
+
   test("switching source loads a different items list", async () => {
     const v2024 = magicItemIndexEntryFactory.build({ name: "Ring A" });
     const v2014 = magicItemIndexEntryFactory.build({ name: "Ring Z" });
