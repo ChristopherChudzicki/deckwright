@@ -27,19 +27,15 @@ type Seeds = {
   spells?: Partial<Record<Ruleset, SpellIndex>>;
 };
 
+const EMPTY = { count: 0, results: [] };
+const RULESETS: Ruleset[] = ["2024", "2014"];
+
 const makeClient = (seeds: Seeds = {}) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  for (const [ruleset, body] of Object.entries(seeds.items ?? {}) as [Ruleset, MagicItemIndex][]) {
-    client.setQueryData(itemKey(ruleset), body);
-  }
-  for (const [ruleset, body] of Object.entries(seeds.mundane ?? {}) as [
-    Ruleset,
-    MundaneItemIndex,
-  ][]) {
-    client.setQueryData(mundaneKey(ruleset), body);
-  }
-  for (const [ruleset, body] of Object.entries(seeds.spells ?? {}) as [Ruleset, SpellIndex][]) {
-    client.setQueryData(spellKey(ruleset), body);
+  for (const ruleset of RULESETS) {
+    client.setQueryData(itemKey(ruleset), seeds.items?.[ruleset] ?? EMPTY);
+    client.setQueryData(mundaneKey(ruleset), seeds.mundane?.[ruleset] ?? EMPTY);
+    client.setQueryData(spellKey(ruleset), seeds.spells?.[ruleset] ?? EMPTY);
   }
   return client;
 };
@@ -57,7 +53,7 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Magic Items", "Mundane Items", "Spells"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Items", "Spells"]);
   });
 
   test("shows index entries once the items list loads", async () => {
@@ -140,28 +136,21 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /Ring A/ })).not.toBeInTheDocument();
   });
 
-  test("switching source on the Mundane Items tab loads a different list", async () => {
-    const v2024 = mundaneItemIndexEntryFactory.build({ name: "Rope" });
-    const v2014 = mundaneItemIndexEntryFactory.build({ name: "Rope, hempen" });
+  test("Items tab merges magic and mundane sources alphabetically", async () => {
+    const magicItem = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const mundaneItem = mundaneItemIndexEntryFactory.build({ name: "Battleaxe" });
     const client = makeClient({
-      items: { "2024": { count: 0, results: [] } },
-      mundane: {
-        "2024": { count: 1, results: [v2024] },
-        "2014": { count: 1, results: [v2014] },
-      },
+      items: { "2024": { count: 1, results: [magicItem] } },
+      mundane: { "2024": { count: 1, results: [mundaneItem] } },
     });
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Mundane Items" }));
-    await screen.findByRole("button", { name: /Rope/ });
-    await openSourceMenu();
-    await userEvent.click(screen.getByRole("menuitem", { name: "2014" }));
-
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Rope, hempen/ })).toBeInTheDocument(),
-    );
-    expect(screen.queryByRole("button", { name: /^Rope$/ })).not.toBeInTheDocument();
+    const bagButton = await screen.findByRole("button", { name: /Bag of Holding/ });
+    const battleaxeButton = screen.getByRole("button", { name: /Battleaxe/ });
+    expect(
+      bagButton.compareDocumentPosition(battleaxeButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   test("switching to the Spells tab swaps the list source", async () => {
@@ -246,7 +235,7 @@ describe("<BrowseApiModal>", () => {
     expect(onSelected).toHaveBeenCalledWith(expect.any(String));
   });
 
-  test("clicking a mundane item POSTs a card with kind:item", async () => {
+  test("clicking a mundane item from the Items tab POSTs a card with kind:item", async () => {
     const entry = mundaneItemIndexEntryFactory.build({
       name: "Battleaxe",
       category: { name: "Weapon" },
@@ -262,7 +251,6 @@ describe("<BrowseApiModal>", () => {
       weight_unit: "lb",
     });
     const client = makeClient({
-      items: { "2024": { count: 0, results: [] } },
       mundane: { "2024": { count: 1, results: [entry] } },
     });
     const onPost = vi.fn();
@@ -276,7 +264,6 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />, client);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Mundane Items" }));
     await userEvent.click(await screen.findByRole("button", { name: /Battleaxe/ }));
 
     await waitFor(() => expect(onPost).toHaveBeenCalled());
@@ -287,19 +274,17 @@ describe("<BrowseApiModal>", () => {
     expect(onSelected).toHaveBeenCalledWith(expect.any(String));
   });
 
-  test("shows category in each mundane item row", async () => {
+  test("mundane-item rows show category in the meta column", async () => {
     const entry = mundaneItemIndexEntryFactory.build({
       name: "Rope",
       category: { name: "Adventuring Gear" },
     });
     const client = makeClient({
-      items: { "2024": { count: 0, results: [] } },
       mundane: { "2024": { count: 1, results: [entry] } },
     });
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Mundane Items" }));
     const row = await screen.findByRole("button", { name: /Rope/ });
     expect(row).toHaveTextContent("Adventuring Gear");
   });
