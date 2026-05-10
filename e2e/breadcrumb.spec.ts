@@ -8,13 +8,12 @@ const card = {
 };
 
 test.describe("deck breadcrumb", () => {
-  test("shows only the Decks link on the deck root route", async ({ page }) => {
+  test("renders nothing on the deck root route", async ({ page }) => {
     await seedDeck(page, [card]);
     await page.goto(`/deck/${TEST_DECK_ID}`);
 
-    const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
-    await expect(breadcrumb.getByRole("link", { name: "Decks" })).toHaveAttribute("href", "/");
-    await expect(breadcrumb.getByText("E2E Test Deck")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "E2E Test Deck" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toHaveCount(0);
   });
 
   test("shows deck name as a back-link on the editor route", async ({ page }) => {
