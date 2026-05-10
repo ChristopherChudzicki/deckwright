@@ -33,6 +33,7 @@
     "@tanstack/react-query": "^5.99.2",
     "@tanstack/react-router": "^1.168.23",
     "dompurify": "^3.4.2",
+    "fuzzysort": "^3.1.0",
     "marked": "^18.0.3",
     "react": "^19.2.5",
     "react-aria-components": "^1.17.0",

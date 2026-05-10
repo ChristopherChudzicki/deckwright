@@ -1,3 +1,4 @@
+import fuzzysort from "fuzzysort";
 import { useMemo } from "react";
 import { useSpellIndex } from "../hooks";
 import { levelTag, spellDetailToCard } from "../mappers/spells";
@@ -11,15 +12,16 @@ export const spellsContentType: ContentType = {
   useResults: (source, query) => {
     const idx = useSpellIndex(source);
     const rows = useMemo(() => {
-      const q = query.trim().toLowerCase();
-      return (idx.data?.results ?? [])
-        .filter((e) => q === "" || e.name.toLowerCase().includes(q))
-        .map((entry) => ({
-          key: entry.key,
-          name: entry.name,
-          meta: levelTag(entry.level, entry.school.name),
-          toCard: () => spellDetailToCard({ ...entry, ruleset: source }),
-        }));
+      const q = query.trim();
+      const entries = idx.data?.results ?? [];
+      const ordered =
+        q === "" ? entries : fuzzysort.go(q, entries, { key: "name" }).map((r) => r.obj);
+      return ordered.map((entry) => ({
+        key: entry.key,
+        name: entry.name,
+        meta: levelTag(entry.level, entry.school.name),
+        toCard: () => spellDetailToCard({ ...entry, ruleset: source }),
+      }));
     }, [idx.data, query, source]);
     return {
       isLoading: idx.isLoading,
