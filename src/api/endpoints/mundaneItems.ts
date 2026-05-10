@@ -1,6 +1,8 @@
 import type { MundaneItem } from "../../data/srd-schema";
 import type { Ruleset } from "./magicItems";
 
+export type { Ruleset };
+
 export type MundaneItemDetail = MundaneItem & { ruleset: Ruleset };
 
 export type MundaneItemIndex = {
