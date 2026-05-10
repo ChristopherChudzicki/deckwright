@@ -4,8 +4,8 @@ import { useMagicItemIndex } from "../hooks";
 import { magicItemDetailToCard } from "../mappers/magicItems";
 import type { ContentType } from "./types";
 
-export const itemsContentType: ContentType = {
-  id: "items",
+export const magicItemsContentType: ContentType = {
+  id: "magic-items",
   label: "Magic Items",
   searchPlaceholder: "Search magic items…",
   supportedSources: ["2024", "2014"],

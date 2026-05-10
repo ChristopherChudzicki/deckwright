@@ -1,9 +1,9 @@
-import { itemsContentType } from "./items";
+import { magicItemsContentType } from "./magic-items";
 import { spellsContentType } from "./spells";
 import type { ContentType } from "./types";
 
 export const CONTENT_TYPES: readonly [ContentType, ...ContentType[]] = [
-  itemsContentType,
+  magicItemsContentType,
   spellsContentType,
 ];
 
