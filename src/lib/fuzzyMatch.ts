@@ -11,17 +11,17 @@ export function fuzzyMatch(query: string, target: string): FuzzyMatch | null {
 
   let qi = 0;
   let score = 0;
-  let lastMatchTi = -2;
+  let prevMatchTi = Number.NEGATIVE_INFINITY;
 
   for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] !== q[qi]) continue;
+    if (t.charAt(ti) !== q.charAt(qi)) continue;
 
     let bonus = 1;
-    if (ti === lastMatchTi + 1) bonus += 2;
+    if (ti === prevMatchTi + 1) bonus += 2;
     if (ti === 0 || BOUNDARY.has(t.charAt(ti - 1))) bonus += 3;
 
     score += bonus;
-    lastMatchTi = ti;
+    prevMatchTi = ti;
     qi++;
   }
 

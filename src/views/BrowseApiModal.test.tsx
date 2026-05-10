@@ -82,11 +82,11 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
-    await screen.findByRole("button", { name: /Fire Bolt/ });
+    await screen.findByRole("button", { name: /^Fire Bolt/ });
     await userEvent.type(screen.getByRole("searchbox"), "firebolt");
 
-    expect(screen.getByRole("button", { name: /Fire Bolt/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Acid Splash/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /^Fire Bolt/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Acid Splash/ })).not.toBeInTheDocument();
   });
 
   test("switching source loads a different items list", async () => {

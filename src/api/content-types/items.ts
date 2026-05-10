@@ -14,21 +14,22 @@ export const itemsContentType: ContentType = {
     const rows = useMemo(() => {
       const q = query.trim();
       const entries = idx.data?.results ?? [];
-      const scored =
+      const ordered =
         q === ""
-          ? entries.map((entry) => ({ entry, score: 0 }))
-          : entries.flatMap((entry) => {
-              const m = fuzzyMatch(q, entry.name);
-              return m ? [{ entry, score: m.score }] : [];
-            });
-      return scored
-        .sort((a, b) => b.score - a.score)
-        .map(({ entry }) => ({
-          key: entry.key,
-          name: entry.name,
-          meta: entry.rarity.name,
-          toCard: () => magicItemDetailToCard({ ...entry, ruleset: source }),
-        }));
+          ? entries
+          : entries
+              .flatMap((entry) => {
+                const m = fuzzyMatch(q, entry.name);
+                return m ? [{ entry, score: m.score }] : [];
+              })
+              .sort((a, b) => b.score - a.score)
+              .map(({ entry }) => entry);
+      return ordered.map((entry) => ({
+        key: entry.key,
+        name: entry.name,
+        meta: entry.rarity.name,
+        toCard: () => magicItemDetailToCard({ ...entry, ruleset: source }),
+      }));
     }, [idx.data, query, source]);
     return {
       isLoading: idx.isLoading,
