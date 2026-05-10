@@ -1,7 +1,8 @@
 import { faker } from "@faker-js/faker";
 import { Factory } from "fishery";
-import type { MagicItem, Spell } from "../data/srd-schema";
+import type { MagicItem, MundaneItem, Spell } from "../data/srd-schema";
 import type { MagicItemDetail, MagicItemIndex } from "./endpoints/magicItems";
+import type { MundaneItemDetail, MundaneItemIndex } from "./endpoints/mundaneItems";
 import type { SpellDetail, SpellIndex } from "./endpoints/spells";
 
 const rarities = ["Common", "Uncommon", "Rare", "Very Rare", "Legendary"];
@@ -103,5 +104,47 @@ export const spellIndexFactory = Factory.define<SpellIndex, SpellIndexTransient>
 
 export const spellDetailFactory = Factory.define<SpellDetail>(() => ({
   ...spellIndexEntryFactory.build(),
+  ruleset: "2024",
+}));
+
+const mundaneCategories = [
+  "Adventuring Gear",
+  "Weapon",
+  "Armor",
+  "Shield",
+  "Tools",
+  "Mount",
+  "Equipment Pack",
+];
+
+export const mundaneItemIndexEntryFactory = Factory.define<MundaneItem>(() => {
+  const slug = faker.helpers
+    .slugify(`${faker.commerce.productName()}-${faker.string.alphanumeric(5)}`)
+    .toLowerCase();
+  return {
+    key: open5eKey(slug),
+    name: faker.commerce.productName(),
+    desc: faker.lorem.paragraph(),
+    category: { name: faker.helpers.arrayElement(mundaneCategories) },
+    weapon: null,
+    armor: null,
+    weight: "0.000",
+    weight_unit: "lb",
+    cost: "0.00",
+  };
+});
+
+type MundaneItemIndexTransient = { size: number };
+
+export const mundaneItemIndexFactory = Factory.define<MundaneItemIndex, MundaneItemIndexTransient>(
+  ({ transientParams }) => {
+    const size = transientParams.size ?? 3;
+    const results = mundaneItemIndexEntryFactory.buildList(size);
+    return { count: results.length, results };
+  },
+);
+
+export const mundaneItemDetailFactory = Factory.define<MundaneItemDetail>(() => ({
+  ...mundaneItemIndexEntryFactory.build(),
   ruleset: "2024",
 }));
