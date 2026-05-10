@@ -35,59 +35,40 @@ describe("<Card>", () => {
     expect(screen.getByText("Second paragraph.")).toBeInTheDocument();
   });
 
-  test("renders the heuristic-picked icon when iconKey is unset", () => {
-    const card = itemCardFactory.build({
-      name: "Flame Tongue Trident",
-      iconKey: undefined,
-    });
+  test("uses pickIconKey when card.iconKey is unset", () => {
+    const card = itemCardFactory.build({ name: "Flame Tongue Trident" });
     render(<Card card={card} cardsPerPage={4} />);
-    const slot = screen.getByTestId("card-icon");
-    expect(slot.querySelector("svg")).not.toBeNull();
+    expect(screen.getByTestId("card-icon")).toHaveAttribute("data-icon-key", "trident");
   });
 
-  test("renders the explicit override icon when iconKey is set", () => {
-    const card = itemCardFactory.build({
-      name: "Anything",
-      iconKey: "trident",
-    });
+  test("uses card.iconKey when set, ignoring the name heuristic", () => {
+    // "Vorpal Sword" would otherwise pick "broadsword"; the explicit iconKey wins.
+    const card = itemCardFactory.build({ name: "Vorpal Sword", iconKey: "trident" });
     render(<Card card={card} cardsPerPage={4} />);
-    const slot = screen.getByTestId("card-icon");
-    expect(slot.querySelector("svg")).not.toBeNull();
+    expect(screen.getByTestId("card-icon")).toHaveAttribute("data-icon-key", "trident");
   });
 
   test("does not crash for a stale or unknown iconKey", () => {
-    const card = itemCardFactory.build({
-      name: "X",
-      iconKey: "definitely-removed-icon",
-    });
+    const card = itemCardFactory.build({ iconKey: "definitely-removed-icon" });
     expect(() => render(<Card card={card} cardsPerPage={4} />)).not.toThrow();
   });
 
-  test("renders the heuristic-picked icon for a spell card with iconKey unset", () => {
-    const card = spellCardFactory.build({
-      name: "Fireball",
-      headerTags: ["3rd-level evocation"],
-      iconKey: undefined,
-    });
+  test("uses pickIconKey for spell cards too", () => {
+    const card = spellCardFactory.build({ name: "Fireball" });
     render(<Card card={card} cardsPerPage={4} />);
-    const slot = screen.getByTestId("card-icon");
-    expect(slot.querySelector("svg")).not.toBeNull();
+    expect(screen.getByTestId("card-icon")).toHaveAttribute("data-icon-key", "fireball");
   });
 
   test("renders a rounded-square frame for an item card", () => {
     const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
-    const frame = screen.getByTestId("card-icon-frame");
-    expect(frame).toHaveAttribute("data-frame", "square");
-    expect(frame.querySelector("rect")).not.toBeNull();
+    expect(screen.getByTestId("card-icon-frame")).toHaveAttribute("data-frame", "square");
   });
 
   test("renders a hexagon frame for a spell card", () => {
     const card = spellCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
-    const frame = screen.getByTestId("card-icon-frame");
-    expect(frame).toHaveAttribute("data-frame", "hex");
-    expect(frame.querySelector("polygon")).not.toBeNull();
+    expect(screen.getByTestId("card-icon-frame")).toHaveAttribute("data-frame", "hex");
   });
 });
 

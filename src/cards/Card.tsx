@@ -28,7 +28,12 @@ export function Card({ card, cardsPerPage, pagination, bodyHtml }: Props) {
   return (
     <div className={`${styles.card} ${layoutClass}`} data-role="card-root">
       <div className={styles.header}>
-        <div className={styles.icon} data-testid="card-icon" aria-hidden="true">
+        <div
+          className={styles.icon}
+          data-testid="card-icon"
+          data-icon-key={iconKey}
+          aria-hidden="true"
+        >
           <FramedIcon kind={card.kind} iconKey={iconKey} />
         </div>
         <h3 className={styles.title}>{card.name}</h3>
