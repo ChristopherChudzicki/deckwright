@@ -13,8 +13,6 @@ describe("mundaneItemDetailToCard", () => {
   test("category goes to headerTags; no rarity/attunement", () => {
     const detail = mundaneItemDetailFactory.build({
       category: { name: "Adventuring Gear" },
-      weight: "0.000",
-      cost: "0.00",
     });
     const card = mundaneItemDetailToCard(detail);
     expect(card.headerTags).toEqual(["Adventuring Gear"]);
@@ -81,8 +79,7 @@ describe("mundaneItemDetailToCard", () => {
       },
     });
     const card = mundaneItemDetailToCard(detail);
-    expect(card.headerTags).toContain("Simple");
-    expect(card.headerTags).not.toContain("Martial");
+    expect(card.headerTags).toEqual(["Weapon", "Simple", "1d4 bludgeoning"]);
   });
 
   test("martial weapon with Mastery + Versatile properties", () => {
@@ -156,7 +153,6 @@ describe("mundaneItemDetailToCard", () => {
   test("category-weapon with weapon: null → only category tag (improvised/consumable)", () => {
     const detail = mundaneItemDetailFactory.build({
       category: { name: "Weapon" },
-      weapon: null,
       desc: "When you take the Attack action, you can replace one of your attacks with throwing a vial of Acid…",
     });
     const card = mundaneItemDetailToCard(detail);
@@ -244,15 +240,47 @@ describe("mundaneItemDetailToCard", () => {
     expect(card.headerTags).toEqual(["Armor", "+2 AC"]);
   });
 
+  test("shield/armor boundary: ac_base=5 is shield format; ac_base=6 is armor format", () => {
+    const atThreshold = mundaneItemDetailFactory.build({
+      category: { name: "Armor" },
+      armor: {
+        category: "heavy",
+        ac_base: 5,
+        ac_add_dexmod: false,
+        ac_cap_dexmod: null,
+        grants_stealth_disadvantage: false,
+        strength_score_required: null,
+      },
+    });
+    expect(mundaneItemDetailToCard(atThreshold).headerTags).toEqual(["Armor", "+5 AC"]);
+
+    const justAbove = mundaneItemDetailFactory.build({
+      category: { name: "Armor" },
+      armor: {
+        category: "heavy",
+        ac_base: 6,
+        ac_add_dexmod: false,
+        ac_cap_dexmod: null,
+        grants_stealth_disadvantage: false,
+        strength_score_required: null,
+      },
+    });
+    expect(mundaneItemDetailToCard(justAbove).headerTags).toEqual(["Armor", "Heavy", "AC 6"]);
+  });
+
   test("cost: 10.00 → '10 gp', '0.50' → '5 sp', '0.05' → '5 cp', '0.00' omitted", () => {
     const cases: [string, string | null][] = [
       ["10.00", "10 gp"],
       ["1.00", "1 gp"],
       ["400.00", "400 gp"],
       ["0.50", "5 sp"],
+      ["0.40", "4 sp"],
+      ["0.20", "2 sp"],
       ["0.10", "1 sp"],
       ["0.05", "5 cp"],
+      ["0.04", "4 cp"],
       ["0.02", "2 cp"],
+      ["0.01", "1 cp"],
       ["0.00", null],
     ];
     for (const [cost, expected] of cases) {
@@ -268,11 +296,8 @@ describe("mundaneItemDetailToCard", () => {
 
   test("cost first, then weight in footer", () => {
     const detail = mundaneItemDetailFactory.build({
-      category: { name: "Weapon" },
-      weapon: null,
       cost: "10.00",
       weight: "4.000",
-      weight_unit: "lb",
     });
     const card = mundaneItemDetailToCard(detail);
     expect(card.footerTags).toEqual(["10 gp", "4 lb"]);
