@@ -6,7 +6,7 @@ import type { MundaneItemDetail } from "../endpoints/mundaneItems";
 const formatCost = (cost: string): string | null => {
   const gp = parseFloat(cost);
   if (gp <= 0) return null;
-  if (gp >= 1) return `${gp} gp`;
+  if (gp >= 1) return `${Math.round(gp)} gp`;
   if (gp >= 0.1) {
     const sp = Math.round(gp * 10);
     return sp > 0 ? `${sp} sp` : null;
@@ -40,9 +40,14 @@ export const mundaneItemDetailToCard = (detail: MundaneItemDetail): ItemCard => 
   }
 
   if (detail.armor) {
-    headerTags.push(capitalize(detail.armor.category));
     const { ac_base, ac_add_dexmod, ac_cap_dexmod } = detail.armor;
-    let ac = `AC ${ac_base}`;
+    // Open5e v2 srd-2024 places Shield into the armor schema with category="heavy"
+    // and ac_base=2 (the +2 bonus). Detect shield-like entries by their low ac_base
+    // (real armor starts at ac_base 11) and render as a shield bonus instead of
+    // emitting a misleading "Heavy" tier tag and "AC 2" absolute value.
+    const isShield = ac_base <= 5;
+    if (!isShield) headerTags.push(capitalize(detail.armor.category));
+    let ac = isShield ? `+${ac_base} AC` : `AC ${ac_base}`;
     if (ac_add_dexmod) {
       ac += ac_cap_dexmod !== null ? ` + dex mod (max ${ac_cap_dexmod})` : " + dex mod";
     }
