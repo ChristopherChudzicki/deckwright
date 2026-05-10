@@ -21,6 +21,8 @@ Concretely, after this change:
 - `cat` matches "Cornwall Times".
 - `bag` still matches "Bag of Holding" but not "Cloak of Protection" (existing behavior preserved).
 
+When the query is non-empty, results are sorted by descending score — this is a deliberate visible change from today's API-order rendering. When the query is empty, results render in API order (matches today's behavior).
+
 ## Non-goals
 
 - **Highlighting matched characters in the UI.** Worthwhile follow-up; not required for the filter to feel useful.
@@ -41,7 +43,14 @@ export type FuzzyMatch = { score: number };
 export function fuzzyMatch(query: string, target: string): FuzzyMatch | null;
 ```
 
-Returns `null` when the query is not a subsequence of the target. Returns `{ score }` otherwise. Empty query returns `{ score: 0 }` (matches everything; callers preserve their natural order via stable sort).
+Returns `null` when the query is not a subsequence of the target. Returns `{ score }` otherwise.
+
+Contract:
+- **Empty query** returns `{ score: 0 }` (matches everything; callers preserve natural order via stable sort).
+- **Empty target with non-empty query** returns `null`.
+- **Query longer than target** returns `null` (fast path).
+- **No trimming.** The helper does not trim its inputs. Callers that want lenient leading/trailing whitespace must trim themselves (the call sites in this change do).
+- **Internal whitespace in the query is significant.** A literal space in the query must match a literal space in the target. We do not collapse runs of spaces — `fir  bolt` (two spaces) will not match "Fire Bolt".
 
 ### Algorithm
 
@@ -53,8 +62,10 @@ Greedy left-to-right subsequence match, case-insensitive:
 4. Each matched character contributes to the score:
    - **+1** base
    - **+2** bonus if the match is consecutive with the previous matched character (i.e., previous match was at `ti - 1`)
-   - **+3** bonus if the match is at a word start — target index 0, or the previous target character is whitespace, `-`, or `_`
+   - **+3** bonus if the match is at a word start — target index 0, or the previous target character is one of `[' ', '-', '_']`
 5. After the walk, if `qi` reached `query.length`, return `{ score }`. Otherwise return `null`.
+
+Word-start boundary chars are exactly space, hyphen, underscore. Apostrophes, commas, parentheses, and slashes do **not** start new words for scoring purposes — `Bigby's` scores `b` as the only word start, not `s` after the apostrophe. This is fine for SRD content; revisit if a content type ships names where punctuation-as-word-boundary actually changes ranking quality.
 
 Lives in `src/lib/` (not `src/api/content-types/`) because it is generic — nothing about it is API-specific.
 
@@ -77,25 +88,30 @@ return (idx.data?.results ?? [])
   .map(/* ... */);
 ```
 
-to:
+to (intent sketch — exact typing tightened in implementation):
 
 ```ts
 const q = query.trim();
-const matched = q === ""
-  ? (idx.data?.results ?? []).map((entry) => ({ entry, score: 0 }))
-  : (idx.data?.results ?? [])
-      .map((entry) => ({ entry, match: fuzzyMatch(q, entry.name) }))
-      .filter((x): x is { entry: typeof x.entry; match: FuzzyMatch } => x.match !== null)
-      .map((x) => ({ entry: x.entry, score: x.match.score }));
+const entries = idx.data?.results ?? [];
+const scored = q === ""
+  ? entries.map((entry) => ({ entry, score: 0 }))
+  : entries.flatMap((entry) => {
+      const m = fuzzyMatch(q, entry.name);
+      return m ? [{ entry, score: m.score }] : [];
+    });
 
-return matched
+return scored
   .sort((a, b) => b.score - a.score) // stable; ties preserve API order
   .map(({ entry }) => ({ /* existing row shape */ }));
 ```
 
-(Exact shape will be tightened during implementation; the design intent is filter → score → sort → map.)
+`flatMap` avoids a separate type-narrowing predicate. The design intent is filter → score → sort → map.
 
 We are *not* extracting the duplicated `useResults` boilerplate between the two content types in this change. That refactor is adjacent and worth doing once a third type lands and the pattern is settled — a one-shot two-call-site duplication is not yet costly enough to abstract.
+
+### Performance
+
+Per-keystroke recompute remains inside the existing `useMemo([idx.data, query, source])`. SRD content sizes are ~hundreds of entries (Items ~360, Spells ~320, Monsters ~330 when added). At those sizes, fuzzy match + `O(n log n)` sort per keystroke is well under a frame; no debounce needed. Revisit only if a content type ships >5k entries.
 
 ## Testing
 
@@ -106,14 +122,17 @@ Cover, at minimum:
 - The three user examples: `firebolt → "Fire Bolt"`, `fir bolt → "Fire Bolt"`, `cat → "Cornwall Times"` all return non-null.
 - A clear non-match: `xyz → "Fire Bolt"` returns `null`.
 - Case insensitivity: `FIREBOLT → "fire bolt"` matches.
-- Empty query: returns `{ score: 0 }`.
-- Word-start bonus: `fb` against "Fire Bolt" (both letters at word starts) scores higher than `fb` against "Featherbrain" (word start + mid-word).
-- Consecutive bonus: `fire` against "Fire Bolt" (four consecutive matches at a word start) scores higher than `fire` against "Frantic Inverse Rune Echo" (four word-start matches but none consecutive).
+- Empty query returns `{ score: 0 }`. Empty target with non-empty query returns `null`. Query longer than target returns `null`.
+- Repeated query characters: `ll → "Bell"` matches; `ll → "Lab"` returns `null`.
+- Word-start bonus: under the **greedy** algorithm, `fb` against "Fire Bolt" (b lands at a word start) scores higher than `fb` against "Firebolt" (b lands mid-word). Computed scores: 4+4 = 8 vs 4+1 = 5.
+- Consecutive bonus: under the **greedy** algorithm, `fi` against "Fight" (i is consecutive with f) scores higher than `fi` against "Fortify" (i is several characters later, neither word-start nor consecutive). Computed scores: 4+3 = 7 vs 4+1 = 5.
+
+All score-comparison tests should be written against the greedy alignment the algorithm actually produces, not the optimal alignment a backtracking matcher would find.
 
 ### `src/views/BrowseApiModal.test.tsx`
 
 - Existing "search filters the items list" test continues to pass unchanged (`bag` still matches "Bag of Holding", does not match "Cloak of Protection").
-- Add one assertion that demonstrates fuzzy behavior end-to-end: typing `firebolt` (or similar) in the Spells tab finds an item whose name has a space the substring filter would miss.
+- Add one fuzzy-style end-to-end test in the Spells tab. Seed two spells via `spellIndexEntryFactory.build({ name: "Fire Bolt" })` and `spellIndexEntryFactory.build({ name: "Acid Splash" })`. Type `firebolt` into the search box. Assert the "Fire Bolt" button is visible and the "Acid Splash" button is not — `Acid Splash` has no `f`, so it falls out of the subsequence filter, demonstrating fuzzy behavior the old substring filter would have missed.
 
 ## Files touched
 
