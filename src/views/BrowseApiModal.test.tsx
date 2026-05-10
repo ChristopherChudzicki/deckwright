@@ -5,18 +5,25 @@ import type { ReactNode } from "react";
 import { describe, expect, test, vi } from "vitest";
 import type { MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
 import * as magicItemsEndpoint from "../api/endpoints/magicItems";
+import type { MundaneItemIndex } from "../api/endpoints/mundaneItems";
 import type { SpellIndex } from "../api/endpoints/spells";
-import { magicItemIndexEntryFactory, spellIndexEntryFactory } from "../api/factories";
+import {
+  magicItemIndexEntryFactory,
+  mundaneItemIndexEntryFactory,
+  spellIndexEntryFactory,
+} from "../api/factories";
 import { makeCardRow } from "../test/factories";
 import { SB_URL, server } from "../test/msw";
 import { render, screen, waitFor } from "../test/render";
 import { BrowseApiModal } from "./BrowseApiModal";
 
 const itemKey = (ruleset: Ruleset) => ["magic-items", ruleset, "index"];
+const mundaneKey = (ruleset: Ruleset) => ["mundane-items", ruleset, "index"];
 const spellKey = (ruleset: Ruleset) => ["spells", ruleset, "index"];
 
 type Seeds = {
   items?: Partial<Record<Ruleset, MagicItemIndex>>;
+  mundane?: Partial<Record<Ruleset, MundaneItemIndex>>;
   spells?: Partial<Record<Ruleset, SpellIndex>>;
 };
 
@@ -24,6 +31,12 @@ const makeClient = (seeds: Seeds = {}) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   for (const [ruleset, body] of Object.entries(seeds.items ?? {}) as [Ruleset, MagicItemIndex][]) {
     client.setQueryData(itemKey(ruleset), body);
+  }
+  for (const [ruleset, body] of Object.entries(seeds.mundane ?? {}) as [
+    Ruleset,
+    MundaneItemIndex,
+  ][]) {
+    client.setQueryData(mundaneKey(ruleset), body);
   }
   for (const [ruleset, body] of Object.entries(seeds.spells ?? {}) as [Ruleset, SpellIndex][]) {
     client.setQueryData(spellKey(ruleset), body);
@@ -44,7 +57,7 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Magic Items", "Spells"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Magic Items", "Mundane Items", "Spells"]);
   });
 
   test("shows index entries once the items list loads", async () => {
@@ -207,6 +220,64 @@ describe("<BrowseApiModal>", () => {
     await waitFor(() => expect(onPost).toHaveBeenCalled());
     expect(onPost.mock.calls[0]?.[0]?.payload?.kind).toBe("spell");
     expect(onSelected).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  test("clicking a mundane item POSTs a card with kind:item", async () => {
+    const entry = mundaneItemIndexEntryFactory.build({
+      name: "Battleaxe",
+      category: { name: "Weapon" },
+      weapon: {
+        damage_dice: "1d8",
+        damage_type: { name: "Slashing" },
+        properties: [],
+        is_simple: false,
+        is_martial: true,
+      },
+      cost: "10.00",
+      weight: "4.000",
+      weight_unit: "lb",
+    });
+    const client = makeClient({
+      items: { "2024": { count: 0, results: [] } },
+      mundane: { "2024": { count: 1, results: [entry] } },
+    });
+    const onPost = vi.fn();
+    server.use(
+      http.post(`${SB_URL}/rest/v1/cards`, async ({ request }) => {
+        onPost(await request.json());
+        return HttpResponse.json([makeCardRow.build()], { status: 201 });
+      }),
+    );
+    const onSelected = vi.fn();
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />, client);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Mundane Items" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Battleaxe/ }));
+
+    await waitFor(() => expect(onPost).toHaveBeenCalled());
+    const payload = onPost.mock.calls[0]?.[0]?.payload;
+    expect(payload?.kind).toBe("item");
+    expect(payload?.headerTags).toEqual(["Weapon", "Martial", "1d8 slashing"]);
+    expect(payload?.footerTags).toEqual(["10 gp", "4 lb"]);
+    expect(onSelected).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  test("shows category in each mundane item row", async () => {
+    const entry = mundaneItemIndexEntryFactory.build({
+      name: "Rope",
+      category: { name: "Adventuring Gear" },
+    });
+    const client = makeClient({
+      items: { "2024": { count: 0, results: [] } },
+      mundane: { "2024": { count: 1, results: [entry] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Mundane Items" }));
+    const row = await screen.findByRole("button", { name: /Rope/ });
+    expect(row).toHaveTextContent("Adventuring Gear");
   });
 
   test("clicking the same row only POSTs once even under StrictMode double-render", async () => {
