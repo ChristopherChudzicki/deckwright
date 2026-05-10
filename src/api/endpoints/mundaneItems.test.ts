@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { mundaneItemSchema } from "../../data/srd-schema";
+import { mundaneItemListSchema } from "../../data/srd-schema";
 import { fetchMundaneItemIndex } from "./mundaneItems";
 
 describe("fetchMundaneItemIndex", () => {
@@ -8,7 +8,7 @@ describe("fetchMundaneItemIndex", () => {
 
     expect(result.count).toBe(result.results.length);
     expect(result.results.length).toBeGreaterThanOrEqual(150);
-    expect(() => mundaneItemSchema.parse(result.results[0])).not.toThrow();
+    expect(() => mundaneItemListSchema.parse(result.results)).not.toThrow();
   });
 
   test("returns the bundled 2014 SRD mundane index", async () => {
@@ -16,7 +16,7 @@ describe("fetchMundaneItemIndex", () => {
 
     expect(result.count).toBe(result.results.length);
     expect(result.results.length).toBeGreaterThanOrEqual(150);
-    expect(() => mundaneItemSchema.parse(result.results[0])).not.toThrow();
+    expect(() => mundaneItemListSchema.parse(result.results)).not.toThrow();
   });
 
   test("returns different data for 2014 vs 2024", async () => {
