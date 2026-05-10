@@ -31,6 +31,47 @@ export type MagicItem = z.infer<typeof magicItemSchema>;
 
 export const magicItemListSchema = z.array(magicItemSchema);
 
+const weaponPropertyEntrySchema = z.object({
+  property: z.object({
+    name: z.string(),
+    type: z.string().nullable(),
+  }),
+  detail: z.string().nullable(),
+});
+
+export const mundaneItemSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  desc: z.string(),
+  category: namedSchema,
+  weapon: z
+    .object({
+      damage_dice: z.string(),
+      damage_type: namedSchema,
+      properties: z.array(weaponPropertyEntrySchema),
+      is_simple: z.boolean(),
+      is_martial: z.boolean(),
+    })
+    .nullable(),
+  armor: z
+    .object({
+      category: z.enum(["light", "medium", "heavy"]),
+      ac_base: z.number(),
+      ac_add_dexmod: z.boolean(),
+      ac_cap_dexmod: z.number().nullable(),
+      grants_stealth_disadvantage: z.boolean(),
+      strength_score_required: z.number().nullable(),
+    })
+    .nullable(),
+  weight: z.string(),
+  weight_unit: z.string(),
+  cost: z.string(),
+});
+
+export type MundaneItem = z.infer<typeof mundaneItemSchema>;
+
+export const mundaneItemListSchema = z.array(mundaneItemSchema);
+
 export const CASTING_TIME_VALUES = [
   "action",
   "bonus-action",
