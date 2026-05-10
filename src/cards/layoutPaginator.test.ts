@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
+import { invariant } from "../lib/invariant";
 import { layoutPaginate } from "./layoutPaginator";
 import * as sliceAtModule from "./sliceAt";
 
@@ -186,8 +187,8 @@ describe("layoutPaginate", () => {
         return c;
       },
     });
-    expect(mounted).not.toBeNull();
-    expect(mounted!.children.length).toBe(0);
-    mounted!.remove();
+    invariant(mounted, "mount callback should have populated `mounted`");
+    expect(mounted.children.length).toBe(0);
+    mounted.remove();
   });
 });
