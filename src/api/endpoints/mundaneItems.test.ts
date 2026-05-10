@@ -7,7 +7,7 @@ describe("fetchMundaneItemIndex", () => {
     const result = await fetchMundaneItemIndex("2024");
 
     expect(result.count).toBe(result.results.length);
-    expect(result.results.length).toBeGreaterThanOrEqual(150);
+    expect(result.results.length).toBe(203);
     expect(() => mundaneItemListSchema.parse(result.results)).not.toThrow();
   });
 
@@ -15,7 +15,7 @@ describe("fetchMundaneItemIndex", () => {
     const result = await fetchMundaneItemIndex("2014");
 
     expect(result.count).toBe(result.results.length);
-    expect(result.results.length).toBeGreaterThanOrEqual(150);
+    expect(result.results.length).toBe(237);
     expect(() => mundaneItemListSchema.parse(result.results)).not.toThrow();
   });
 
@@ -26,6 +26,6 @@ describe("fetchMundaneItemIndex", () => {
     const keys2014 = new Set(v2014.results.map((e) => e.key));
     const keys2024 = new Set(v2024.results.map((e) => e.key));
     const overlap = [...keys2024].filter((k) => keys2014.has(k));
-    expect(overlap.length).toBeLessThan(v2024.count);
+    expect(overlap.length).toBe(0);
   });
 });
