@@ -6,14 +6,12 @@ The browse dialog currently exposes two SRD content types: magic items (sourced 
 
 ## Goal
 
-Add a third content type, **Mundane Items**, sourced one-for-one from Open5e v2 `/items/` for both srd-2014 and srd-2024 rulesets. Surface it as a sidebar entry in the existing browse dialog. Each row converts to a card whose header tags carry the item's mechanical structure (damage, AC, properties, mastery, range), body carries the item's `desc`, and footer tags carry cost and weight. No db migration. No new card kind.
-
-The browse dialog exposes a single "Items" tab that merges entries from both `/v2/magicitems/` (rarity-bearing magic items) and `/v2/items/` (the SRD's umbrella item list, which also includes rarity-less magical entries that Open5e didn't denormalize — generic Potion of Healing, Spell Scroll, Potion of Giant Strength, etc.). Combining them avoids a confusing UX in which a user searching for "ioun stone" or "potion of healing" would have to know Open5e's classification quirks. Both endpoints feed one tab; each row carries enough origin context (its slug + which mapper to use) to produce a card with the correct shape regardless of source.
+The browse dialog exposes a single "Items" tab that merges entries from both `/v2/magicitems/` (rarity-bearing magic items) and `/v2/items/` (the SRD's umbrella item list, which also includes rarity-less magical entries that Open5e didn't denormalize — generic Potion of Healing, Spell Scroll, Potion of Giant Strength, etc.). Combining them avoids a confusing UX in which a user searching for "ioun stone" or "potion of healing" would have to know Open5e's classification quirks. Both endpoints feed one tab; each row carries enough origin context (its slug + which mapper to use) to produce a card with the correct shape regardless of source. No db migration. No new card kind. Each row converts to a card whose header tags carry the item's mechanical structure (damage, AC, properties, mastery, range), body carries the item's `desc`, and footer tags carry cost (mundane only) and weight.
 
 ## Non-goals
 
 - **No `/weapons/` or `/armor/` enrichment.** The `/items/` endpoint already includes `weapon` and `armor` sub-objects with full mechanical detail (damage_dice, properties, AC, strength req, stealth disadvantage). No second fetch needed.
-- **No category filter chips, sub-tabs, or grouping.** Plain text search only, like the other tabs. The browse list shows category as the meta column, analogous to rarity for magic items.
+- **No category filter chips, sub-tabs, or grouping.** Plain text search only, like the other tabs. The browse list `meta` column is heterogeneous: rarity for magic-item rows, category for mundane-item rows — each row surfaces what's most useful for it.
 - **No per-category icons.** Card icon resolution stays generic via `kind: "item"`.
 - **No new card kind.** Both magic and mundane items use the existing `kind: "item"`. Once a card exists, the magic/mundane distinction isn't meaningful for rendering, printing, or editing — the data on the card is what differs.
 - **No db migration.** `apiRef` schema is unchanged; the existing slug uniquely identifies the source (`/items/` and `/magicitems/` are key-disjoint, so no ambiguity).
