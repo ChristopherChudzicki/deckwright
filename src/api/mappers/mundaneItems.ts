@@ -7,8 +7,12 @@ const formatCost = (cost: string): string | null => {
   const gp = parseFloat(cost);
   if (gp <= 0) return null;
   if (gp >= 1) return `${gp} gp`;
-  if (gp >= 0.1) return `${Math.round(gp * 10)} sp`;
-  return `${Math.round(gp * 100)} cp`;
+  if (gp >= 0.1) {
+    const sp = Math.round(gp * 10);
+    return sp > 0 ? `${sp} sp` : null;
+  }
+  const cp = Math.round(gp * 100);
+  return cp > 0 ? `${cp} cp` : null;
 };
 
 type WeaponPropertyEntry = {

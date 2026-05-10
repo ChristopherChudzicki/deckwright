@@ -33,7 +33,7 @@ describe("mundaneItemDetailToCard", () => {
     expect(card.apiRef).toEqual({
       system: "open5e",
       slug: "srd-2024_battleaxe",
-      ruleset: "2024",
+      ruleset: detail.ruleset,
     });
   });
 
@@ -118,7 +118,7 @@ describe("mundaneItemDetailToCard", () => {
     expect(card.body).toContain("Acid");
   });
 
-  test("light armor with capped dex bonus", () => {
+  test("light armor with uncapped dex bonus", () => {
     const detail = mundaneItemDetailFactory.build({
       category: { name: "Armor" },
       armor: {
