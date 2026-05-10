@@ -21,6 +21,7 @@
   text-decoration: none;
   letter-spacing: 0.02em;
   border-radius: var(--radius-sm);
+  white-space: nowrap;
 }
 
 .brand:focus-visible {
@@ -40,25 +41,6 @@
 }
 
 .link:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 1px;
-}
-
-.iconLink {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-muted);
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-}
-
-.iconLink:hover {
-  color: var(--color-text);
-  background: var(--color-surface-2);
-}
-
-.iconLink:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 1px;
 }
@@ -107,6 +89,17 @@
 
 .main:has([data-print-view]) {
   max-width: 1400px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .header {
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+  }
 }
 
 @media print {

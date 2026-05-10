@@ -15,21 +15,14 @@ export function UserMenu() {
 
   if (session.status === "loading") return null;
 
-  if (session.status === "unauthenticated") {
-    return (
-      <Link to="/login" className={styles.signInLink}>
-        Sign in
-      </Link>
-    );
-  }
+  const signInLink = (
+    <Link to="/login" className={styles.signInLink}>
+      Sign in
+    </Link>
+  );
 
-  if (session.user.is_anonymous) {
-    return (
-      <Link to="/login" className={styles.pillCta}>
-        Sign in to save your work
-      </Link>
-    );
-  }
+  if (session.status === "unauthenticated") return signInLink;
+  if (session.user.is_anonymous) return signInLink;
 
   const email = session.user.email ?? "";
 

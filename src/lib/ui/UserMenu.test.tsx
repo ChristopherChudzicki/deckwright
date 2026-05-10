@@ -75,13 +75,13 @@ describe("<UserMenu>", () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it("renders an accent pill linking to /login when the user is anonymous", () => {
+  it("renders the same Sign in link when the user is anonymous", () => {
     wrap({
       status: "authenticated",
       user: { id: "anon-1", email: null, is_anonymous: true } as never,
       session: {} as never,
     });
-    const link = screen.getByRole("link", { name: /sign in to save your work/i });
+    const link = screen.getByRole("link", { name: "Sign in" });
     expect(link).toHaveAttribute("href", "/login");
   });
 

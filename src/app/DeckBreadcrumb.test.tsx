@@ -40,25 +40,16 @@ function wrap(ui: ReactNode) {
 }
 
 describe("DeckBreadcrumb", () => {
-  it("renders just a Decks link when not under a deck route", () => {
+  it("renders nothing when not under a deck route", () => {
     mockPathname = "/";
-    render(wrap(<DeckBreadcrumb />));
-    const nav = screen.getByRole("navigation", { name: /breadcrumb/i });
-    const link = screen.getByRole("link", { name: /decks/i });
-    expect(nav).toContainElement(link);
-    expect(link).toHaveAttribute("href", "/");
-    expect(screen.queryByText("›")).not.toBeInTheDocument();
+    const { container } = render(wrap(<DeckBreadcrumb />));
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders just a Decks link on the deck root route", () => {
-    const deck = makePublicDeck.build();
-    mockPathname = `/deck/${deck.id}`;
-    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
-    render(wrap(<DeckBreadcrumb />));
-
-    expect(screen.getByRole("link", { name: "Decks" })).toHaveAttribute("href", "/");
-    expect(screen.queryByText("›")).not.toBeInTheDocument();
-    expect(screen.queryByText(deck.name)).not.toBeInTheDocument();
+  it("renders nothing on the deck root route", () => {
+    mockPathname = "/deck/any-id";
+    const { container } = render(wrap(<DeckBreadcrumb />));
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("renders the deck name as a link on the editor route", async () => {
@@ -104,14 +95,12 @@ describe("DeckBreadcrumb", () => {
     await screen.findByText(deck.name);
   });
 
-  it("collapses to just Decks when the deck is not found", async () => {
+  it("collapses to nothing when the deck is not found", async () => {
     mockPathname = "/deck/missing/edit/new";
     server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(null)));
-    render(wrap(<DeckBreadcrumb />));
+    const { container } = render(wrap(<DeckBreadcrumb />));
 
-    await screen.findByRole("link", { name: "Decks" });
-    await waitFor(() => expect(screen.queryByText("›")).not.toBeInTheDocument());
-    expect(screen.queryByText("…")).not.toBeInTheDocument();
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
   });
 
   it("sets the full deck name on title for a truncated link", async () => {
