@@ -1,5 +1,7 @@
 # Browse fuzzy search Implementation Plan
 
+> **Amendment (2026-05-10):** This plan describes the implementation as written before pivoting to the `fuzzysort` library. Tasks 1 and 2 were superseded — `src/lib/fuzzyMatch.ts` and its tests were deleted, and the call sites use `fuzzysort.go(q, entries, { key: "name" })` instead of the homegrown matcher. See PR #62 for the final state.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the literal substring filter in the Browse SRD modal's search input with a VSCode command-P-style fuzzy subsequence matcher so queries like `firebolt`, `fir bolt`, and `cat` find "Fire Bolt" / "Cornwall Times".

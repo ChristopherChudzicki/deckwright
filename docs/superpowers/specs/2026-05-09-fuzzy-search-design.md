@@ -1,5 +1,7 @@
 # Browse search — fuzzy subsequence matching
 
+> **Amendment (2026-05-10):** This spec describes the homegrown 30-line greedy matcher originally landed on this branch. Manual UX testing surfaced a ranking-quality issue (`flm` ranked "Rod of Lordly Might" above "Flame Tongue Battleaxe" — two stacked word-start bonuses with no compactness penalty). The merged implementation uses the [`fuzzysort`](https://www.npmjs.com/package/fuzzysort) library instead. The "Why no library" subsection below was the explicit decision we reversed; the rest of the spec (problem, goal, non-goals, call-site shape) still describes the merged behavior. References to `src/lib/fuzzyMatch.ts` and its tests are obsolete — both files were deleted in PR #62.
+
 ## Problem
 
 The Browse SRD modal's search filter (`src/api/content-types/spells.ts:14-16`, `src/api/content-types/items.ts:14-16`) uses a literal case-insensitive substring check: `name.toLowerCase().includes(query.toLowerCase())`. This misses common typing patterns:
