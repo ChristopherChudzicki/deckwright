@@ -5,28 +5,37 @@ import type { ReactNode } from "react";
 import { describe, expect, test, vi } from "vitest";
 import type { MagicItemIndex, Ruleset } from "../api/endpoints/magicItems";
 import * as magicItemsEndpoint from "../api/endpoints/magicItems";
+import type { MundaneItemIndex } from "../api/endpoints/mundaneItems";
 import type { SpellIndex } from "../api/endpoints/spells";
-import { magicItemIndexEntryFactory, spellIndexEntryFactory } from "../api/factories";
+import {
+  magicItemIndexEntryFactory,
+  mundaneItemIndexEntryFactory,
+  spellIndexEntryFactory,
+} from "../api/factories";
 import { makeCardRow } from "../test/factories";
 import { SB_URL, server } from "../test/msw";
 import { render, screen, waitFor } from "../test/render";
 import { BrowseApiModal } from "./BrowseApiModal";
 
 const itemKey = (ruleset: Ruleset) => ["magic-items", ruleset, "index"];
+const mundaneKey = (ruleset: Ruleset) => ["mundane-items", ruleset, "index"];
 const spellKey = (ruleset: Ruleset) => ["spells", ruleset, "index"];
 
 type Seeds = {
   items?: Partial<Record<Ruleset, MagicItemIndex>>;
+  mundane?: Partial<Record<Ruleset, MundaneItemIndex>>;
   spells?: Partial<Record<Ruleset, SpellIndex>>;
 };
 
+const EMPTY = { count: 0, results: [] };
+const RULESETS: Ruleset[] = ["2024", "2014"];
+
 const makeClient = (seeds: Seeds = {}) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  for (const [ruleset, body] of Object.entries(seeds.items ?? {}) as [Ruleset, MagicItemIndex][]) {
-    client.setQueryData(itemKey(ruleset), body);
-  }
-  for (const [ruleset, body] of Object.entries(seeds.spells ?? {}) as [Ruleset, SpellIndex][]) {
-    client.setQueryData(spellKey(ruleset), body);
+  for (const ruleset of RULESETS) {
+    client.setQueryData(itemKey(ruleset), seeds.items?.[ruleset] ?? EMPTY);
+    client.setQueryData(mundaneKey(ruleset), seeds.mundane?.[ruleset] ?? EMPTY);
+    client.setQueryData(spellKey(ruleset), seeds.spells?.[ruleset] ?? EMPTY);
   }
   return client;
 };
@@ -40,11 +49,11 @@ const openSourceMenu = async () => {
 
 describe("<BrowseApiModal>", () => {
   test("renders the registered types as a vertical tablist in registry order", async () => {
-    const client = makeClient({ items: { "2024": { count: 0, results: [] } } });
+    const client = makeClient();
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Magic Items", "Spells"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Items", "Spells"]);
   });
 
   test("shows index entries once the items list loads", async () => {
@@ -127,6 +136,48 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /Ring A/ })).not.toBeInTheDocument();
   });
 
+  test("switching source on the Items tab updates mundane rows", async () => {
+    const v2024 = mundaneItemIndexEntryFactory.build({ name: "Hempen Rope" });
+    const v2014 = mundaneItemIndexEntryFactory.build({ name: "Silken Rope" });
+    const client = makeClient({
+      mundane: {
+        "2024": { count: 1, results: [v2024] },
+        "2014": { count: 1, results: [v2014] },
+      },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await screen.findByRole("button", { name: /Hempen Rope/ });
+    await openSourceMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: "2014" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Silken Rope/ })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("button", { name: /Hempen Rope/ })).not.toBeInTheDocument();
+  });
+
+  test("Items tab merges magic and mundane sources alphabetically", async () => {
+    const magicItem = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const mundaneItem = mundaneItemIndexEntryFactory.build({ name: "Battleaxe" });
+    const client = makeClient({
+      items: { "2024": { count: 1, results: [magicItem] } },
+      mundane: { "2024": { count: 1, results: [mundaneItem] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await screen.findByRole("button", { name: /Bag of Holding/ });
+    const matched = screen.getAllByRole("button", { name: /Bag of Holding|Battleaxe/ });
+    const names = matched.map((b) => b.textContent ?? "");
+    const bagIdx = names.findIndex((n) => /Bag of Holding/.test(n));
+    const battleaxeIdx = names.findIndex((n) => /Battleaxe/.test(n));
+    expect(bagIdx).toBeGreaterThanOrEqual(0);
+    expect(battleaxeIdx).toBeGreaterThanOrEqual(0);
+    expect(bagIdx).toBeLessThan(battleaxeIdx);
+  });
+
   test("switching to the Spells tab swaps the list source", async () => {
     const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const spell = spellIndexEntryFactory.build({ name: "Fireball" });
@@ -207,6 +258,60 @@ describe("<BrowseApiModal>", () => {
     await waitFor(() => expect(onPost).toHaveBeenCalled());
     expect(onPost.mock.calls[0]?.[0]?.payload?.kind).toBe("spell");
     expect(onSelected).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  test("clicking a mundane item from the Items tab POSTs a card with kind:item", async () => {
+    const entry = mundaneItemIndexEntryFactory.build({
+      name: "Battleaxe",
+      category: { name: "Weapon" },
+      weapon: {
+        damage_dice: "1d8",
+        damage_type: { name: "Slashing" },
+        properties: [],
+        is_simple: false,
+        is_martial: true,
+      },
+      cost: "10.00",
+      weight: "4.000",
+      weight_unit: "lb",
+    });
+    const client = makeClient({
+      mundane: { "2024": { count: 1, results: [entry] } },
+    });
+    const onPost = vi.fn();
+    server.use(
+      http.post(`${SB_URL}/rest/v1/cards`, async ({ request }) => {
+        onPost(await request.json());
+        return HttpResponse.json([makeCardRow.build()], { status: 201 });
+      }),
+    );
+    const onSelected = vi.fn();
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />, client);
+
+    await userEvent.click(await screen.findByRole("button", { name: /Battleaxe/ }));
+
+    await waitFor(() => expect(onPost).toHaveBeenCalled());
+    const payload = onPost.mock.calls[0]?.[0]?.payload;
+    expect(payload?.kind).toBe("item");
+    expect(payload?.headerTags).toEqual(["Weapon", "Martial", "1d8 slashing"]);
+    expect(payload?.footerTags).toEqual(["10 gp", "4 lb"]);
+    expect(onSelected).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  test("mundane-item rows show category in the meta column", async () => {
+    const entry = mundaneItemIndexEntryFactory.build({
+      name: "Rope",
+      category: { name: "Adventuring Gear" },
+    });
+    const client = makeClient({
+      mundane: { "2024": { count: 1, results: [entry] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    const row = await screen.findByRole("button", { name: /Rope/ });
+    expect(row).toHaveTextContent("Adventuring Gear");
   });
 
   test("clicking the same row only POSTs once even under StrictMode double-render", async () => {
@@ -319,7 +424,9 @@ describe("<BrowseApiModal>", () => {
     vi.spyOn(magicItemsEndpoint, "fetchMagicItemIndex").mockReturnValue(
       new Promise<MagicItemIndex>(() => {}),
     );
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const client = makeClient();
+    // Force magic to fetch (and stay pending via the spy) instead of using the seeded EMPTY.
+    client.removeQueries({ queryKey: ["magic-items", "2024", "index"] });
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
@@ -328,7 +435,9 @@ describe("<BrowseApiModal>", () => {
 
   test("shows a Retry button when the items index fails to load", async () => {
     vi.spyOn(magicItemsEndpoint, "fetchMagicItemIndex").mockRejectedValue(new Error("boom"));
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const client = makeClient();
+    // Force magic to fetch (and reject via the spy) instead of using the seeded EMPTY.
+    client.removeQueries({ queryKey: ["magic-items", "2024", "index"] });
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
