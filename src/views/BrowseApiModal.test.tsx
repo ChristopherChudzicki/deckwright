@@ -140,6 +140,30 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /Ring A/ })).not.toBeInTheDocument();
   });
 
+  test("switching source on the Mundane Items tab loads a different list", async () => {
+    const v2024 = mundaneItemIndexEntryFactory.build({ name: "Rope" });
+    const v2014 = mundaneItemIndexEntryFactory.build({ name: "Rope, hempen" });
+    const client = makeClient({
+      items: { "2024": { count: 0, results: [] } },
+      mundane: {
+        "2024": { count: 1, results: [v2024] },
+        "2014": { count: 1, results: [v2014] },
+      },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Mundane Items" }));
+    await screen.findByRole("button", { name: /Rope/ });
+    await openSourceMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: "2014" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Rope, hempen/ })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("button", { name: /^Rope$/ })).not.toBeInTheDocument();
+  });
+
   test("switching to the Spells tab swaps the list source", async () => {
     const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const spell = spellIndexEntryFactory.build({ name: "Fireball" });
