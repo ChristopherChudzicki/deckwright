@@ -37,39 +37,23 @@ describe("pickIconKey", () => {
   });
 
   test("Axe variants pick 'battle-axe'", () => {
-    expect(pickIconKey(itemCardFactory.build({ name: "Battleaxe", headerTags: [] }))).toBe(
-      "battle-axe",
-    );
-    expect(pickIconKey(itemCardFactory.build({ name: "Greataxe of Vorpal", headerTags: [] }))).toBe(
-      "battle-axe",
-    );
-    expect(pickIconKey(itemCardFactory.build({ name: "Handaxe", headerTags: [] }))).toBe(
-      "battle-axe",
-    );
+    expect(pickIconKey(itemCardFactory.build({ name: "Battleaxe" }))).toBe("battle-axe");
+    expect(pickIconKey(itemCardFactory.build({ name: "Greataxe of Vorpal" }))).toBe("battle-axe");
+    expect(pickIconKey(itemCardFactory.build({ name: "Handaxe" }))).toBe("battle-axe");
   });
 
   test("Hammer variants pick 'warhammer'", () => {
-    expect(
-      pickIconKey(itemCardFactory.build({ name: "Warhammer of Thunder", headerTags: [] })),
-    ).toBe("warhammer");
-    expect(pickIconKey(itemCardFactory.build({ name: "Maul +1", headerTags: [] }))).toBe(
-      "warhammer",
-    );
+    expect(pickIconKey(itemCardFactory.build({ name: "Warhammer of Thunder" }))).toBe("warhammer");
+    expect(pickIconKey(itemCardFactory.build({ name: "Maul +1" }))).toBe("warhammer");
   });
 
   test("Bow variants pick 'bow-arrow' (not the broadsword catch-all)", () => {
-    expect(pickIconKey(itemCardFactory.build({ name: "Elven Longbow", headerTags: [] }))).toBe(
-      "bow-arrow",
-    );
-    expect(pickIconKey(itemCardFactory.build({ name: "Shortbow", headerTags: [] }))).toBe(
-      "bow-arrow",
-    );
+    expect(pickIconKey(itemCardFactory.build({ name: "Elven Longbow" }))).toBe("bow-arrow");
+    expect(pickIconKey(itemCardFactory.build({ name: "Shortbow" }))).toBe("bow-arrow");
   });
 
   test("Crossbow picks 'crossbow', not 'bow-arrow'", () => {
-    expect(pickIconKey(itemCardFactory.build({ name: "Crossbow of Speed", headerTags: [] }))).toBe(
-      "crossbow",
-    );
+    expect(pickIconKey(itemCardFactory.build({ name: "Crossbow of Speed" }))).toBe("crossbow");
   });
 
   test("Generic weapon catch-all picks 'broadsword'", () => {
@@ -155,7 +139,7 @@ describe("pickIconKey", () => {
   });
 
   test("Case-insensitive matching", () => {
-    const card = itemCardFactory.build({ name: "POTION OF HEALING", headerTags: [] });
+    const card = itemCardFactory.build({ name: "POTION OF HEALING" });
     expect(pickIconKey(card)).toBe("potion-ball");
   });
 });

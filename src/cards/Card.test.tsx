@@ -36,39 +36,26 @@ describe("<Card>", () => {
   });
 
   test("renders the heuristic-picked icon when iconKey is unset", () => {
-    const card = itemCardFactory.build({
-      name: "Flame Tongue Trident",
-      iconKey: undefined,
-    });
+    const card = itemCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
     const slot = screen.getByTestId("card-icon");
     expect(slot.querySelector("svg")).not.toBeNull();
   });
 
   test("renders the explicit override icon when iconKey is set", () => {
-    const card = itemCardFactory.build({
-      name: "Anything",
-      iconKey: "trident",
-    });
+    const card = itemCardFactory.build({ iconKey: "trident" });
     render(<Card card={card} cardsPerPage={4} />);
     const slot = screen.getByTestId("card-icon");
     expect(slot.querySelector("svg")).not.toBeNull();
   });
 
   test("does not crash for a stale or unknown iconKey", () => {
-    const card = itemCardFactory.build({
-      name: "X",
-      iconKey: "definitely-removed-icon",
-    });
+    const card = itemCardFactory.build({ iconKey: "definitely-removed-icon" });
     expect(() => render(<Card card={card} cardsPerPage={4} />)).not.toThrow();
   });
 
   test("renders the heuristic-picked icon for a spell card with iconKey unset", () => {
-    const card = spellCardFactory.build({
-      name: "Fireball",
-      headerTags: ["3rd-level evocation"],
-      iconKey: undefined,
-    });
+    const card = spellCardFactory.build();
     render(<Card card={card} cardsPerPage={4} />);
     const slot = screen.getByTestId("card-icon");
     expect(slot.querySelector("svg")).not.toBeNull();

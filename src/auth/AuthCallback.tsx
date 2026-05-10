@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "../api/supabase";
 import { pluralize } from "../lib/pluralize";
 import { useSetNextAnnouncement } from "../lib/ui/Announcement";
+import styles from "./AuthCallback.module.css";
 import { clear, readPending, stash, tryResume } from "./anonImport";
 import { ImportAccountDialog } from "./ImportAccountDialog";
 import { readNextFromUrl } from "./safeNext";
@@ -148,7 +149,7 @@ export function AuthCallback() {
 
   if (phase === "importing") {
     return (
-      <section style={{ textAlign: "center", padding: "4rem" }} role="status" aria-live="polite">
+      <section className={styles.statusPanel} role="status" aria-live="polite">
         <h2>Bringing your decks over</h2>
         <p>
           Imported {progress.imported} of {progress.total} decks…
@@ -159,7 +160,7 @@ export function AuthCallback() {
 
   if (phase === "error") {
     return (
-      <section style={{ textAlign: "center", padding: "4rem" }}>
+      <section className={styles.statusPanel}>
         <p>{errorMessage}</p>
         <p>
           <Link to="/login">Back to sign-in</Link>
@@ -169,7 +170,7 @@ export function AuthCallback() {
   }
 
   return (
-    <section style={{ textAlign: "center", padding: "4rem" }}>
+    <section className={styles.statusPanel}>
       <p>Signing you in…</p>
     </section>
   );
