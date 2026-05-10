@@ -6,7 +6,7 @@ The browse dialog currently exposes two SRD content types: magic items (sourced 
 
 ## Goal
 
-Add a third content type, **Mundane Items**, sourced one-for-one from Open5e v2 `/items/` for both srd-2014 and srd-2024 rulesets. Surface it as a sidebar entry in the existing browse dialog. Each row converts to a card whose header tags carry the item's mechanical structure (damage, AC, properties, mastery, range), body carries the item's `desc`, and the footer tag carries weight. No db migration. No new card kind.
+Add a third content type, **Mundane Items**, sourced one-for-one from Open5e v2 `/items/` for both srd-2014 and srd-2024 rulesets. Surface it as a sidebar entry in the existing browse dialog. Each row converts to a card whose header tags carry the item's mechanical structure (damage, AC, properties, mastery, range), body carries the item's `desc`, and footer tags carry cost and weight. No db migration. No new card kind.
 
 The tabs ↔ endpoints mapping is the spec's mental model: rarity-bearing items are magic and live in `/magicitems/`; rarity-less items are mundane and live in `/items/`. We adopt Open5e's categorization as authoritative even when individual entries (e.g., Airship, Ioun Stone) are arguably magical in flavor — they have no rarity, aren't on the DMG rarity tables, and Open5e places them in `/items/`, so the Mundane Items tab is where they appear.
 
@@ -86,7 +86,7 @@ The Zod schema (`mundaneItemSchema`) declares only the fields above and lets Zod
 
 ### Card composition
 
-Mirrors the existing `magicItemDetailToCard` mapper. Differences from magic items: no rarity tag (mundane items don't have rarity); no attunement tag (mundane items aren't attunable); no cost tag (rationale in footer tags below).
+Mirrors the existing `magicItemDetailToCard` mapper. Differences from magic items: no rarity tag (mundane items don't have rarity); no attunement tag (mundane items aren't attunable); cost tag present (mundane items always have a published list price, while 5e magic items typically don't have meaningful prices — GMs set them when it matters — so the magic-items mapper stays unchanged).
 
 **Header tags** (in order):
 1. `category.name` (e.g., `Weapon`, `Armor`, `Adventuring Gear`).
@@ -108,13 +108,25 @@ Mirrors the existing `magicItemDetailToCard` mapper. Differences from magic item
 
 **Body:** raw `desc`, rendered through the existing `renderBody` markdown pipeline. No changes to `Card.tsx` or `renderBody`. Sparse weapon/armor descs (`"A battleaxe."`) are accepted — header tags carry the mechanical content.
 
-**Footer tags:**
+**Footer tags** (in order):
+- Cost, formatted as one of `{n} cp` / `{n} sp` / `{n} gp` per the table below. Omitted when `cost === "0.00"`.
 - `{weight} {weight_unit}` (e.g., `4 lb`) when `parseFloat(weight) > 0`. Omitted otherwise.
-- No cost. No rarity. No attunement.
-
-For consistency, the existing magic-items mapper does not emit a cost tag either — it surfaces rarity + weight only — and that pattern stays. Cost is intentionally not surfaced on either tab in this spec; if we want to add it later, it would be added uniformly to both mappers in a follow-up.
+- No rarity. No attunement.
 
 **`kind`:** `"item"`. Same `ItemCard` shape as magic items. `Card.tsx`, icon resolution, print pipeline, deck UI all unchanged.
+
+### Cost formatting
+
+Open5e returns cost as a non-null decimal-gold string (`"10.00"`, `"0.05"`, `"0.00"`). Render to D&D coin denominations using whole-number quantities — every SRD cost expressed as gp/sp/cp lands on an integer:
+
+| Decimal cost (gp) | Tag |
+|---|---|
+| `"0.00"` | omitted |
+| `< 0.10` | `{round(gp × 100)} cp` (e.g., `"0.05"` → `5 cp`, `"0.02"` → `2 cp`) |
+| `>= 0.10` and `< 1.00` | `{round(gp × 10)} sp` (e.g., `"0.10"` → `1 sp`, `"0.40"` → `4 sp`, `"0.50"` → `5 sp`) |
+| `>= 1.00` | `{integer gp} gp` (e.g., `"1.00"` → `1 gp`, `"10.00"` → `10 gp`, `"400.00"` → `400 gp`) |
+
+All real SRD costs across both rulesets fall on integer cp / sp / gp values; the mapper does not need to render fractional denominations.
 
 ### Internal rename of the magic-items module
 
@@ -168,7 +180,12 @@ Mirror the existing magic-item test structure.
 - "Improvised" / consumable category-weapon (Acid, srd-2024): `Weapon` only (the literal category tag) — no martial/simple/damage/property tags because `weapon` is `null`. Body carries the rich desc.
 - Light armor with stealth + cap (e.g., Studded Leather): `Light`, AC string with `+ dex mod`, no stealth/str tags.
 - Heavy armor with stealth + str (Chain Mail): `Heavy`, `AC 16`, `Stealth disadvantage`, `Str 13`.
-- Zero-weight item (e.g., Bell): weight tag elided.
+- Zero-weight item (e.g., Bell): weight tag elided; cost tag still emitted.
+- Cost formatting:
+  - `"10.00"` → `10 gp` (Battleaxe).
+  - `"0.50"` → `5 sp` (Blanket).
+  - `"0.05"` → `5 cp` (Blowgun Needle).
+  - `"0.00"` → cost tag elided.
 
 `src/api/endpoints/mundaneItems.test.ts`:
 - Bundled JSON parses against `mundaneItemSchema` for both rulesets.
