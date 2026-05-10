@@ -49,7 +49,7 @@ const openSourceMenu = async () => {
 
 describe("<BrowseApiModal>", () => {
   test("renders the registered types as a vertical tablist in registry order", async () => {
-    const client = makeClient({ items: { "2024": { count: 0, results: [] } } });
+    const client = makeClient();
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     const tabs = screen.getAllByRole("tab");
@@ -136,6 +136,28 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /Ring A/ })).not.toBeInTheDocument();
   });
 
+  test("switching source on the Items tab updates mundane rows", async () => {
+    const v2024 = mundaneItemIndexEntryFactory.build({ name: "Hempen Rope" });
+    const v2014 = mundaneItemIndexEntryFactory.build({ name: "Silken Rope" });
+    const client = makeClient({
+      mundane: {
+        "2024": { count: 1, results: [v2024] },
+        "2014": { count: 1, results: [v2014] },
+      },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await screen.findByRole("button", { name: /Hempen Rope/ });
+    await openSourceMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: "2014" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Silken Rope/ })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("button", { name: /Hempen Rope/ })).not.toBeInTheDocument();
+  });
+
   test("Items tab merges magic and mundane sources alphabetically", async () => {
     const magicItem = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const mundaneItem = mundaneItemIndexEntryFactory.build({ name: "Battleaxe" });
@@ -146,11 +168,14 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    const bagButton = await screen.findByRole("button", { name: /Bag of Holding/ });
-    const battleaxeButton = screen.getByRole("button", { name: /Battleaxe/ });
-    expect(
-      bagButton.compareDocumentPosition(battleaxeButton) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    await screen.findByRole("button", { name: /Bag of Holding/ });
+    const matched = screen.getAllByRole("button", { name: /Bag of Holding|Battleaxe/ });
+    const names = matched.map((b) => b.textContent ?? "");
+    const bagIdx = names.findIndex((n) => /Bag of Holding/.test(n));
+    const battleaxeIdx = names.findIndex((n) => /Battleaxe/.test(n));
+    expect(bagIdx).toBeGreaterThanOrEqual(0);
+    expect(battleaxeIdx).toBeGreaterThanOrEqual(0);
+    expect(bagIdx).toBeLessThan(battleaxeIdx);
   });
 
   test("switching to the Spells tab swaps the list source", async () => {
@@ -399,7 +424,9 @@ describe("<BrowseApiModal>", () => {
     vi.spyOn(magicItemsEndpoint, "fetchMagicItemIndex").mockReturnValue(
       new Promise<MagicItemIndex>(() => {}),
     );
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const client = makeClient();
+    // Force magic to fetch (and stay pending via the spy) instead of using the seeded EMPTY.
+    client.removeQueries({ queryKey: ["magic-items", "2024", "index"] });
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
@@ -408,7 +435,9 @@ describe("<BrowseApiModal>", () => {
 
   test("shows a Retry button when the items index fails to load", async () => {
     vi.spyOn(magicItemsEndpoint, "fetchMagicItemIndex").mockRejectedValue(new Error("boom"));
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const client = makeClient();
+    // Force magic to fetch (and reject via the spy) instead of using the seeded EMPTY.
+    client.removeQueries({ queryKey: ["magic-items", "2024", "index"] });
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
