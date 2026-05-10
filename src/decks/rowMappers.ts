@@ -7,8 +7,10 @@ type CardUpdatePayload = Omit<Card, "id">;
 type GeneratedCardRow = Database["public"]["Tables"]["cards"]["Row"];
 
 export function rowToCard(row: GeneratedCardRow): Card {
-  // DB stores card.payload as JSONB; this is the one place that asserts it
-  // matches our discriminated `Card` shape.
+  // Two casts: (1) DB stores card.payload as opaque JSONB, so this is the
+  // single place that asserts the blob matches our discriminated `Card`
+  // shape; (2) spreading a discriminated union widens it to a single
+  // merged-field shape, so the outer cast re-discriminates.
   return { id: row.id, ...(row.payload as Omit<Card, "id">) } as Card;
 }
 
