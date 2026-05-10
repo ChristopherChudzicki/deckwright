@@ -47,9 +47,7 @@ describe("DeckBreadcrumb", () => {
   });
 
   it("renders nothing on the deck root route", () => {
-    const deck = makePublicDeck.build();
-    mockPathname = `/deck/${deck.id}`;
-    server.use(http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)));
+    mockPathname = "/deck/any-id";
     const { container } = render(wrap(<DeckBreadcrumb />));
     expect(container).toBeEmptyDOMElement();
   });
