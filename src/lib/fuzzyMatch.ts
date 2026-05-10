@@ -18,7 +18,7 @@ export function fuzzyMatch(query: string, target: string): FuzzyMatch | null {
 
     let bonus = 1;
     if (ti === lastMatchTi + 1) bonus += 2;
-    if (ti === 0 || BOUNDARY.has(t[ti - 1])) bonus += 3;
+    if (ti === 0 || BOUNDARY.has(t.charAt(ti - 1))) bonus += 3;
 
     score += bonus;
     lastMatchTi = ti;
