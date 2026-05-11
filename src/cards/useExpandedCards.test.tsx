@@ -59,20 +59,24 @@ describe("useExpandedCards", () => {
         { initialProps: { items: itemsA } },
       );
       expect(result.current.physicalCards).toHaveLength(1);
+      expect(result.current.isPending).toBe(false);
 
       rerender({ items: itemsB });
       // Still showing the pre-change pagination immediately after rerender.
       expect(result.current.physicalCards).toHaveLength(1);
+      expect(result.current.isPending).toBe(true);
 
       act(() => {
         vi.advanceTimersByTime(299);
       });
       expect(result.current.physicalCards).toHaveLength(1);
+      expect(result.current.isPending).toBe(true);
 
       act(() => {
         vi.advanceTimersByTime(1);
       });
       expect(result.current.physicalCards).toHaveLength(2);
+      expect(result.current.isPending).toBe(false);
     });
 
     test("debounceMs of 0 is synchronous (no extra render lag)", () => {
@@ -83,10 +87,12 @@ describe("useExpandedCards", () => {
         { initialProps: { items: itemsA } },
       );
       expect(result.current.physicalCards).toHaveLength(1);
+      expect(result.current.isPending).toBe(false);
 
       rerender({ items: itemsB });
-      // Synchronous: change visible immediately on next render.
+      // Synchronous: change visible immediately on next render, never pending.
       expect(result.current.physicalCards).toHaveLength(2);
+      expect(result.current.isPending).toBe(false);
     });
   });
 });

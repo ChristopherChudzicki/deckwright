@@ -75,12 +75,17 @@ export function EditorView({ deckId, cardId }: Props) {
   }, [initial]);
 
   const measurementItems = useMemo(() => (draft ? [draft] : []), [draft]);
-  const { physicalCards: chunks4Up } = useExpandedCards(measurementItems, 4, {
-    debounceMs: 300,
-  });
-  const { physicalCards: chunks2Up } = useExpandedCards(measurementItems, 2, {
-    debounceMs: 300,
-  });
+  const { physicalCards: chunks4Up, isPending: isPending4 } = useExpandedCards(
+    measurementItems,
+    4,
+    { debounceMs: 300 },
+  );
+  const { physicalCards: chunks2Up, isPending: isPending2 } = useExpandedCards(
+    measurementItems,
+    2,
+    { debounceMs: 300 },
+  );
+  const previewPending = isPending4 || isPending2;
 
   const [previewPage, setPreviewPage] = useState(0);
   const [browseOpen, setBrowseOpen] = useState(false);
@@ -170,7 +175,11 @@ export function EditorView({ deckId, cardId }: Props) {
             </Button>
           </div>
         )}
-        <div className={styles.counts} data-testid="preview-counts">
+        <div
+          className={styles.counts}
+          data-testid="preview-counts"
+          data-pending={previewPending ? "true" : "false"}
+        >
           {label}
         </div>
       </div>

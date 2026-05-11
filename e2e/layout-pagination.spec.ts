@@ -52,24 +52,22 @@ test("a multi-row table splits at row boundaries with <thead> repeated on each c
   }
 });
 
-test("editor preview re-paginates after the debounce window on body edits", async ({ page }) => {
+test("editor preview re-paginates after body edits, via the debounce", async ({ page }) => {
   await seedDeck(page, [longItem]);
   await page.goto(`/deck/${TEST_DECK_ID}/edit/${longItem.id}`);
 
   const counts = page.getByTestId("preview-counts");
-  // Wait for the multi-card layout to settle before reading initial state.
+  // Wait for the multi-card layout to settle before editing so the repaint
+  // we assert below isn't actually the initial render finishing.
   await expect(counts).toContainText(/^\d+ cards \(4 per page\)/);
-  const initialCounts = await counts.innerText();
+  await expect(counts).toHaveAttribute("data-pending", "false");
 
-  // Replace the body with something tiny — counts should drop to a single
-  // card, but not before the debounce window elapses.
   const bodyField = page.getByRole("textbox", { name: /^Body/ });
   await bodyField.fill("Tiny body.");
 
-  // Within 100 ms of the edit, counts should not have repainted.
-  await page.waitForTimeout(100);
-  expect(await counts.innerText()).toBe(initialCounts);
-
-  // After the debounce window (300 ms), counts updates to "1 card".
-  await expect(counts).toHaveText("1 card", { timeout: 2000 });
+  // Edit enters the debounce window before the repaint settles.
+  await expect(counts).toHaveAttribute("data-pending", "true");
+  // Debounced repaint eventually settles to the new pagination.
+  await expect(counts).toHaveText("1 card");
+  await expect(counts).toHaveAttribute("data-pending", "false");
 });

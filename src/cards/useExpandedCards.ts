@@ -26,16 +26,17 @@ export function useExpandedCards(
   items: RenderableCard[],
   cardsPerPage: CardsPerPage,
   opts: UseExpandedCardsOpts = {},
-): { physicalCards: PhysicalCard[] } {
+): { physicalCards: PhysicalCard[]; isPending: boolean } {
   const measurer = useSyncExternalStore(subscribe, () => getMeasurer(cardsPerPage));
   const debounceMs = opts.debounceMs ?? 0;
   const debouncedItems = useDebouncedValue(items, debounceMs);
   const effectiveItems = debounceMs > 0 ? debouncedItems : items;
+  const isPending = debounceMs > 0 && items !== debouncedItems;
 
   const physicalCards = useMemo<PhysicalCard[]>(
     () => effectiveItems.flatMap((item) => expandCard(item, measurer)),
     [effectiveItems, measurer],
   );
 
-  return { physicalCards };
+  return { physicalCards, isPending };
 }
