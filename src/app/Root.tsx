@@ -10,9 +10,12 @@ export function Root() {
     <AnnouncementProvider>
       <div className={styles.shell}>
         <header className={styles.header}>
-          <Link to="/" className={styles.brand}>
-            Deckwright
-          </Link>
+          <div className={styles.brandGroup}>
+            <Link to="/" className={styles.brand}>
+              Deckwright
+            </Link>
+            <span className={styles.tagline}>readable D&amp;D cards</span>
+          </div>
           <DeckBreadcrumb />
           <div className={styles.spacer} />
           <UserMenu />
