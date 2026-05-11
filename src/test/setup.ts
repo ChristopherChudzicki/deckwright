@@ -1,17 +1,26 @@
 import "@testing-library/jest-dom/vitest";
-import { addAPIProvider } from "@iconify/react";
+import { setCustomIconsLoader } from "@iconify/react";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { SB_URL, server } from "./msw";
 
-// Iconify schedules a setTimeout-driven retry fetch when asked for an icon
-// that isn't in the local store. Under vitest, that timer can fire after
-// the test environment is torn down — React then tries to read `window`
-// inside `dispatchSetState` and the run dies with an unhandled "window is
-// not defined" error originating from whichever test happened to render an
-// unresolved icon. Configuring the default API provider with zero resources
-// turns the fetch path into an immediate no-op.
-addAPIProvider("", { resources: [] });
+// Iconify schedules a setTimeout-driven retry fetch against its default API
+// provider when asked for an icon that isn't in the local store. Under
+// vitest, that timer can fire after the jsdom environment is torn down —
+// React then tries to read `window` inside `dispatchSetState` and the run
+// dies with an unhandled "window is not defined" error. Registering a
+// synchronous custom loader for our only prefix routes the lookup through
+// us instead, so iconify never touches the API path.
+const STUB_ICON_BODY = "<path d='M0 0h512v512H0z'/>";
+setCustomIconsLoader(
+  (icons) => ({
+    prefix: "game-icons",
+    width: 512,
+    height: 512,
+    icons: Object.fromEntries(icons.map((name) => [name, { body: STUB_ICON_BODY }])),
+  }),
+  "game-icons",
+);
 
 // Replace the ~4000-icon game-icons bundle with a tiny fixture so picker
 // tests don't pay full-collection filter/render cost on every keystroke.

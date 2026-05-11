@@ -18,7 +18,7 @@
     "gen:schema": "tsx scripts/gen-card-schema.ts",
     "check:schema": "tsx scripts/gen-card-schema.ts --check",
     "gen:db-types": "supabase gen types typescript --local --schema public > src/api/database.types.ts",
-    "check:db-types": "npm run gen:db-types && git diff -w --ignore-blank-lines --exit-code src/api/database.types.ts",
+    "check:db-types": "npm run gen:db-types && git diff --ignore-blank-lines --exit-code src/api/database.types.ts",
     "fetch:srd": "tsx scripts/fetch-srd.ts",
     "gen:og": "tsx scripts/generate-og.ts"
   },
