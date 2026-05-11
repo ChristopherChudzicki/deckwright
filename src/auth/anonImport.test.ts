@@ -1,4 +1,6 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it } from "vitest";
+import type { Database } from "../api/database.types";
 import { clear, type PendingAnonImport, readPending, stash, tryResume } from "./anonImport";
 
 describe("anonImport storage", () => {
@@ -64,8 +66,7 @@ type FakeSupabase = {
 
 function makeFakeSupabase(initial: FakeSupabase) {
   let insertCallCount = 0;
-  return {
-    state: initial,
+  const fake = {
     rpc(name: string, params?: { deck_id?: string }) {
       if (name === "get_public_deck") {
         const id = params?.deck_id ?? "";
@@ -110,6 +111,13 @@ function makeFakeSupabase(initial: FakeSupabase) {
       };
     },
   };
+  // Hand-rolled mock implements only the surface tryResume touches; the
+  // double-cast bridges to SupabaseClient<Database> without dragging in
+  // the full client interface.
+  return {
+    state: initial,
+    client: fake as unknown as SupabaseClient<Database>,
+  };
 }
 
 describe("tryResume", () => {
@@ -126,7 +134,7 @@ describe("tryResume", () => {
       },
       inserts: { decks: [], cards: [] },
     });
-    await tryResume({ supabase: fake as never, currentUserId: "real-1" });
+    await tryResume({ supabase: fake.client, currentUserId: "real-1" });
     expect(fake.state.inserts.decks).toHaveLength(1);
     expect(fake.state.inserts.cards).toHaveLength(1);
     expect(readPending()).toBeNull();
@@ -142,7 +150,7 @@ describe("tryResume", () => {
       cardsByDeck: { d2: [{ id: "c2", deck_id: "d2", position: 0, payload: {} }] },
       inserts: { decks: [], cards: [] },
     });
-    await tryResume({ supabase: fake as never, currentUserId: "real-1" });
+    await tryResume({ supabase: fake.client, currentUserId: "real-1" });
     expect(fake.state.inserts.decks).toHaveLength(1);
   });
 
@@ -153,7 +161,7 @@ describe("tryResume", () => {
       cardsByDeck: {},
       inserts: { decks: [], cards: [] },
     });
-    const result = await tryResume({ supabase: fake as never, currentUserId: "real-1" });
+    const result = await tryResume({ supabase: fake.client, currentUserId: "real-1" });
     expect(fake.state.inserts.decks).toHaveLength(0);
     expect(result).toEqual({ kind: "completed", importedCount: 1 });
     expect(readPending()).toBeNull();
@@ -166,7 +174,7 @@ describe("tryResume", () => {
       cardsByDeck: {},
       inserts: { decks: [], cards: [] },
     });
-    const result = await tryResume({ supabase: fake as never, currentUserId: "real-1" });
+    const result = await tryResume({ supabase: fake.client, currentUserId: "real-1" });
     expect(result).toEqual({ kind: "completed", importedCount: 0 });
     expect(readPending()).toBeNull();
   });
@@ -177,7 +185,7 @@ describe("tryResume", () => {
       cardsByDeck: {},
       inserts: { decks: [], cards: [] },
     });
-    const result = await tryResume({ supabase: fake as never, currentUserId: "real-1" });
+    const result = await tryResume({ supabase: fake.client, currentUserId: "real-1" });
     expect(result).toEqual({ kind: "noop" });
   });
 
@@ -195,7 +203,7 @@ describe("tryResume", () => {
         { table: "decks", error: new Error("boom") },
       ],
     });
-    const result = await tryResume({ supabase: fake as never, currentUserId: "real-1" });
+    const result = await tryResume({ supabase: fake.client, currentUserId: "real-1" });
     expect(result).toEqual({ kind: "partial", importedCount: 1, total: 2 });
     const stashed = readPending();
     expect(stashed).not.toBeNull();

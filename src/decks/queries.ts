@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../api/supabase";
-import type { Card } from "../cards/types";
 import { rowToCard } from "./rowMappers";
-import type { CardRow, DeckSummary, PublicDeck } from "./types";
 
 export const decksKey = () => ["decks"] as const;
 export const deckKey = (deckId: string | undefined) => ["deck", deckId] as const;
@@ -13,12 +11,12 @@ export const deckCardsKey = (deckId: string | undefined) => ["deck-cards", deckI
  * Server-side: RPC list_my_decks reads auth.uid().
  */
 export function useDecks() {
-  return useQuery<DeckSummary[]>({
+  return useQuery({
     queryKey: decksKey(),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("list_my_decks");
       if (error) throw error;
-      return (data ?? []) as DeckSummary[];
+      return data ?? [];
     },
   });
 }
@@ -31,7 +29,7 @@ export function useDecks() {
  * are still owner-gated by RLS on the underlying table.
  */
 export function useDeck(deckId: string | undefined) {
-  return useQuery<PublicDeck | null>({
+  return useQuery({
     queryKey: deckKey(deckId),
     enabled: Boolean(deckId),
     queryFn: async () => {
@@ -42,7 +40,7 @@ export function useDeck(deckId: string | undefined) {
       if (error) throw error;
       // Return null (not undefined) on miss: TanStack Query v5 throws if a
       // queryFn returns undefined.
-      return (data ?? null) as PublicDeck | null;
+      return data ?? null;
     },
   });
 }
@@ -51,14 +49,14 @@ export function useDeck(deckId: string | undefined) {
  * Cards for a deck. Same PUBLIC READ semantics as useDeck.
  */
 export function useDeckCards(deckId: string | undefined) {
-  return useQuery<Card[]>({
+  return useQuery({
     queryKey: deckCardsKey(deckId),
     enabled: Boolean(deckId),
     queryFn: async () => {
       if (!deckId) return [];
       const { data, error } = await supabase.rpc("get_public_deck_cards", { deck_id: deckId });
       if (error) throw error;
-      return ((data ?? []) as CardRow[]).map(rowToCard);
+      return (data ?? []).map(rowToCard);
     },
   });
 }

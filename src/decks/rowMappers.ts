@@ -1,14 +1,17 @@
+import type { Database } from "../api/database.types";
 import type { Card } from "../cards/types";
 import type { CardRow } from "./types";
 
 type CardInsertRow = Omit<CardRow, "id" | "created_at" | "updated_at">;
 type CardUpdatePayload = Omit<Card, "id">;
+type GeneratedCardRow = Database["public"]["Tables"]["cards"]["Row"];
 
-export function rowToCard(row: CardRow): Card {
-  // Spreading a discriminated-union payload widens the result; the cast
-  // restores the union. Safe because `row.payload` is already typed as
-  // `Omit<Card, "id">` at the boundary.
-  return { id: row.id, ...row.payload } as Card;
+export function rowToCard(row: GeneratedCardRow): Card {
+  // Two casts: (1) DB stores card.payload as opaque JSONB, so this is the
+  // single place that asserts the blob matches our discriminated `Card`
+  // shape; (2) spreading a discriminated union widens it to a single
+  // merged-field shape, so the outer cast re-discriminates.
+  return { id: row.id, ...(row.payload as Omit<Card, "id">) } as Card;
 }
 
 export function cardToInsertRow(card: Card, deckId: string, position: number): CardInsertRow {

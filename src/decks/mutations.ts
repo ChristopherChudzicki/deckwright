@@ -3,7 +3,7 @@ import { supabase } from "../api/supabase";
 import type { Card } from "../cards/types";
 import { deckCardsKey, deckKey, decksKey } from "./queries";
 import { cardToInsertRow, cardToUpdatePayload, rowToCard } from "./rowMappers";
-import type { CardRow, DeckRow } from "./types";
+import type { DeckRow } from "./types";
 
 // Note on .maybeSingle(): we use it here (rather than .single()) for two
 // reasons. (1) .single() forces the Accept header to
@@ -22,7 +22,7 @@ export function useCreateDeck() {
         .maybeSingle();
       if (error) throw error;
       if (!data) throw new Error("useCreateDeck: insert returned no row");
-      return data as DeckRow;
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: decksKey() });
@@ -42,7 +42,7 @@ export function useRenameDeck() {
         .maybeSingle();
       if (error) throw error;
       if (!data) throw new Error(`useRenameDeck: no row matched id=${deckId}`);
-      return data as DeckRow;
+      return data;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: deckKey(data.id) });
@@ -84,7 +84,7 @@ export function useSaveCard() {
           .maybeSingle();
         if (error) throw error;
         if (!data) throw new Error("useSaveCard: insert returned no row");
-        return rowToCard(data as CardRow);
+        return rowToCard(data);
       }
       const { data, error } = await supabase
         .from("cards")
@@ -94,7 +94,7 @@ export function useSaveCard() {
         .maybeSingle();
       if (error) throw error;
       if (!data) throw new Error(`useSaveCard: no card matched id=${card.id}`);
-      return rowToCard(data as CardRow);
+      return rowToCard(data);
     },
     onSuccess: (_card, vars) => {
       qc.invalidateQueries({ queryKey: deckCardsKey(vars.deckId) });

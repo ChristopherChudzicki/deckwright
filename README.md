@@ -27,6 +27,7 @@ Then open http://localhost:5173. On the login page, use the **dev** sign-in butt
 
 - **Add a migration:** `npx supabase migration new <name>`
 - **Reset the local database:** `npx supabase db reset`
+- **Regenerate DB types after a migration:** `npm run gen:db-types` (requires the local stack from `just start`). `src/api/database.types.ts` is committed; CI's `check:db-types` step fails the build if it drifts from the schema.
 - **Deploy to production:** migrations apply automatically via [`.github/workflows/deploy-db.yml`](.github/workflows/deploy-db.yml) on merges to `main` that touch `supabase/migrations/**`.
 
 **Schema:** `decks` and `cards` tables, gated by row-level security on the deck owner.

@@ -37,6 +37,7 @@ jobs:
       - run: npm ci
       - run: npx supabase start
       - run: npx supabase test db
+      - run: npm run check:db-types
 
   e2e:
     name: e2e (playwright)
