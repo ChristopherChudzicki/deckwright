@@ -1,5 +1,6 @@
 .superpowers/
 .worktrees/
+.wrangler/
 node_modules
 dist
 dist-ssr
