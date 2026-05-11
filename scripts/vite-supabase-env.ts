@@ -10,8 +10,8 @@ import type { Plugin } from "vite";
  * copy step for local development.
  *
  * Active only when Vite's command is `serve` (i.e. `vite dev` /
- * `npm run dev`). Production builds are not affected — Vercel env
- * vars supply the values there.
+ * `npm run dev`). Production builds are not affected — the host's
+ * env vars supply the values there.
  *
  * If `supabase status` fails (Supabase stack isn't running), the
  * plugin silently no-ops; the supabase client's existing

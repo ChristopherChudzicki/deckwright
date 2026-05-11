@@ -1,12 +1,12 @@
 # Supabase setup runbook (one-time)
 
-This walks through everything needed to get a fresh checkout running locally and deployed to Vercel.
+This walks through everything needed to get a fresh checkout running locally and deployed to Cloudflare Workers Static Assets.
 
 ## Prerequisites
 
 - Node 20+
 - Docker Desktop (for local Supabase)
-- A Vercel account (free tier)
+- A Cloudflare account (free tier)
 - A Google Cloud project + a GitHub account (only needed if you want OAuth in production; local dev has a password-based shortcut)
 
 ## 1. Local development
@@ -84,15 +84,20 @@ Smoke test: visit `/login` and click "Sign in with Google". You should land on `
 5. Add the cloud callback URL to your Google + GitHub OAuth apps (the URL is shown in the Supabase dashboard under each provider).
 6. Run `npx supabase test db --linked` (or against a local copy) to confirm the pgTAP suite passes.
 
-## 4. Vercel deploy
+## 4. Cloudflare Workers deploy
 
-1. <https://vercel.com/new> → import the repo.
-2. Build command: `npm run build`. Output dir: `dist`.
-3. Env vars (these REPLACE the dev plugin's auto-detection — production builds skip the plugin):
-   - `VITE_SUPABASE_URL` — the cloud URL from the dashboard.
-   - `VITE_SUPABASE_ANON_KEY` — the cloud publishable key from the dashboard (shown as "Publishable key" in the API settings, format: `sb_publishable_*`).
-4. Deploy. After deploy, copy the production URL.
-5. In the Supabase dashboard → Authentication → URL Configuration: add the production URL to "Site URL" and "Additional Redirect URLs". Update the Google + GitHub OAuth apps to also accept the production callback URL.
+The project is configured as a Workers Static Assets app — see `wrangler.jsonc` (declares `assets.directory` and SPA fallback) and `.nvmrc` (pins build-env Node version).
+
+1. CF dashboard → Workers & Pages → Create → Import a repository → connect this repo. Build command: `npm run build`. Output dir: `./dist` (already in `wrangler.jsonc`).
+2. **Change the deploy command** from the default `npx wrangler versions upload` to `npx wrangler deploy`. The default uploads a new version without routing traffic to it; `wrangler deploy` uploads and promotes to 100% traffic.
+3. Add **Build Variables** (Settings → Build → Variables and Secrets — NOT runtime variables; those are disabled for asset-only Workers):
+   - `VITE_SUPABASE_URL` — the cloud URL from the Supabase dashboard.
+   - `VITE_SUPABASE_ANON_KEY` — the cloud publishable key (shown as "Publishable key" in API settings, format: `sb_publishable_*`).
+   - `VITE_AUTH_GOOGLE_ENABLED` / `VITE_AUTH_GITHUB_ENABLED` — `true` for each provider you've wired up.
+4. Trigger a build. After it succeeds, the worker is reachable at `<project>.<account>.workers.dev`.
+5. Before testing OAuth on that URL, add `https://<project>.<account>.workers.dev/**` to Supabase → Authentication → URL Configuration → Additional Redirect URLs.
+6. Custom domain: Worker → Custom domains → add the apex (e.g. `deckwright.org`). If the zone is also in your CF account, DNS wires automatically. For www → apex redirect, add a proxied CNAME `www → <apex>` in DNS, then Rules → Redirect Rules with hostname match + 301 to the apex.
+7. Update Supabase Auth: set Site URL to the final domain; add `https://<apex>/**` and `https://www.<apex>/**` to Additional Redirect URLs.
 
 ## 5. Routine tasks
 
