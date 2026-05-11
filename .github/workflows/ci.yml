@@ -35,7 +35,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: pip install pre-commit
       - run: npx supabase start
       - run: npx supabase test db
       - run: npm run check:db-types
