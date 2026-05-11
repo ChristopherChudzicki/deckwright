@@ -1,26 +1,33 @@
 import "@testing-library/jest-dom/vitest";
-import { setCustomIconsLoader } from "@iconify/react";
 import { cleanup } from "@testing-library/react";
+import { createElement } from "react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { SB_URL, server } from "./msw";
 
-// Iconify schedules a setTimeout-driven retry fetch against its default API
-// provider when asked for an icon that isn't in the local store. Under
-// vitest, that timer can fire after the jsdom environment is torn down —
-// React then tries to read `window` inside `dispatchSetState` and the run
-// dies with an unhandled "window is not defined" error. Registering a
-// synchronous custom loader for our only prefix routes the lookup through
-// us instead, so iconify never touches the API path.
-const STUB_ICON_BODY = "<path d='M0 0h512v512H0z'/>";
-setCustomIconsLoader(
-  (icons) => ({
-    prefix: "game-icons",
-    width: 512,
-    height: 512,
-    icons: Object.fromEntries(icons.map((name) => [name, { body: STUB_ICON_BODY }])),
-  }),
-  "game-icons",
-);
+// Mock @iconify/react's Icon component. Iconify's real Icon, when mounted
+// with a string ref ("game-icons:trident") whose data isn't already in
+// storage, calls loadIcons(...) which schedules a setTimeout(0) to dispatch
+// the resulting setState. If that timer fires after vitest has torn down
+// jsdom (between test files), React's dispatchSetState reads `window`,
+// finds nothing, and the run dies with an unhandled "window is not defined".
+// Tests assert on wrapper attributes (data-icon-key, data-frame, aria-*),
+// not on iconify's internal SVG output, so a stub Icon is safe.
+//
+// Only Icon is replaced — addCollection / iconLoaded / listIcons stay real
+// because IconPickerDialog uses listIcons("", "game-icons") to enumerate
+// available icons, and resolveIcon's dev-time warning calls iconLoaded.
+vi.mock("@iconify/react", async () => {
+  const actual = await vi.importActual<typeof import("@iconify/react")>("@iconify/react");
+  return {
+    ...actual,
+    Icon: ({ icon, ...props }: { icon: string | { body: string } } & Record<string, unknown>) =>
+      createElement("svg", {
+        ...props,
+        "data-icon-ref": typeof icon === "string" ? icon : "inline",
+        "aria-hidden": "true",
+      }),
+  };
+});
 
 // Replace the ~4000-icon game-icons bundle with a tiny fixture so picker
 // tests don't pay full-collection filter/render cost on every keystroke.
