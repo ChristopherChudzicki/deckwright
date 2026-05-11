@@ -13,6 +13,13 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.brandGroup {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
 .brand {
   font-family: var(--font-display);
   font-weight: 600;
@@ -27,6 +34,22 @@
 .brand:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
+}
+
+.tagline {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.taglineSeparator {
+  margin-right: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .tagline {
+    display: none;
+  }
 }
 
 .link {

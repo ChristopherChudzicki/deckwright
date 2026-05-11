@@ -1,6 +1,6 @@
-# D&D Cards
+# Deckwright
 
-A browser app for creating and printing **D&D 5e item cards** with a legibility-first design.
+A browser app for creating and printing **D&D 5e item and spell cards** with a legibility-first design. Lives at [deckwright.org](https://deckwright.org).
 
 ## Run locally
 

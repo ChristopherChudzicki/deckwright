@@ -35,18 +35,18 @@ export function ImportAccountDialog({ isOpen, deckCount, onImport, onSkip, onCan
       onOpenChange={(open) => {
         if (!open) onCancel();
       }}
-      aria-label="You already have a dnd-cards account"
+      aria-label="You already have a Deckwright account"
     >
       {() => (
         <>
           <DialogHeader
-            title="You already have a dnd-cards account"
+            title="You already have a Deckwright account"
             onClose={onCancel}
             closeLabel="Cancel"
           />
           <div className={styles.body}>
             <p>
-              An account on dnd-cards is already linked to that identity. Want to bring your{" "}
+              A Deckwright account is already linked to that identity. Want to bring your{" "}
               {pluralize(deckCount, "deck")} into that account?
             </p>
             <p className={styles.warning}>

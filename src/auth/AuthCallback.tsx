@@ -6,6 +6,7 @@ import { useSetNextAnnouncement } from "../lib/ui/Announcement";
 import styles from "./AuthCallback.module.css";
 import { clear, readPending, stash, tryResume } from "./anonImport";
 import { ImportAccountDialog } from "./ImportAccountDialog";
+import { clearLastProvider, readLastProvider } from "./lastProvider";
 import { readNextFromUrl } from "./safeNext";
 import { useSession } from "./useSession";
 
@@ -13,11 +14,6 @@ function parseLinkError(): string | null {
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const search = new URLSearchParams(window.location.search);
   return hash.get("error_code") ?? search.get("error_code");
-}
-
-function lastProvider(): "google" | "github" {
-  const v = window.localStorage.getItem("dndCards.lastProvider");
-  return v === "github" ? "github" : "google";
 }
 
 export function AuthCallback() {
@@ -83,7 +79,7 @@ export function AuthCallback() {
               `Imported ${result.importedCount} of ${pluralize(result.total, "deck")}. We'll try again next time you sign in.`,
             );
           }
-          window.localStorage.removeItem("dndCards.lastProvider");
+          clearLastProvider();
           navigate({ to: readNextFromUrl() });
         } catch {
           setAnnouncement(
@@ -97,7 +93,7 @@ export function AuthCallback() {
 
     if (!session.user.is_anonymous) {
       setAnnouncement("Signed in");
-      window.localStorage.removeItem("dndCards.lastProvider");
+      clearLastProvider();
     }
     navigate({ to: readNextFromUrl() });
   }, [session, navigate, setAnnouncement]);
@@ -114,7 +110,7 @@ export function AuthCallback() {
     stash({ version: 2, anonDeckIds, importedDeckIds: [] });
     const next = readNextFromUrl();
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-    const provider = lastProvider();
+    const provider = readLastProvider();
     await supabase.auth.signOut();
     await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
   };
@@ -123,7 +119,7 @@ export function AuthCallback() {
     clear();
     const next = readNextFromUrl();
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-    const provider = lastProvider();
+    const provider = readLastProvider();
     await supabase.auth.signOut();
     await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
   };
@@ -131,7 +127,7 @@ export function AuthCallback() {
   const onCancel = () => {
     // The anon session is preserved by linkIdentity failures, so dismissing
     // the dialog returns the user to their anon home with decks intact.
-    window.localStorage.removeItem("dndCards.lastProvider");
+    clearLastProvider();
     navigate({ to: "/" });
   };
 
