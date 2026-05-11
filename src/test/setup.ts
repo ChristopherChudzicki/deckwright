@@ -1,7 +1,17 @@
 import "@testing-library/jest-dom/vitest";
+import { addAPIProvider } from "@iconify/react";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { SB_URL, server } from "./msw";
+
+// Iconify schedules a setTimeout-driven retry fetch when asked for an icon
+// that isn't in the local store. Under vitest, that timer can fire after
+// the test environment is torn down — React then tries to read `window`
+// inside `dispatchSetState` and the run dies with an unhandled "window is
+// not defined" error originating from whichever test happened to render an
+// unresolved icon. Configuring the default API provider with zero resources
+// turns the fetch path into an immediate no-op.
+addAPIProvider("", { resources: [] });
 
 // Replace the ~4000-icon game-icons bundle with a tiny fixture so picker
 // tests don't pay full-collection filter/render cost on every keystroke.
