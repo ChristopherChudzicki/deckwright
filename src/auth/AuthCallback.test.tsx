@@ -80,7 +80,7 @@ describe("AuthCallback", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { name: /you already have a dnd-cards account/i }),
+        screen.getByRole("heading", { name: /you already have a Deckwright account/i }),
       ).toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: /yes, import 2 decks/i })).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe("AuthCallback", () => {
 
   it("on import click: stashes pendingAnonImport, signs out, signInWithOAuth with stashed provider", async () => {
     setLocation({ hash: "#error_code=identity_already_exists", search: "?next=/" });
-    window.localStorage.setItem("dndCards.lastProvider", "github");
+    window.localStorage.setItem("deckwright.lastProvider", "github");
     vi.spyOn(supabase, "rpc").mockImplementation((() =>
       Promise.resolve({ data: [{ id: "d1" }], error: null })) as never);
     const signOutSpy = vi
@@ -107,7 +107,7 @@ describe("AuthCallback", () => {
     );
     await userEvent.click(await screen.findByRole("button", { name: /yes, import 1 deck$/i }));
     await waitFor(() => expect(signOutSpy).toHaveBeenCalled());
-    const stash = window.localStorage.getItem("dndCards.pendingAnonImport");
+    const stash = window.localStorage.getItem("deckwright.pendingAnonImport");
     expect(stash).not.toBeNull();
     expect(JSON.parse(stash as string)).toMatchObject({
       version: 2,
@@ -144,7 +144,7 @@ describe("AuthCallback", () => {
     await waitFor(() => expect(screen.getByText(/couldn't start the import/i)).toBeInTheDocument());
     expect(signOutSpy).not.toHaveBeenCalled();
     expect(oauthSpy).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
+    expect(window.localStorage.getItem("deckwright.pendingAnonImport")).toBeNull();
   });
 
   it("on dismiss (X / Esc): navigates without signOut or signInWithOAuth", async () => {
@@ -193,14 +193,14 @@ describe("AuthCallback", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: /skip — leave decks behind/i }),
     );
-    expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
+    expect(window.localStorage.getItem("deckwright.pendingAnonImport")).toBeNull();
     expect(signOutSpy).toHaveBeenCalled();
     expect(oauthSpy).toHaveBeenCalled();
   });
 
   it("on clean success (non-anon authenticated, no error, no pending): navigates to next and clears lastProvider", async () => {
     setLocation({ search: "?next=/some/path" });
-    window.localStorage.setItem("dndCards.lastProvider", "google");
+    window.localStorage.setItem("deckwright.lastProvider", "google");
     render(
       wrap(<AuthCallback />, {
         status: "authenticated",
@@ -209,12 +209,12 @@ describe("AuthCallback", () => {
       }),
     );
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/some/path" }));
-    expect(window.localStorage.getItem("dndCards.lastProvider")).toBeNull();
+    expect(window.localStorage.getItem("deckwright.lastProvider")).toBeNull();
   });
 
   it("when pendingAnonImport exists and session is non-anon: runs import then navigates", async () => {
     window.localStorage.setItem(
-      "dndCards.pendingAnonImport",
+      "deckwright.pendingAnonImport",
       JSON.stringify({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [] }),
     );
     setLocation({});
@@ -244,7 +244,7 @@ describe("AuthCallback", () => {
       }),
     );
     await waitFor(() => expect(navigate).toHaveBeenCalled());
-    expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
+    expect(window.localStorage.getItem("deckwright.pendingAnonImport")).toBeNull();
   });
 
   it("does not re-enter tryResume when session re-renders mid-import", async () => {
@@ -254,7 +254,7 @@ describe("AuthCallback", () => {
     // AuthCallback's effect re-runs. Without a guard, a second tryResume
     // races with the first and every imported deck is duplicated.
     window.localStorage.setItem(
-      "dndCards.pendingAnonImport",
+      "deckwright.pendingAnonImport",
       JSON.stringify({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [] }),
     );
     setLocation({});

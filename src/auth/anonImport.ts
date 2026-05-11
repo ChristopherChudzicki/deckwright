@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../api/database.types";
 
-const STORAGE_KEY = "dndCards.pendingAnonImport";
+const STORAGE_KEY = "deckwright.pendingAnonImport";
+const LEGACY_STORAGE_KEY = "dndCards.pendingAnonImport";
 
 export type PendingAnonImport = {
   version: 2;
@@ -11,14 +12,17 @@ export type PendingAnonImport = {
 
 export function stash(payload: PendingAnonImport): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
 export function clear(): void {
   window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
 export function readPending(): PendingAnonImport | null {
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  const raw =
+    window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as { version?: number };

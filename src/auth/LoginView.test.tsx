@@ -149,7 +149,7 @@ describe("LoginView OAuth branching", () => {
       expect(linkSpy).toHaveBeenCalledWith(expect.objectContaining({ provider: "google" })),
     );
     expect(oauthSpy).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem("dndCards.lastProvider")).toBe("google");
+    expect(window.localStorage.getItem("deckwright.lastProvider")).toBe("google");
   });
 
   it("calls signInWithOAuth when user is anonymous with zero decks", async () => {
@@ -225,7 +225,7 @@ describe("LoginView dev path conflict", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { name: /you already have a dnd-cards account/i }),
+        screen.getByRole("heading", { name: /you already have a Deckwright account/i }),
       ).toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: /yes, import 3 decks/i })).toBeInTheDocument();
@@ -297,7 +297,7 @@ describe("LoginView dev path conflict", () => {
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
     expect(setItemSpy).toHaveBeenCalledWith(
-      "dndCards.pendingAnonImport",
+      "deckwright.pendingAnonImport",
       expect.stringContaining('"anonDeckIds":["d1"]'),
     );
     expect(signOutSpy).toHaveBeenCalled();
@@ -319,7 +319,7 @@ describe("LoginView dev path conflict", () => {
       http.post(`${SB_URL}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([{ id: "d1" }])),
     );
     window.localStorage.setItem(
-      "dndCards.pendingAnonImport",
+      "deckwright.pendingAnonImport",
       JSON.stringify({ version: 1, anonUuid: "anon-old", importedDeckIds: [] }),
     );
 
@@ -336,7 +336,7 @@ describe("LoginView dev path conflict", () => {
     );
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
-    expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
+    expect(window.localStorage.getItem("deckwright.pendingAnonImport")).toBeNull();
     expect(signOutSpy).toHaveBeenCalled();
     expect(signInSpy).toHaveBeenCalledWith({ email: "dev@local", password: "devpass" });
   });
@@ -368,7 +368,7 @@ describe("LoginView dev path conflict", () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByRole("heading", { name: /you already have a dnd-cards account/i }),
+        screen.queryByRole("heading", { name: /you already have a Deckwright account/i }),
       ).not.toBeInTheDocument(),
     );
     expect(signOutSpy).not.toHaveBeenCalled();
@@ -397,7 +397,7 @@ describe("LoginView dev path conflict", () => {
 
     await waitFor(() => expect(signInSpy).toHaveBeenCalled());
     expect(
-      screen.queryByRole("heading", { name: /you already have a dnd-cards account/i }),
+      screen.queryByRole("heading", { name: /you already have a Deckwright account/i }),
     ).not.toBeInTheDocument();
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
   });

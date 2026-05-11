@@ -155,7 +155,7 @@ describe("HomeView with anon user", () => {
   });
 
   it("does NOT open the FirstDeckDialog if it has already been seen", async () => {
-    window.localStorage.setItem("dndCards.firstDeckExplainerSeen", "1");
+    window.localStorage.setItem("deckwright.firstDeckExplainerSeen", "1");
     const inserted = makeDeckRow.build({ name: "Untitled deck", owner_id: "anon-1" });
     server.use(
       http.post(`${SB}/rest/v1/rpc/list_my_decks`, () => HttpResponse.json([])),

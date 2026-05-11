@@ -24,7 +24,7 @@ describe("<ImportAccountDialog>", () => {
       <ImportAccountDialog isOpen deckCount={3} onImport={noop} onSkip={noop} onCancel={noop} />,
     );
     expect(
-      screen.getByRole("heading", { name: /you already have a dnd-cards account/i }),
+      screen.getByRole("heading", { name: /you already have a Deckwright account/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/bring your/)).toHaveTextContent("3 decks");
     expect(screen.getByText(/cannot be recovered/i)).toBeInTheDocument();

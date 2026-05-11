@@ -11,7 +11,7 @@ export function Root() {
       <div className={styles.shell}>
         <header className={styles.header}>
           <Link to="/" className={styles.brand}>
-            D&amp;D Cards
+            Deckwright
           </Link>
           <DeckBreadcrumb />
           <div className={styles.spacer} />

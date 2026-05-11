@@ -9,6 +9,7 @@ import { OAuthButton } from "../lib/ui/OAuthButton";
 import { clear, stash, tryResume } from "./anonImport";
 import { ImportAccountDialog } from "./ImportAccountDialog";
 import styles from "./LoginView.module.css";
+import { writeLastProvider } from "./lastProvider";
 import { readNextFromUrl } from "./safeNext";
 import { useSession } from "./useSession";
 
@@ -46,7 +47,7 @@ export function LoginView() {
           staleTime: 0,
         });
         if ((decks?.length ?? 0) > 0) {
-          window.localStorage.setItem("dndCards.lastProvider", provider);
+          writeLastProvider(provider);
           await supabase.auth.linkIdentity({ provider, options: { redirectTo } });
           return;
         }

@@ -32,8 +32,14 @@ export function HomeView() {
   const maybeShowFirstDeckExplainer = () => {
     if (session.status !== "authenticated") return false;
     if (!session.user.is_anonymous) return false;
-    if (window.localStorage.getItem("dndCards.firstDeckExplainerSeen")) return false;
-    window.localStorage.setItem("dndCards.firstDeckExplainerSeen", "1");
+    if (
+      window.localStorage.getItem("deckwright.firstDeckExplainerSeen") ??
+      window.localStorage.getItem("dndCards.firstDeckExplainerSeen")
+    ) {
+      return false;
+    }
+    window.localStorage.setItem("deckwright.firstDeckExplainerSeen", "1");
+    window.localStorage.removeItem("dndCards.firstDeckExplainerSeen");
     setShowFirstDeckDialog(true);
     return true;
   };

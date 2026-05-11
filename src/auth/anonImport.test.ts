@@ -29,13 +29,13 @@ describe("anonImport storage", () => {
   });
 
   it("returns null and does not throw on a malformed value", () => {
-    window.localStorage.setItem("dndCards.pendingAnonImport", "not json");
+    window.localStorage.setItem("deckwright.pendingAnonImport", "not json");
     expect(readPending()).toBeNull();
   });
 
   it("returns null on a stashed v1 payload (silently dropped)", () => {
     window.localStorage.setItem(
-      "dndCards.pendingAnonImport",
+      "deckwright.pendingAnonImport",
       JSON.stringify({
         version: 1,
         anonUuid: "00000000-0000-0000-0000-000000000001",
@@ -47,10 +47,26 @@ describe("anonImport storage", () => {
 
   it("returns null on a stashed value with an unknown version", () => {
     window.localStorage.setItem(
-      "dndCards.pendingAnonImport",
+      "deckwright.pendingAnonImport",
       JSON.stringify({ version: 999, anonDeckIds: [], importedDeckIds: [] }),
     );
     expect(readPending()).toBeNull();
+  });
+
+  it("reads a payload stashed under the legacy dndCards key", () => {
+    const payload: PendingAnonImport = {
+      version: 2,
+      anonDeckIds: ["legacy-1"],
+      importedDeckIds: [],
+    };
+    window.localStorage.setItem("dndCards.pendingAnonImport", JSON.stringify(payload));
+    expect(readPending()).toEqual(payload);
+  });
+
+  it("stash drops any legacy dndCards key alongside the new write", () => {
+    window.localStorage.setItem("dndCards.pendingAnonImport", "stale");
+    stash({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [] });
+    expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
   });
 });
 
