@@ -14,7 +14,12 @@ export function Root() {
             <Link to="/" className={styles.brand}>
               Deckwright
             </Link>
-            <span className={styles.tagline}>readable D&amp;D cards</span>
+            <span className={styles.tagline}>
+              <span aria-hidden="true" className={styles.taglineSeparator}>
+                ·
+              </span>
+              readable D&amp;D cards
+            </span>
           </div>
           <DeckBreadcrumb />
           <div className={styles.spacer} />

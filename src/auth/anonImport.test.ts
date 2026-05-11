@@ -65,8 +65,14 @@ describe("anonImport storage", () => {
 
   it("stash drops any legacy dndCards key alongside the new write", () => {
     window.localStorage.setItem("dndCards.pendingAnonImport", "stale");
-    stash({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [] });
+    const payload: PendingAnonImport = {
+      version: 2,
+      anonDeckIds: ["d1"],
+      importedDeckIds: [],
+    };
+    stash(payload);
     expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
+    expect(readPending()).toEqual(payload);
   });
 });
 

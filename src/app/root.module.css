@@ -42,10 +42,8 @@
   white-space: nowrap;
 }
 
-.tagline::before {
-  content: "·";
+.taglineSeparator {
   margin-right: var(--space-2);
-  color: var(--color-text-muted);
 }
 
 @media (max-width: 640px) {

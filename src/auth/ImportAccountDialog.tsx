@@ -46,7 +46,7 @@ export function ImportAccountDialog({ isOpen, deckCount, onImport, onSkip, onCan
           />
           <div className={styles.body}>
             <p>
-              An account on Deckwright is already linked to that identity. Want to bring your{" "}
+              A Deckwright account is already linked to that identity. Want to bring your{" "}
               {pluralize(deckCount, "deck")} into that account?
             </p>
             <p className={styles.warning}>
