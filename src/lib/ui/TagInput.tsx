@@ -101,7 +101,8 @@ export function TagInput({
   };
 
   const handleChipPointerDown = (index: number) => (e: PointerEvent) => {
-    if ((e.target as HTMLElement).closest("button[aria-label^='Remove']")) return;
+    const t = e.target;
+    if (t instanceof Element && t.closest(`.${styles.remove}`)) return;
     e.preventDefault();
     if (state.mode.kind === "idle") commitTrailing();
     dispatch({ type: "commitAndOpenEdit", index, value });
