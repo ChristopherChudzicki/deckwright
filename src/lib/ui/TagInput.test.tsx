@@ -1,7 +1,7 @@
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { render, screen } from "../../test/render";
+import { fireEvent, render, screen } from "../../test/render";
 import { TagInput } from "./TagInput";
 
 function Harness({ initial = [] as string[] }) {
@@ -470,5 +470,41 @@ describe("<TagInput>", () => {
     await userEvent.keyboard("{Escape}");
     expect(onOuterKey).not.toHaveBeenCalled();
     expect(trailing).toHaveValue("");
+  });
+
+  test("wrapper exposes role=group with the consumer's aria-label", () => {
+    render(<Harness initial={["a"]} />);
+    expect(screen.getByRole("group", { name: /footer tags/i })).toBeInTheDocument();
+  });
+
+  test("inner list has role=list; chip count matches value.length", () => {
+    render(<Harness initial={["a", "b", "c"]} />);
+    expect(screen.getByRole("list")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  test("gap slots have aria-labels: start / before <next>", () => {
+    render(<Harness initial={["fire", "ice"]} />);
+    expect(screen.getByRole("button", { name: /insert tag at start/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /insert tag before ice/i })).toBeInTheDocument();
+  });
+
+  test("roving tabindex: exactly one slot has tabindex=0 at idle and after nav", () => {
+    const { container } = render(<Harness initial={["a", "b"]} />);
+    const tabbable = () => container.querySelectorAll('[tabindex="0"]');
+    expect(tabbable()).toHaveLength(1);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    expect(tabbable()).toHaveLength(1);
+    expect(trailing).toHaveAttribute("tabindex", "0");
+    fireEvent.keyDown(screen.getByRole("group", { name: /footer tags/i }), {
+      key: "ArrowLeft",
+    });
+    expect(tabbable()).toHaveLength(1);
+  });
+
+  test("chip slot exposes aria-keyshortcuts for Enter and Delete", () => {
+    render(<Harness initial={["a"]} />);
+    expect(screen.getAllByRole("listitem")[0]).toHaveAttribute("aria-keyshortcuts", "Enter Delete");
   });
 });

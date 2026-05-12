@@ -3,6 +3,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   useCallback,
+  useId,
   useLayoutEffect,
   useReducer,
   useRef,
@@ -41,6 +42,7 @@ export function TagInput({
   const [trailingDraft, setTrailingDraft] = useState("");
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const isFirstRender = useRef(true);
+  const hintId = useId();
 
   const dispatch = useCallback(
     (action: Action) => {
@@ -302,6 +304,9 @@ export function TagInput({
           return slotChildren;
         })}
       </ul>
+      <span id={hintId} className={styles.srOnly}>
+        Use the left arrow key to insert tags between existing tags.
+      </span>
       <input
         id={id}
         type="text"
@@ -310,7 +315,7 @@ export function TagInput({
         tabIndex={state.activeSlot === value.length * 2 ? 0 : -1}
         aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? "Tags")}
         aria-labelledby={ariaLabelledBy}
-        aria-describedby={ariaDescribedBy}
+        aria-describedby={[ariaDescribedBy, hintId].filter(Boolean).join(" ") || undefined}
         className={[styles.input, inserting !== null ? styles.trailingHidden : ""]
           .filter(Boolean)
           .join(" ")}
