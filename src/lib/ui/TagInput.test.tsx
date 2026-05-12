@@ -464,5 +464,11 @@ describe("<TagInput>", () => {
     onOuterKey.mockClear();
     await userEvent.keyboard("{Escape}");
     expect(onOuterKey).not.toHaveBeenCalled();
+    // Non-empty trailing-input Escape: typed text is discarded.
+    await userEvent.type(trailing, "y");
+    onOuterKey.mockClear();
+    await userEvent.keyboard("{Escape}");
+    expect(onOuterKey).not.toHaveBeenCalled();
+    expect(trailing).toHaveValue("");
   });
 });
