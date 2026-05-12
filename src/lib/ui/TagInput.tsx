@@ -140,6 +140,8 @@ export function TagInput({
 
   const handleWrapperKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (state.mode.kind !== "idle") return;
+    // Don't hijack caret navigation inside the trailing input when there's text to navigate.
+    if (e.target instanceof HTMLInputElement && e.target.value !== "") return;
     const active = state.activeSlot;
     if (e.key === "ArrowRight") {
       if (active < totalSlots - 1) {

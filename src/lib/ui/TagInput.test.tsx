@@ -260,6 +260,17 @@ describe("<TagInput>", () => {
     expect(screen.getByRole("button", { name: /insert tag at start/i })).toHaveFocus();
   });
 
+  test("ArrowLeft inside non-empty trailing input moves the caret, does not navigate or commit", async () => {
+    render(<Harness initial={["fire"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i }) as HTMLInputElement;
+    trailing.focus();
+    await userEvent.type(trailing, "rare");
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(trailing).toHaveValue("rare");
+    expect(trailing).toHaveFocus();
+    expect(trailing.selectionStart).toBe(3);
+  });
+
   test("tabbing into the list lands on the trailing input by default", async () => {
     render(
       <>
