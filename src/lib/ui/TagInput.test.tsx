@@ -512,8 +512,11 @@ describe("<TagInput>", () => {
     expect(tabbable()).toHaveLength(1);
   });
 
-  test("chip slot exposes aria-keyshortcuts for Enter and Delete", () => {
+  test("chip slot exposes aria-keyshortcuts for Enter, F2, Delete, and Backspace", () => {
     render(<Harness initial={["a"]} />);
-    expect(screen.getAllByRole("listitem")[0]).toHaveAttribute("aria-keyshortcuts", "Enter Delete");
+    expect(screen.getAllByRole("listitem")[0]).toHaveAttribute(
+      "aria-keyshortcuts",
+      "Enter F2 Delete Backspace",
+    );
   });
 });

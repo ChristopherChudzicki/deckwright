@@ -284,7 +284,7 @@ export function TagInput({
                 data-slot-index={i * 2 + 1}
                 tabIndex={state.activeSlot === i * 2 + 1 ? 0 : -1}
                 aria-label={`Tag: ${label}`}
-                aria-keyshortcuts="Enter Delete"
+                aria-keyshortcuts="Enter F2 Delete Backspace"
                 onPointerDown={handleChipPointerDown(i)}
                 onKeyDown={(e) => handleChipKeyDown(e, i)}
               >
@@ -319,6 +319,7 @@ export function TagInput({
         className={[styles.input, inserting !== null ? styles.trailingHidden : ""]
           .filter(Boolean)
           .join(" ")}
+        aria-hidden={inserting !== null}
         value={trailingDraft}
         onChange={(e) => setTrailingDraft(e.target.value)}
         onKeyDown={handleTrailingKeyDown}
