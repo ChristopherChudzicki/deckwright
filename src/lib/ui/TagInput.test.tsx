@@ -519,4 +519,14 @@ describe("<TagInput>", () => {
       "Enter F2 Delete Backspace",
     );
   });
+
+  test("value=[] renders only the trailing input as the active slot", () => {
+    render(<Harness />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    expect(trailing).toBeInTheDocument();
+    expect(trailing).toHaveAttribute("tabindex", "0");
+    // No chips, no gap buttons.
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: /insert tag/i })).toHaveLength(0);
+  });
 });

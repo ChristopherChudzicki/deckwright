@@ -309,4 +309,90 @@ describe("tagInputReducer", () => {
     expect(moved.state.mode).toEqual(open.state.mode);
     expect(moved.state.activeSlot).toBe(0);
   });
+
+  test("commitAndOpenEdit out-of-bounds target falls back to idle", () => {
+    // edit chip 2, clear, click chip 2 (no longer exists post-removal)
+    const open = tagInputReducer(
+      initialState(VALUE),
+      {
+        type: "openEdit",
+        index: 2,
+        value: VALUE,
+      },
+      VALUE,
+    );
+    const typed = tagInputReducer(open.state, { type: "updateDraft", draft: "" }, VALUE);
+    const trans = tagInputReducer(
+      typed.state,
+      {
+        type: "commitAndOpenEdit",
+        index: 5,
+        value: VALUE,
+      },
+      VALUE,
+    );
+    expect(trans.state.mode).toEqual({ kind: "idle" });
+    expect(trans.nextValue).toEqual(["a", "b"]);
+  });
+
+  test("commitAndOpenEdit after update-outcome preserves target index", () => {
+    // edit chip 0, change to "A", click chip 2 — chip 2 unchanged
+    const open = tagInputReducer(
+      initialState(VALUE),
+      {
+        type: "openEdit",
+        index: 0,
+        value: VALUE,
+      },
+      VALUE,
+    );
+    const typed = tagInputReducer(open.state, { type: "updateDraft", draft: "A" }, VALUE);
+    const trans = tagInputReducer(
+      typed.state,
+      {
+        type: "commitAndOpenEdit",
+        index: 2,
+        value: VALUE,
+      },
+      VALUE,
+    );
+    expect(trans.nextValue).toEqual(["A", "b", "c"]);
+    expect(trans.state.mode).toEqual({
+      kind: "editing",
+      index: 2,
+      draft: "c",
+      original: "c",
+    });
+  });
+
+  test("commitAndOpenInsert after remove-outcome shifts target left", () => {
+    // edit chip 0, clear (remove), click gap 2 — should shift to gap 1
+    const open = tagInputReducer(
+      initialState(VALUE),
+      {
+        type: "openEdit",
+        index: 0,
+        value: VALUE,
+      },
+      VALUE,
+    );
+    const typed = tagInputReducer(open.state, { type: "updateDraft", draft: "" }, VALUE);
+    const trans = tagInputReducer(
+      typed.state,
+      {
+        type: "commitAndOpenInsert",
+        at: 2,
+      },
+      VALUE,
+    );
+    expect(trans.nextValue).toEqual(["b", "c"]);
+    expect(trans.state.mode).toEqual({ kind: "inserting", at: 1, draft: "" });
+  });
+
+  test("updateDraft while idle is a no-op", () => {
+    const initial = initialState(VALUE);
+    const result = tagInputReducer(initial, { type: "updateDraft", draft: "x" }, VALUE);
+    expect(result.state).toEqual(initial);
+    expect(result.nextValue).toBeUndefined();
+  });
 });
