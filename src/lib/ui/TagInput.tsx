@@ -4,7 +4,6 @@ import {
   type PointerEvent,
   useCallback,
   useReducer,
-  useRef,
   useState,
 } from "react";
 import styles from "./TagInput.module.css";
@@ -37,7 +36,6 @@ export function TagInput({
     initialState,
   );
 
-  const trailingInputRef = useRef<HTMLInputElement | null>(null);
   const [trailingDraft, setTrailingDraft] = useState("");
 
   const dispatch = useCallback(
@@ -151,7 +149,6 @@ export function TagInput({
               <span className={styles.tagText}>{label}</span>
               <button
                 type="button"
-                slot="remove"
                 tabIndex={-1}
                 aria-label={`Remove ${label}`}
                 className={styles.remove}
@@ -165,7 +162,6 @@ export function TagInput({
         })}
       </ul>
       <input
-        ref={trailingInputRef}
         id={id}
         type="text"
         aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? "Tags")}
