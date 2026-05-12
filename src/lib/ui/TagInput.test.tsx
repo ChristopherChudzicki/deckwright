@@ -304,6 +304,15 @@ describe("<TagInput>", () => {
     expect(screen.getByRole("textbox", { name: /edit tag 'fire'/i })).toHaveFocus();
   });
 
+  test("F2 on a focused chip enters edit mode", async () => {
+    render(<Harness initial={["fire"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    await userEvent.keyboard("{F2}");
+    expect(screen.getByRole("textbox", { name: /edit tag 'fire'/i })).toHaveFocus();
+  });
+
   test("Enter on a focused gap opens insert with empty draft", async () => {
     render(<Harness initial={["fire"]} />);
     const trailing = screen.getByRole("textbox", { name: /footer tags/i });
