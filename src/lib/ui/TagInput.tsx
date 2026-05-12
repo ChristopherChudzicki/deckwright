@@ -39,11 +39,17 @@ export function TagInput({
     initialState,
   );
 
+  // Edit / insert drafts live in the reducer's mode (so commit transitions
+  // can read them). The trailing input's draft is local-only — keeping it
+  // outside the reducer means typing doesn't notify the parent via onChange.
   const [trailingDraft, setTrailingDraft] = useState("");
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const isFirstRender = useRef(true);
   const hintId = useId();
 
+  // We run the reducer twice per action: once here to extract nextValue (so
+  // we can call onChange immediately), once via dispatchRaw so React owns the
+  // state transition. The reducer is pure, so both runs produce the same state.
   const dispatch = useCallback(
     (action: Action) => {
       const result = tagInputReducer(state, action, value);
@@ -61,6 +67,8 @@ export function TagInput({
     const newValue = [...value, trimmed];
     onChange(newValue);
     setTrailingDraft("");
+    // setActiveSlot never produces nextValue, so we use dispatchRaw directly
+    // instead of dispatch — onChange was already fired above for the appended chip.
     dispatchRaw({ type: "setActiveSlot", slot: newValue.length * 2 });
   }, [trailingDraft, value, onChange]);
 
