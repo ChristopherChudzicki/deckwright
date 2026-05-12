@@ -56,8 +56,10 @@ export function TagInput({
   const commitTrailing = useCallback(() => {
     const trimmed = trailingDraft.replace(/[\n\r]/g, " ").trim();
     if (trimmed === "") return;
-    onChange([...value, trimmed]);
+    const newValue = [...value, trimmed];
+    onChange(newValue);
     setTrailingDraft("");
+    dispatchRaw({ type: "setActiveSlot", slot: newValue.length * 2 });
   }, [trailingDraft, value, onChange]);
 
   const inserting = state.mode.kind === "inserting" ? state.mode : null;
@@ -112,6 +114,46 @@ export function TagInput({
     dispatch({ type: "removeChip", index });
   };
 
+  const handleChipKeyDown = (e: KeyboardEvent<HTMLLIElement>, index: number) => {
+    if (e.key === "Enter" || e.key === "F2") {
+      e.preventDefault();
+      dispatch({ type: "openEdit", index, value });
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      dispatch({ type: "removeChip", index });
+    }
+  };
+
+  const handleGapKeyDown = (e: KeyboardEvent<HTMLButtonElement>, at: number) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      dispatch({ type: "openInsert", at });
+      return;
+    }
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      dispatch({ type: "openInsert", at, initialDraft: e.key });
+    }
+  };
+
+  const totalSlots = value.length * 2 + 1;
+
+  const handleWrapperKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (state.mode.kind !== "idle") return;
+    const active = state.activeSlot;
+    if (e.key === "ArrowRight") {
+      if (active < totalSlots - 1) {
+        e.preventDefault();
+        dispatch({ type: "setActiveSlot", slot: active + 1 });
+      }
+    } else if (e.key === "ArrowLeft") {
+      if (active > 0) {
+        e.preventDefault();
+        dispatch({ type: "setActiveSlot", slot: active - 1 });
+      }
+    }
+  };
+
   const isInsertingAt = (at: number): boolean => inserting !== null && inserting.at === at;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: focus restore must also re-fire on mode/value.length transitions (e.g., cancel) where activeSlot may be unchanged
@@ -123,7 +165,7 @@ export function TagInput({
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
     const active = document.activeElement;
-    if (active && active !== document.body) return;
+    if (active && active !== document.body && !wrapper.contains(active)) return;
     const slots = wrapper.querySelectorAll<HTMLElement>("[data-slot]");
     const target = Array.from(slots).find(
       (el) => Number(el.dataset.slotIndex) === state.activeSlot,
@@ -140,6 +182,7 @@ export function TagInput({
       aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? "Tags")}
       aria-labelledby={ariaLabelledBy}
       aria-describedby={ariaDescribedBy}
+      onKeyDown={handleWrapperKeyDown}
     >
       {/* biome-ignore lint/a11y/noRedundantRoles: explicit role="list" is required because display:contents strips ul semantics in WebKit */}
       <ul role="list" className={styles.list}>
@@ -167,9 +210,10 @@ export function TagInput({
                   data-slot
                   data-slot-index={i * 2}
                   className={styles.gapButton}
-                  tabIndex={-1}
+                  tabIndex={state.activeSlot === i * 2 ? 0 : -1}
                   aria-label={i === 0 ? "Insert tag at start" : `Insert tag before ${value[i]}`}
                   onPointerDown={handleGapPointerDown(i)}
+                  onKeyDown={(e) => handleGapKeyDown(e, i)}
                 />
               )}
             </li>,
@@ -232,7 +276,10 @@ export function TagInput({
                 data-slot
                 data-slot-index={i * 2 + 1}
                 tabIndex={state.activeSlot === i * 2 + 1 ? 0 : -1}
+                aria-label={`Tag: ${label}`}
+                aria-keyshortcuts="Enter Delete"
                 onPointerDown={handleChipPointerDown(i)}
+                onKeyDown={(e) => handleChipKeyDown(e, i)}
               >
                 <span className={styles.tagText}>{label}</span>
                 <button

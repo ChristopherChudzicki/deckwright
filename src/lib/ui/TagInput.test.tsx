@@ -243,4 +243,126 @@ describe("<TagInput>", () => {
     await userEvent.type(input, "   trimmed   {Enter}");
     expect(screen.getByText("trimmed")).toBeInTheDocument();
   });
+
+  test("arrow keys traverse slots in order: gap → chip → gap → trailing", async () => {
+    render(<Harness initial={["fire", "ice"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getAllByRole("listitem")[1]).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("button", { name: /insert tag before ice/i })).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getAllByRole("listitem")[0]).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("button", { name: /insert tag at start/i })).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("button", { name: /insert tag at start/i })).toHaveFocus();
+  });
+
+  test("tabbing into the list lands on the trailing input by default", async () => {
+    render(
+      <>
+        <button type="button">before</button>
+        <Harness initial={["fire"]} />
+      </>,
+    );
+    screen.getByRole("button", { name: "before" }).focus();
+    await userEvent.tab();
+    expect(screen.getByRole("textbox", { name: /footer tags/i })).toHaveFocus();
+  });
+
+  test("Arrow Right from trailing goes nowhere; Arrow Left from leading gap goes nowhere", async () => {
+    render(<Harness initial={["a"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(trailing).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}");
+    expect(screen.getByRole("button", { name: /insert tag at start/i })).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("button", { name: /insert tag at start/i })).toHaveFocus();
+  });
+
+  test("Enter on a focused chip enters edit mode", async () => {
+    render(<Harness initial={["fire"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("textbox", { name: /edit tag 'fire'/i })).toHaveFocus();
+  });
+
+  test("Enter on a focused gap opens insert with empty draft", async () => {
+    render(<Harness initial={["fire"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{ArrowLeft}{ArrowLeft}");
+    await userEvent.keyboard("{Enter}");
+    const insertInput = screen.getByRole("textbox", { name: /insert tag at start/i });
+    expect(insertInput).toHaveFocus();
+    expect(insertInput).toHaveValue("");
+  });
+
+  test("printable key on focused gap opens insert with that key as initial draft", async () => {
+    render(<Harness initial={["fire"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{ArrowLeft}{ArrowLeft}");
+    await userEvent.keyboard("x");
+    const insertInput = screen.getByRole("textbox", { name: /insert tag at start/i });
+    expect(insertInput).toHaveValue("x");
+    expect(insertInput).toHaveFocus();
+  });
+
+  test("Shift+letter on focused gap opens insert with capital letter", async () => {
+    render(<Harness initial={["fire"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{ArrowLeft}{ArrowLeft}");
+    await userEvent.keyboard("X");
+    const insertInput = screen.getByRole("textbox", { name: /insert tag at start/i });
+    expect(insertInput).toHaveValue("X");
+  });
+
+  test("Delete on focused chip removes it; Backspace also removes", async () => {
+    render(<Harness initial={["fire", "ice"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    await userEvent.keyboard("{Delete}");
+    expect(screen.queryByText("ice")).not.toBeInTheDocument();
+    expect(screen.getByText("fire")).toBeInTheDocument();
+    await userEvent.keyboard("{ArrowLeft}");
+    await userEvent.keyboard("{ArrowRight}");
+    await userEvent.keyboard("{Backspace}");
+    expect(screen.queryByText("fire")).not.toBeInTheDocument();
+  });
+
+  test("after Delete removes a chip, focus lands on the gap at the deleted index", async () => {
+    render(<Harness initial={["fire", "ice", "wind"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}");
+    await userEvent.keyboard("{Delete}");
+    expect(screen.getByRole("button", { name: /insert tag before wind/i })).toHaveFocus();
+  });
+
+  test("Backspace on empty trailing input removes last chip; focus stays on trailing", async () => {
+    render(<Harness initial={["fire", "ice"]} />);
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    await userEvent.keyboard("{Backspace}");
+    expect(screen.queryByText("ice")).not.toBeInTheDocument();
+    expect(trailing).toHaveFocus();
+  });
+
+  test("Backspace inside non-empty edit input edits text, does not remove chip", async () => {
+    render(<Harness initial={["fire", "ice"]} />);
+    await userEvent.click(screen.getByText("fire"));
+    const input = screen.getByRole("textbox", { name: /edit tag 'fire'/i });
+    await userEvent.keyboard("{End}{Backspace}");
+    expect(input).toHaveValue("fir");
+    expect(screen.getByText("ice")).toBeInTheDocument();
+  });
 });
