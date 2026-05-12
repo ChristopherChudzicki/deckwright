@@ -16,15 +16,11 @@
   outline-offset: 2px;
 }
 
-.group {
-  display: contents;
-}
-
 .list {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+  display: contents;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .tag {
@@ -39,6 +35,7 @@
   font-size: var(--fs-sm);
   line-height: 1.6;
   outline: none;
+  cursor: text;
 }
 
 .tag[data-focused] {
@@ -75,7 +72,48 @@
   outline-offset: 1px;
 }
 
-.input {
+.gap {
+  display: inline-flex;
+  align-items: stretch;
+  position: relative;
+  width: 0;
+}
+
+.gapButton {
+  position: absolute;
+  inset-block: -2px;
+  inset-inline: -4px;
+  width: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: text;
+}
+
+@media (pointer: coarse) {
+  .gapButton {
+    inset-inline: -6px;
+    width: 12px;
+  }
+}
+
+.gapButton:hover::before,
+.gapButton:focus-visible::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--color-focus-ring);
+  transform: translateX(-0.5px);
+}
+
+.gapButton:focus-visible {
+  outline: none;
+}
+
+.input,
+.chipEdit {
   flex: 1;
   min-width: 8ch;
   border: 0;
@@ -86,4 +124,33 @@
   font: inherit;
   font-family: var(--font-body);
   font-size: var(--fs-md);
+}
+
+.chipEdit {
+  width: 8ch;
+  flex: 0 0 auto;
+  field-sizing: content;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.trailingHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
