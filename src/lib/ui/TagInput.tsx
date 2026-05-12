@@ -89,6 +89,9 @@ export function TagInput({
     } else if (e.key === "Backspace" && trailingDraft === "" && value.length > 0) {
       e.preventDefault();
       dispatch({ type: "removeChip", index: value.length - 1 });
+    } else if (e.key === "Escape") {
+      e.stopPropagation();
+      setTrailingDraft("");
     }
   };
 

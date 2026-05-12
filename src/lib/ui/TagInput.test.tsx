@@ -376,4 +376,93 @@ describe("<TagInput>", () => {
     expect(input).toHaveValue("fir");
     expect(screen.getByText("ice")).toBeInTheDocument();
   });
+
+  test("clicking a gap opens an input at that index; typing + Enter inserts at that index", async () => {
+    const Watcher = () => {
+      const [v, setV] = useState<string[]>(["a", "c"]);
+      return (
+        <>
+          <TagInput aria-label="footer tags" value={v} onChange={setV} />
+          <output>{v.join("|")}</output>
+        </>
+      );
+    };
+    render(<Watcher />);
+    await userEvent.click(screen.getByRole("button", { name: /insert tag before c/i }));
+    const insertInput = screen.getByRole("textbox", { name: /insert tag before c/i });
+    await userEvent.type(insertInput, "b{Enter}");
+    expect(screen.getByRole("status")).toHaveTextContent("a|b|c");
+  });
+
+  test("empty insert commit is a no-op", async () => {
+    const Watcher = () => {
+      const [v, setV] = useState<string[]>(["a", "c"]);
+      return (
+        <>
+          <TagInput aria-label="footer tags" value={v} onChange={setV} />
+          <output>{v.join("|")}</output>
+        </>
+      );
+    };
+    render(<Watcher />);
+    await userEvent.click(screen.getByRole("button", { name: /insert tag before c/i }));
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("status")).toHaveTextContent("a|c");
+  });
+
+  test("whitespace-only insert commit is a no-op", async () => {
+    const Watcher = () => {
+      const [v, setV] = useState<string[]>(["a", "c"]);
+      return (
+        <>
+          <TagInput aria-label="footer tags" value={v} onChange={setV} />
+          <output>{v.join("|")}</output>
+        </>
+      );
+    };
+    render(<Watcher />);
+    await userEvent.click(screen.getByRole("button", { name: /insert tag before c/i }));
+    await userEvent.keyboard("   {Enter}");
+    expect(screen.getByRole("status")).toHaveTextContent("a|c");
+  });
+
+  test("after a successful insert at gap N, the next insert lands at N+1", async () => {
+    const Watcher = () => {
+      const [v, setV] = useState<string[]>(["a", "d"]);
+      return (
+        <>
+          <TagInput aria-label="footer tags" value={v} onChange={setV} />
+          <output>{v.join("|")}</output>
+        </>
+      );
+    };
+    render(<Watcher />);
+    await userEvent.click(screen.getByRole("button", { name: /insert tag before d/i }));
+    await userEvent.type(screen.getByRole("textbox", { name: /insert tag before d/i }), "b{Enter}");
+    expect(screen.getByRole("status")).toHaveTextContent("a|b|d");
+    await userEvent.keyboard("{Enter}");
+    await userEvent.type(screen.getByRole("textbox", { name: /insert tag before d/i }), "c{Enter}");
+    expect(screen.getByRole("status")).toHaveTextContent("a|b|c|d");
+  });
+
+  test("Escape during insert discards draft (mid-list and trailing, empty and non-empty)", async () => {
+    const onOuterKey = vi.fn();
+    render(
+      // biome-ignore lint/a11y/noStaticElementInteractions: test-only outer listener verifying event propagation
+      <div onKeyDown={onOuterKey}>
+        <Harness initial={["a", "b"]} />
+      </div>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /insert tag before b/i }));
+    await userEvent.type(screen.getByRole("textbox", { name: /insert tag before b/i }), "x");
+    onOuterKey.mockClear();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByText("x")).not.toBeInTheDocument();
+    expect(onOuterKey).not.toHaveBeenCalled();
+    const trailing = screen.getByRole("textbox", { name: /footer tags/i });
+    trailing.focus();
+    onOuterKey.mockClear();
+    await userEvent.keyboard("{Escape}");
+    expect(onOuterKey).not.toHaveBeenCalled();
+  });
 });
