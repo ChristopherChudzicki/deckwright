@@ -209,4 +209,68 @@ describe("DeckView toolbar", () => {
     expect(await screen.findByRole("radio", { name: "All (3)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sort.*last updated/i })).toBeInTheDocument();
   });
+
+  it("clicking Items navigates with kind=item, leaving other search keys untouched", async () => {
+    setupDeck();
+    render(wrap(<DeckView deckId="d" />));
+    await userEvent.click(await screen.findByRole("radio", { name: "Items (2)" }));
+    expect(navigate).toHaveBeenCalledWith({
+      from: "/deck/$deckId",
+      search: expect.any(Function),
+    });
+    const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
+      | undefined
+      | [{ search: (prev: DeckSearch) => DeckSearch }];
+    const result = lastCall?.[0].search({ sort: "name" });
+    expect(result).toEqual({ kind: "item", sort: "name" });
+  });
+
+  it("clicking All navigates with kind=undefined so the URL strips the default", async () => {
+    setupDeck();
+    useSearchMock.mockReturnValue({ kind: "spell" });
+    render(wrap(<DeckView deckId="d" />));
+    await userEvent.click(await screen.findByRole("radio", { name: "All (3)" }));
+    expect(navigate).toHaveBeenCalledWith({
+      from: "/deck/$deckId",
+      search: expect.any(Function),
+    });
+    const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
+      | undefined
+      | [{ search: (prev: DeckSearch) => DeckSearch }];
+    const result = lastCall?.[0].search({ kind: "spell", sort: "name" });
+    expect(result).toEqual({ kind: undefined, sort: "name" });
+  });
+
+  it("selecting Name from sort menu navigates with sort=name", async () => {
+    setupDeck();
+    render(wrap(<DeckView deckId="d" />));
+    await userEvent.click(await screen.findByRole("button", { name: /sort.*last updated/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Name" }));
+    expect(navigate).toHaveBeenCalledWith({
+      from: "/deck/$deckId",
+      search: expect.any(Function),
+    });
+    const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
+      | undefined
+      | [{ search: (prev: DeckSearch) => DeckSearch }];
+    const result = lastCall?.[0].search({ kind: "spell" });
+    expect(result).toEqual({ kind: "spell", sort: "name" });
+  });
+
+  it("selecting Last updated from sort menu navigates with sort=undefined", async () => {
+    setupDeck();
+    useSearchMock.mockReturnValue({ sort: "name" });
+    render(wrap(<DeckView deckId="d" />));
+    await userEvent.click(await screen.findByRole("button", { name: /sort.*name/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Last updated" }));
+    expect(navigate).toHaveBeenCalledWith({
+      from: "/deck/$deckId",
+      search: expect.any(Function),
+    });
+    const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
+      | undefined
+      | [{ search: (prev: DeckSearch) => DeckSearch }];
+    const result = lastCall?.[0].search({ kind: "spell", sort: "name" });
+    expect(result).toEqual({ kind: "spell", sort: undefined });
+  });
 });
