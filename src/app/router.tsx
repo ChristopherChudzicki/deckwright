@@ -11,6 +11,18 @@ import { Root } from "./Root";
 
 const rootRoute = createRootRoute({ component: Root });
 
+export type DeckSearch = {
+  kind?: "item" | "spell";
+  sort?: "name";
+};
+
+export function validateDeckSearch(raw: Record<string, unknown>): DeckSearch {
+  const out: DeckSearch = {};
+  if (raw.kind === "item" || raw.kind === "spell") out.kind = raw.kind;
+  if (raw.sort === "name") out.sort = raw.sort;
+  return out;
+}
+
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
