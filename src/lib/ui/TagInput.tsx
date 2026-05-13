@@ -324,7 +324,11 @@ export function TagInput({
         aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? "Tags")}
         aria-labelledby={ariaLabelledBy}
         aria-describedby={[ariaDescribedBy, hintId].filter(Boolean).join(" ") || undefined}
-        className={[styles.input, inserting !== null ? styles.trailingHidden : ""]
+        className={[
+          styles.input,
+          trailingDraft !== "" ? styles.chipEdit : "",
+          inserting !== null ? styles.trailingHidden : "",
+        ]
           .filter(Boolean)
           .join(" ")}
         aria-hidden={inserting !== null}
