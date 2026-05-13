@@ -76,14 +76,19 @@
   display: inline-flex;
   align-items: stretch;
   position: relative;
+}
+
+.gap:has(.gapButton) {
   width: 0;
 }
 
 .gapButton {
   position: absolute;
-  inset-block: -2px;
+  top: 50%;
   inset-inline: -4px;
   width: 8px;
+  height: calc(var(--fs-sm) * 1.6 + 2px);
+  transform: translateY(-50%);
   padding: 0;
   border: 0;
   background: transparent;
@@ -101,11 +106,12 @@
 .gapButton:focus-visible::before {
   content: "";
   position: absolute;
-  inset-block: 0;
+  inset-block: 2px;
   left: 50%;
-  width: 1px;
+  width: 2px;
   background: var(--color-focus-ring);
-  transform: translateX(-0.5px);
+  border-radius: 1px;
+  transform: translateX(-1px);
 }
 
 .gapButton:focus-visible {
