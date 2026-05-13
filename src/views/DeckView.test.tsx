@@ -4,14 +4,18 @@ import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "../api/supabase";
+import type { DeckSearch } from "../app/router";
 import { AuthProvider } from "../auth/AuthProvider";
-import { makeCardRow, makePublicDeck } from "../test/factories";
+import { makeCardRow, makeItemPayload, makePublicDeck, makeSpellPayload } from "../test/factories";
 import { server } from "../test/msw";
 import { render, screen, waitFor } from "../test/render";
 import { signInTestUser } from "../test/signInTestUser";
 import { DeckView } from "./DeckView";
 
 const SB = "http://localhost:54321";
+
+const navigate = vi.fn();
+const useSearchMock = vi.fn<() => DeckSearch>(() => ({}));
 
 vi.mock("@tanstack/react-router", async () => {
   const actual =
@@ -32,7 +36,8 @@ vi.mock("@tanstack/react-router", async () => {
         {children}
       </a>
     ),
-    useNavigate: () => vi.fn(),
+    useNavigate: () => navigate,
+    useSearch: () => useSearchMock(),
   };
 });
 
@@ -47,6 +52,8 @@ function wrap(ui: ReactNode) {
 
 describe("DeckView (logged-out)", () => {
   beforeEach(async () => {
+    navigate.mockClear();
+    useSearchMock.mockReturnValue({});
     await supabase.auth.signOut();
   });
 
@@ -79,6 +86,8 @@ describe("DeckView (logged-out)", () => {
 
 describe("DeckView (owner)", () => {
   beforeEach(async () => {
+    navigate.mockClear();
+    useSearchMock.mockReturnValue({});
     await supabase.auth.signOut();
   });
 
@@ -101,5 +110,210 @@ describe("DeckView (owner)", () => {
     await waitFor(() => expect(onDelete).toHaveBeenCalled());
     expect(screen.getByRole("link", { name: /new card/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /browse catalog/i })).toBeInTheDocument();
+  });
+});
+
+describe("DeckView toolbar", () => {
+  beforeEach(async () => {
+    navigate.mockClear();
+    useSearchMock.mockReturnValue({});
+    await supabase.auth.signOut();
+  });
+
+  function setupDeck(opts: { is_owner?: boolean } = {}) {
+    const deck = makePublicDeck.build({ is_owner: opts.is_owner ?? true });
+    const item1 = makeCardRow.build({
+      deck_id: deck.id,
+      payload: makeItemPayload.build({
+        name: "Alpha Item",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    });
+    const item2 = makeCardRow.build({
+      deck_id: deck.id,
+      payload: makeItemPayload.build({
+        name: "Bravo Item",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      }),
+    });
+    const spell1 = makeCardRow.build({
+      deck_id: deck.id,
+      payload: makeSpellPayload.build({
+        name: "Cantrip",
+        updatedAt: "2026-02-01T00:00:00.000Z",
+      }),
+    });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () =>
+        HttpResponse.json([item1, item2, spell1]),
+      ),
+    );
+    return { deck, item1, item2, spell1 };
+  }
+
+  it("renders All/Items/Spells filter buttons with counts", async () => {
+    setupDeck();
+    render(wrap(<DeckView deckId="d" />));
+    expect(await screen.findByRole("radio", { name: "All (3)" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Items (2)" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Spells (1)" })).toBeInTheDocument();
+  });
+
+  it("All is selected by default; default sort is Last updated", async () => {
+    setupDeck();
+    render(wrap(<DeckView deckId="d" />));
+    expect(await screen.findByRole("radio", { name: "All (3)" })).toBeChecked();
+    expect(screen.getByRole("button", { name: /sort.*last updated/i })).toBeInTheDocument();
+  });
+
+  it("default render sorts by updatedAt descending", async () => {
+    const { item1, item2, spell1 } = setupDeck();
+    render(wrap(<DeckView deckId="d" />));
+    const rows = await screen.findAllByRole("listitem");
+    const names = rows.map((li) => li.querySelector("strong")?.textContent);
+    expect(names).toEqual([item2.payload.name, spell1.payload.name, item1.payload.name]);
+  });
+
+  it("mounting at kind=spell shows only spells with the Spells filter checked", async () => {
+    const { spell1 } = setupDeck();
+    useSearchMock.mockReturnValue({ kind: "spell" });
+    render(wrap(<DeckView deckId="d" />));
+    expect(await screen.findByRole("radio", { name: "Spells (1)" })).toBeChecked();
+    const rows = screen.getAllByRole("listitem");
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.textContent).toContain(spell1.payload.name);
+  });
+
+  it("mounting at sort=name reorders by name", async () => {
+    setupDeck();
+    useSearchMock.mockReturnValue({ sort: "name" });
+    render(wrap(<DeckView deckId="d" />));
+    const rows = await screen.findAllByRole("listitem");
+    const names = rows.map((li) => li.querySelector("strong")?.textContent);
+    expect(names).toEqual(["Alpha Item", "Bravo Item", "Cantrip"]);
+  });
+
+  it("counts stay correct after filtering (counts reflect unfiltered totals)", async () => {
+    setupDeck();
+    useSearchMock.mockReturnValue({ kind: "item" });
+    render(wrap(<DeckView deckId="d" />));
+    expect(await screen.findByRole("radio", { name: "All (3)" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Items (2)" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Spells (1)" })).toBeInTheDocument();
+  });
+
+  it("read-only deck still shows the toolbar", async () => {
+    setupDeck({ is_owner: false });
+    render(wrap(<DeckView deckId="d" />));
+    expect(await screen.findByRole("radio", { name: "All (3)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sort.*last updated/i })).toBeInTheDocument();
+  });
+
+  it("clicking Items navigates with kind=item, leaving other search keys untouched", async () => {
+    setupDeck();
+    render(wrap(<DeckView deckId="d" />));
+    await userEvent.click(await screen.findByRole("radio", { name: "Items (2)" }));
+    expect(navigate).toHaveBeenCalledWith({
+      from: "/deck/$deckId",
+      search: expect.any(Function),
+    });
+    const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
+      | undefined
+      | [{ search: (prev: DeckSearch) => DeckSearch }];
+    const result = lastCall?.[0].search({ sort: "name" });
+    expect(result).toEqual({ kind: "item", sort: "name" });
+  });
+
+  it("clicking All navigates with kind=undefined so the URL strips the default", async () => {
+    setupDeck();
+    useSearchMock.mockReturnValue({ kind: "spell" });
+    render(wrap(<DeckView deckId="d" />));
+    await userEvent.click(await screen.findByRole("radio", { name: "All (3)" }));
+    expect(navigate).toHaveBeenCalledWith({
+      from: "/deck/$deckId",
+      search: expect.any(Function),
+    });
+    const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
+      | undefined
+      | [{ search: (prev: DeckSearch) => DeckSearch }];
+    const result = lastCall?.[0].search({ kind: "spell", sort: "name" });
+    expect(result).toEqual({ kind: undefined, sort: "name" });
+  });
+
+  it("selecting Name from sort menu navigates with sort=name", async () => {
+    setupDeck();
+    render(wrap(<DeckView deckId="d" />));
+    await userEvent.click(await screen.findByRole("button", { name: /sort.*last updated/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Name" }));
+    expect(navigate).toHaveBeenCalledWith({
+      from: "/deck/$deckId",
+      search: expect.any(Function),
+    });
+    const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
+      | undefined
+      | [{ search: (prev: DeckSearch) => DeckSearch }];
+    const result = lastCall?.[0].search({ kind: "spell" });
+    expect(result).toEqual({ kind: "spell", sort: "name" });
+  });
+
+  it("selecting Last updated from sort menu navigates with sort=undefined", async () => {
+    setupDeck();
+    useSearchMock.mockReturnValue({ sort: "name" });
+    render(wrap(<DeckView deckId="d" />));
+    await userEvent.click(await screen.findByRole("button", { name: /sort.*name/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Last updated" }));
+    expect(navigate).toHaveBeenCalledWith({
+      from: "/deck/$deckId",
+      search: expect.any(Function),
+    });
+    const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
+      | undefined
+      | [{ search: (prev: DeckSearch) => DeckSearch }];
+    const result = lastCall?.[0].search({ kind: "spell", sort: "name" });
+    expect(result).toEqual({ kind: "spell", sort: undefined });
+  });
+
+  it("hides the toolbar when the deck has zero cards", async () => {
+    const deck = makePublicDeck.build({ is_owner: true });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([])),
+    );
+    render(wrap(<DeckView deckId="d" />));
+    await waitFor(() => expect(screen.getByText(/no cards yet/i)).toBeInTheDocument());
+    expect(screen.queryByRole("radio", { name: /^all/i })).not.toBeInTheDocument();
+  });
+
+  it("shows 'No spells in this deck.' when the Spells filter has zero matches", async () => {
+    const deck = makePublicDeck.build({ is_owner: true });
+    const item = makeCardRow.build({
+      deck_id: deck.id,
+      payload: makeItemPayload.build({ name: "Sword" }),
+    });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([item])),
+    );
+    useSearchMock.mockReturnValue({ kind: "spell" });
+    render(wrap(<DeckView deckId="d" />));
+    expect(await screen.findByText(/no spells in this deck/i)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Items (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Spells (0)" })).toBeInTheDocument();
+  });
+
+  it("shows 'No items in this deck.' when the Items filter has zero matches", async () => {
+    const deck = makePublicDeck.build({ is_owner: true });
+    const spell = makeCardRow.build({
+      deck_id: deck.id,
+      payload: makeSpellPayload.build({ name: "Bolt" }),
+    });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([spell])),
+    );
+    useSearchMock.mockReturnValue({ kind: "item" });
+    render(wrap(<DeckView deckId="d" />));
+    expect(await screen.findByText(/no items in this deck/i)).toBeInTheDocument();
   });
 });
