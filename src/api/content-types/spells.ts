@@ -1,7 +1,8 @@
 import fuzzysort from "fuzzysort";
 import { useMemo } from "react";
+import { levelLabel } from "../../lib/srd-format/spells";
 import { useSpellIndex } from "../hooks";
-import { levelTag, spellDetailToCard } from "../mappers/spells";
+import { spellDetailToCard } from "../mappers/spells";
 import type { ContentType } from "./types";
 
 export const spellsContentType: ContentType = {
@@ -19,7 +20,7 @@ export const spellsContentType: ContentType = {
       return ordered.map((entry) => ({
         key: entry.key,
         name: entry.name,
-        meta: levelTag(entry.level, entry.school.name),
+        meta: levelLabel(entry.level, entry.school.name),
         toCard: () => spellDetailToCard({ ...entry, ruleset: source }),
       }));
     }, [idx.data, query, source]);

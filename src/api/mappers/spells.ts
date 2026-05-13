@@ -10,8 +10,6 @@ import {
 import { nowIso } from "../../lib/time";
 import type { SpellDetail } from "../endpoints/spells";
 
-export { levelLabel as levelTag } from "../../lib/srd-format/spells";
-
 const buildBody = (desc: string, higherLevel: string): string => {
   if (higherLevel.trim() === "") return desc;
   return `${desc}\n\n***At Higher Levels.*** ${higherLevel}`;
