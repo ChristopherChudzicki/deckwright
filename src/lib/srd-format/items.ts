@@ -13,6 +13,7 @@ export const formatCost = (cost: string): string | null => {
 export const formatWeight = (weight: string, unit: string): string | null => {
   const n = parseFloat(weight);
   if (!Number.isFinite(n) || n <= 0) return null;
+  // Strip trailing zeros: "7.000" → "7", "1.5" → "1.5".
   const trimmed = n.toString();
   return `${trimmed} ${unit}`;
 };
