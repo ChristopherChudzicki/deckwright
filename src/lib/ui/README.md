@@ -12,7 +12,7 @@ Thin wrappers around `react-aria-components` (and a couple of native elements) t
 | `Input` | A single-line text field. |
 | `Link` | An `<a>` styled with the accent color and an underline. Use for inline external links; in-app navigation goes through TanStack Router's `<Link>`. |
 | `Textarea` | A multi-line text field. |
-| `TagInput` | A controlled chip-input field. Users type freeform text + Enter to commit chips; `×` per chip removes them. |
+| `TagInput` | A controlled chip-input field. Click a chip to edit in place; click between chips to insert; `×` removes. Full keyboard nav via ←/→ and Enter/Delete. |
 | `Switch` | An on/off toggle with a track + thumb. Children are the label. |
 | `ToggleButton` | A toggleable button (alone or inside a `ToggleButtonGroup`). |
 | `ToggleButtonGroup` | A segmented selector — wraps `ToggleButton` children. |
