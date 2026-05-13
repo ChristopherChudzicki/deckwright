@@ -35,9 +35,27 @@ type DeckSearch = {
 };
 ```
 
-No route in this repo currently uses `validateSearch`, so this introduces a new pattern. Implement as a hand-rolled validator (no Zod) — the value space is two enums; a small `validateSearch: (raw): DeckSearch => ({ kind: ALLOWED_KINDS.includes(raw.kind) ? raw.kind : "all", sort: ALLOWED_SORTS.includes(raw.sort) ? raw.sort : "updated" })` is enough. Coercion guarantees render code never has to defend against bad params.
+No route in this repo currently uses `validateSearch`, so this introduces a new pattern. Implement as a hand-rolled validator (no Zod). To keep it independently testable (the route is consumed via mocked `useNavigate` in view tests, so route-level coercion can't be exercised from `DeckView.test.tsx`), extract the validator as a pure exported function in `src/app/router.tsx`:
 
-Reading uses `useSearch({ from: ... })`; writing uses `navigate({ search: prev => ({ ...prev, kind: "spell" }) })`.
+```ts
+const ALLOWED_KINDS = ["all", "item", "spell"] as const;
+const ALLOWED_SORTS = ["updated", "name"] as const;
+type KindFilter = (typeof ALLOWED_KINDS)[number];
+type Sort = (typeof ALLOWED_SORTS)[number];
+
+export function validateDeckSearch(raw: Record<string, unknown>): DeckSearch {
+  const kind = raw.kind;
+  const sort = raw.sort;
+  return {
+    kind: (ALLOWED_KINDS as readonly string[]).includes(kind as string) ? (kind as KindFilter) : "all",
+    sort: (ALLOWED_SORTS as readonly string[]).includes(sort as string) ? (sort as Sort) : "updated",
+  };
+}
+```
+
+The `as readonly string[]` cast is the minimum needed for TS's `Array.includes` under strict + `noUncheckedIndexedAccess`. The route wires it via `validateSearch: validateDeckSearch`. The pure function gets its own unit tests in `src/app/router.test.ts`.
+
+Reading uses `useSearch({ from: "/deck/$deckId" })`. Writing: TanStack Router's `useNavigate()` accepts `navigate({ search: prev => ({ ...prev, kind: "spell" }) })` standalone — it stays on the current route and only updates search. No `to` or `params` needed for in-place search updates.
 
 **User-facing label mapping:** `sort: "updated"` displays as `"Last updated"` in the UI.
 
@@ -75,7 +93,7 @@ Pure, no React imports, trivially unit-testable.
 ```
 ┌─ header (title, count, actions: Print / Browse / New) ──────┐
 ├─ toolbar ────────────────────────────────────────────────────┤
-│  ( All (12) | Items (5) | Spells (7) )  Sort: Last updated ▾ │
+│  [All (12)] [Items (5)] [Spells (7)]    Sort: Last updated ▾ │
 ├─ list (filtered + sorted) ───────────────────────────────────┤
 │  card row …                                                  │
 │  card row …                                                  │
@@ -131,7 +149,8 @@ Shared decks (non-owner viewers) get the full filter + sort toolbar. Filtering a
 - `src/decks/deckListing.ts` (new) — pure filter/sort helper.
 - `src/decks/deckListing.test.ts` (new) — helper unit tests.
 - `src/views/DeckView.test.tsx` — integration tests for filter buttons, sort, URL state, empty states.
-- `src/app/router.tsx` — add `validateSearch` to `deckViewRoute` for `kind` + `sort`.
+- `src/app/router.tsx` — export `validateDeckSearch` and wire it into `deckViewRoute` as `validateSearch`.
+- `src/app/router.test.ts` (new) — unit tests for `validateDeckSearch`.
 
 No changes to `useDeckCards`, the RPC, the schema, factories, or `Card` types.
 
@@ -148,11 +167,14 @@ No changes to `useDeckCards`, the RPC, the schema, factories, or `Card` types.
 - Tie-break for `updated`: equal `updatedAt` falls through to name; equal name then falls through to id. (Two separate assertions so the chain is provable.)
 - Tie-break for `name`: equal name falls through to id.
 
-### Route (`src/app/router.tsx` via integration in `DeckView.test.tsx`)
+### Route validator (`src/app/router.test.ts`)
 
-- `validateSearch` coerces an unknown `kind` (e.g. `"weapons"`) to `"all"`.
-- `validateSearch` coerces an unknown `sort` to `"updated"`.
-- Missing params resolve to defaults.
+Tested as a pure function — `DeckView.test.tsx` mocks `useNavigate` and does not render the real router, so route-level coercion can't be exercised from view tests.
+
+- `validateDeckSearch({})` returns `{ kind: "all", sort: "updated" }`.
+- `validateDeckSearch({ kind: "weapons" })` coerces `kind` to `"all"`.
+- `validateDeckSearch({ sort: "rarity" })` coerces `sort` to `"updated"`.
+- Valid values pass through unchanged.
 
 ### `DeckView.test.tsx`
 
@@ -166,7 +188,7 @@ No changes to `useDeckCards`, the RPC, the schema, factories, or `Card` types.
 - Empty-tab message: a deck with only items renders `"No spells in this deck."` on the Spells filter; counts still show `Items (N)` and `Spells (0)`.
 - A read-only deck (non-owner) shows the full toolbar (filter buttons + sort).
 
-**URL assertion pattern:** Existing view tests in this repo mock `useNavigate` and `Link` rather than rendering the real router (see `src/views/DeckView.test.tsx`). Assert on the mocked `navigate` call (`expect(navigate).toHaveBeenCalledWith({ search: expect.any(Function) })`, then invoke the callback with a sample prev to verify the produced object). Avoid asserting on `router.state.location.search` — that is not the established pattern here.
+**URL assertion pattern:** Existing view tests in this repo mock `useNavigate` and `Link` rather than rendering the real router (see `src/views/DeckView.test.tsx`). The implementation calls `navigate({ search: prev => ({ ...prev, kind: "spell" }) })` (TanStack Router allows search-only navigation that stays on the current route — no `to`/`params` needed). Tests assert on the mocked call: `expect(navigate).toHaveBeenCalledWith({ search: expect.any(Function) })`, then invoke the captured callback with a sample prev (`{ kind: "all", sort: "updated" }`) and verify the returned object (`{ kind: "spell", sort: "updated" }`). Avoid asserting on `router.state.location.search` — that is not the established pattern here.
 
 Factories pass only the fields each test asserts on (`name`, `kind`, `updatedAt`).
 
