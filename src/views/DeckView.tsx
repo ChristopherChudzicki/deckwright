@@ -112,8 +112,16 @@ export function DeckView({ deckId }: Props) {
         </div>
       )}
 
-      {cards.length === 0 ? (
+      {rawCards.length === 0 ? (
         <p className={styles.empty}>No cards yet.</p>
+      ) : cards.length === 0 ? (
+        <p className={styles.empty}>
+          {kind === "item"
+            ? "No items in this deck."
+            : kind === "spell"
+              ? "No spells in this deck."
+              : "No cards yet."}
+        </p>
       ) : (
         <ul className={styles.list}>
           {cards.map((card) => (

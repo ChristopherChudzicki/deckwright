@@ -273,4 +273,47 @@ describe("DeckView toolbar", () => {
     const result = lastCall?.[0].search({ kind: "spell", sort: "name" });
     expect(result).toEqual({ kind: "spell", sort: undefined });
   });
+
+  it("hides the toolbar when the deck has zero cards", async () => {
+    const deck = makePublicDeck.build({ is_owner: true });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([])),
+    );
+    render(wrap(<DeckView deckId="d" />));
+    await waitFor(() => expect(screen.getByText(/no cards yet/i)).toBeInTheDocument());
+    expect(screen.queryByRole("radio", { name: /^all/i })).not.toBeInTheDocument();
+  });
+
+  it("shows 'No spells in this deck.' when the Spells filter has zero matches", async () => {
+    const deck = makePublicDeck.build({ is_owner: true });
+    const item = makeCardRow.build({
+      deck_id: deck.id,
+      payload: makeItemPayload.build({ name: "Sword" }),
+    });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([item])),
+    );
+    useSearchMock.mockReturnValue({ kind: "spell" });
+    render(wrap(<DeckView deckId="d" />));
+    expect(await screen.findByText(/no spells in this deck/i)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Items (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Spells (0)" })).toBeInTheDocument();
+  });
+
+  it("shows 'No items in this deck.' when the Items filter has zero matches", async () => {
+    const deck = makePublicDeck.build({ is_owner: true });
+    const spell = makeCardRow.build({
+      deck_id: deck.id,
+      payload: makeSpellPayload.build({ name: "Bolt" }),
+    });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([spell])),
+    );
+    useSearchMock.mockReturnValue({ kind: "item" });
+    render(wrap(<DeckView deckId="d" />));
+    expect(await screen.findByText(/no items in this deck/i)).toBeInTheDocument();
+  });
 });
