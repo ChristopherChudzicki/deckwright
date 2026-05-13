@@ -32,6 +32,7 @@ const homeRoute = createRoute({
 const deckViewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/deck/$deckId",
+  validateSearch: validateDeckSearch,
   component: function DeckViewRoute() {
     const { deckId } = deckViewRoute.useParams();
     return <DeckView deckId={deckId} />;
