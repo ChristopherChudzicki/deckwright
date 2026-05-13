@@ -140,7 +140,6 @@
 }
 
 .chipEdit {
-  width: 8ch;
   flex: 0 0 auto;
   field-sizing: content;
   padding: 0 var(--space-2);
