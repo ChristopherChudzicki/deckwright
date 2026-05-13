@@ -26,38 +26,35 @@ The browse-catalog dialog (`src/views/BrowseApiModal.tsx`) already uses tabs per
 
 ## URL state
 
-Two search params on the existing `/deck/$deckId` route, declared via TanStack Router's `validateSearch`:
+Two search params on the existing `/deck/$deckId` route, declared via TanStack Router's `validateSearch`. Both fields are **optional in the URL** — omission means default, so default state has no query string at all:
 
 ```ts
-type DeckSearch = {
-  kind: "all" | "item" | "spell"; // default "all"
-  sort: "updated" | "name";       // default "updated"
+export type DeckSearch = {
+  kind?: "item" | "spell"; // omit for the implicit "all" default
+  sort?: "name";           // omit for the implicit "updated" default
 };
 ```
+
+Why optional: a deck list at default state should have a clean URL (`/deck/abc`), not `/deck/abc?kind=all&sort=updated`. The query string appears only when the user has made a non-default selection. `<Link>` / `navigate` callers who don't care about filter/sort can pass `search: {}` (or omit `search` if TanStack Router allows it for all-optional shapes), and the validator strips invalid values to defaults.
 
 No route in this repo currently uses `validateSearch`, so this introduces a new pattern. Implement as a hand-rolled validator (no Zod). To keep it independently testable (the route is consumed via mocked `useNavigate` in view tests, so route-level coercion can't be exercised from `DeckView.test.tsx`), extract the validator as a pure exported function in `src/app/router.tsx`:
 
 ```ts
-const ALLOWED_KINDS = ["all", "item", "spell"] as const;
-const ALLOWED_SORTS = ["updated", "name"] as const;
-type KindFilter = (typeof ALLOWED_KINDS)[number];
-type Sort = (typeof ALLOWED_SORTS)[number];
-
 export function validateDeckSearch(raw: Record<string, unknown>): DeckSearch {
-  const kind = raw.kind;
-  const sort = raw.sort;
-  return {
-    kind: (ALLOWED_KINDS as readonly string[]).includes(kind as string) ? (kind as KindFilter) : "all",
-    sort: (ALLOWED_SORTS as readonly string[]).includes(sort as string) ? (sort as Sort) : "updated",
-  };
+  const out: DeckSearch = {};
+  if (raw.kind === "item" || raw.kind === "spell") out.kind = raw.kind;
+  if (raw.sort === "name") out.sort = raw.sort;
+  return out;
 }
 ```
 
-The `as readonly string[]` cast is the minimum needed for TS's `Array.includes` under strict + `noUncheckedIndexedAccess`. The route wires it via `validateSearch: validateDeckSearch`. The pure function gets its own unit tests in `src/app/router.test.ts`.
+Defaults (`kind: "all"`, `sort: "updated"`) are never written into the output — they're represented by absence. URLs like `?kind=all` get normalized to a clean URL via TanStack Router's `validateSearch` round-trip. The validator gets its own unit tests in `src/app/router.test.ts`.
 
-Reading uses `useSearch({ from: "/deck/$deckId" })`. Writing: TanStack Router's `useNavigate()` accepts `navigate({ search: prev => ({ ...prev, kind: "spell" }) })` standalone — it stays on the current route and only updates search. No `to` or `params` needed for in-place search updates.
+Reading uses `useSearch({ from: "/deck/$deckId" })` and defaults at the read site: `const kind = search.kind ?? "all"; const sort = search.sort ?? "updated";`.
 
-**User-facing label mapping:** `sort: "updated"` displays as `"Last updated"` in the UI.
+Writing: TanStack Router's `useNavigate()` accepts `navigate({ search: prev => ({ ...prev, kind: nextKind === "all" ? undefined : nextKind }) })` standalone — it stays on the current route and only updates search. `undefined` keys are dropped from the URL, keeping it clean when the user toggles back to defaults.
+
+**User-facing label mapping:** `sort: undefined` (or `"updated"`) displays as `"Last updated"` in the UI.
 
 ## Filter / sort helper
 
@@ -171,10 +168,13 @@ No changes to `useDeckCards`, the RPC, the schema, factories, or `Card` types.
 
 Tested as a pure function — `DeckView.test.tsx` mocks `useNavigate` and does not render the real router, so route-level coercion can't be exercised from view tests.
 
-- `validateDeckSearch({})` returns `{ kind: "all", sort: "updated" }`.
-- `validateDeckSearch({ kind: "weapons" })` coerces `kind` to `"all"`.
-- `validateDeckSearch({ sort: "rarity" })` coerces `sort` to `"updated"`.
-- Valid values pass through unchanged.
+- `validateDeckSearch({})` returns `{}` (no keys; defaults are implicit).
+- Valid non-default values pass through: `{ kind: "spell", sort: "name" }` → same.
+- Default values are stripped: `{ kind: "all", sort: "updated" }` → `{}`.
+- Unknown `kind` is dropped: `{ kind: "weapons" }` → `{}`.
+- Unknown `sort` is dropped: `{ sort: "rarity" }` → `{}`.
+- Non-string values are dropped.
+- Unknown keys are ignored: `{ kind: "spell", extra: "x" }` → `{ kind: "spell" }`.
 
 ### `DeckView.test.tsx`
 
