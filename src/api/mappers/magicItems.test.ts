@@ -135,4 +135,18 @@ describe("magicItemDetailToCard", () => {
     expect(card.headerTags).toEqual(["Armor", "AC 14 + dex mod (max 2)"]);
     expect(card.footerTags).toContain("20 lb");
   });
+
+  // Open5e packs Shield +1/+2/+3 into the magic-item armor schema with low
+  // ac_base values (the +N bonus, not an absolute AC). Rendering them as
+  // "AC 2" would be misleading; the shield-shaped branch produces "+2 AC".
+  test("magic-item shield (armor.ac_base=2) renders '+2 AC' not 'AC 2'", () => {
+    const detail = magicItemDetailFactory.build({
+      name: "Shield (+2)",
+      category: { name: "Armor" },
+      armor: { ac_base: 2, ac_add_dexmod: false, ac_cap_dexmod: null },
+    });
+    const card = magicItemDetailToCard(detail);
+    expect(card.headerTags).toContain("+2 AC");
+    expect(card.headerTags).not.toContain("AC 2");
+  });
 });
