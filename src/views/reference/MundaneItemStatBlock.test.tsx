@@ -1,16 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 import { mundaneItemDetailFactory } from "../../api/factories";
+import { dtWithin } from "./dtWithin";
 import { MundaneItemStatBlock } from "./MundaneItemStatBlock";
-
-// Scope to <dt> so labels can't collide with <dd> values that happen to share
-// the same text (e.g. category "Weapon" with the Weapon type stat row).
-const within = (label: string) => {
-  const dt = screen.getByText(label, { selector: "dt" });
-  const dd = dt.nextElementSibling;
-  if (!dd) throw new Error(`No <dd> after <dt>${label}`);
-  return dd;
-};
 
 describe("MundaneItemStatBlock", () => {
   test("plain gear: Category and Cost", () => {
@@ -23,9 +15,9 @@ describe("MundaneItemStatBlock", () => {
       weight_unit: "lb",
     });
     render(<MundaneItemStatBlock item={item} />);
-    expect(within("Category").textContent).toBe("Adventuring Gear");
-    expect(within("Cost").textContent).toBe("10 gp");
-    expect(within("Weight").textContent).toBe("1 lb");
+    expect(dtWithin("Category").textContent).toBe("Adventuring Gear");
+    expect(dtWithin("Cost").textContent).toBe("10 gp");
+    expect(dtWithin("Weight").textContent).toBe("1 lb");
   });
 
   test("weapon: shows Weapon type, Damage, and Properties (one <li> per property)", () => {
@@ -43,9 +35,9 @@ describe("MundaneItemStatBlock", () => {
       },
     });
     render(<MundaneItemStatBlock item={item} />);
-    expect(within("Weapon type").textContent).toBe("Martial");
-    expect(within("Damage").textContent).toBe("1d8 slashing");
-    const props = within("Properties");
+    expect(dtWithin("Weapon type").textContent).toBe("Martial");
+    expect(dtWithin("Damage").textContent).toBe("1d8 slashing");
+    const props = dtWithin("Properties");
     const lis = props.querySelectorAll("li");
     expect(lis).toHaveLength(2);
     expect(lis[0]?.textContent).toBe("Versatile (1d10)");
@@ -64,7 +56,7 @@ describe("MundaneItemStatBlock", () => {
       },
     });
     render(<MundaneItemStatBlock item={item} />);
-    expect(within("Weapon type").textContent).toBe("Simple");
+    expect(dtWithin("Weapon type").textContent).toBe("Simple");
     expect(screen.queryByText("Properties", { selector: "dt" })).toBeNull();
   });
 
@@ -81,10 +73,10 @@ describe("MundaneItemStatBlock", () => {
       },
     });
     render(<MundaneItemStatBlock item={item} />);
-    expect(within("Armor tier").textContent).toBe("Heavy");
-    expect(within("AC").textContent).toBe("AC 16");
-    expect(within("Stealth").textContent).toBe("Disadvantage");
-    expect(within("Strength").textContent).toBe("13");
+    expect(dtWithin("Armor tier").textContent).toBe("Heavy");
+    expect(dtWithin("AC").textContent).toBe("AC 16");
+    expect(dtWithin("Stealth").textContent).toBe("Disadvantage");
+    expect(dtWithin("Strength").textContent).toBe("13");
   });
 
   test("shield (ac_base <= 5): no Tier, '+N AC' format", () => {
@@ -101,7 +93,7 @@ describe("MundaneItemStatBlock", () => {
     });
     render(<MundaneItemStatBlock item={item} />);
     expect(screen.queryByText("Armor tier", { selector: "dt" })).toBeNull();
-    expect(within("AC").textContent).toBe("+2 AC");
+    expect(dtWithin("AC").textContent).toBe("+2 AC");
   });
 
   test("Cost omitted when 0.00, Weight omitted when 0.000", () => {
