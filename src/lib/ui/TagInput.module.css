@@ -155,6 +155,17 @@
   outline-offset: 1px;
 }
 
+/* When the edit input lives inside a chip <li>, the <li> already provides
+   the chip chrome — strip the input's own border/background/padding so the
+   element heights match the chip-view span and no layout shift occurs. */
+.tag > .chipEdit,
+.tag > .chipEdit:focus-visible {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  outline: 0;
+}
+
 @supports not (field-sizing: content) {
   .chipEdit {
     width: auto;
