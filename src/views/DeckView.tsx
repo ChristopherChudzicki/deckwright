@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { Menu, MenuItem, MenuTrigger, Popover, Button as RACButton } from "react-aria-components";
+import type { DeckSearch } from "../app/router";
 import { deckListing } from "../decks/deckListing";
 import { useDeleteCard, useRenameDeck } from "../decks/mutations";
 import { useDeck, useDeckCards } from "../decks/queries";
@@ -24,6 +25,8 @@ export function DeckView({ deckId }: Props) {
   const deleteCard = useDeleteCard();
   const search = useSearch({ from: "/deck/$deckId" });
   const navigate = useNavigate();
+  const updateSearch = (patch: Partial<DeckSearch>) =>
+    navigate({ from: "/deck/$deckId", search: (prev) => ({ ...prev, ...patch }) });
   const [browseOpen, setBrowseOpen] = useState(false);
 
   if (deckQuery.isLoading || cardsQuery.isLoading) return <LoadingState />;
@@ -77,17 +80,8 @@ export function DeckView({ deckId }: Props) {
             selectedKeys={[kind]}
             onSelectionChange={(keys) => {
               const next = Array.from(keys)[0];
-              if (next === "all") {
-                navigate({
-                  from: "/deck/$deckId",
-                  search: (prev) => ({ ...prev, kind: undefined }),
-                });
-              } else if (next === "item" || next === "spell") {
-                navigate({
-                  from: "/deck/$deckId",
-                  search: (prev) => ({ ...prev, kind: next }),
-                });
-              }
+              if (next === "all") updateSearch({ kind: undefined });
+              else if (next === "item" || next === "spell") updateSearch({ kind: next });
             }}
           >
             <ToggleButton id="all">All ({counts.all})</ToggleButton>
@@ -95,27 +89,15 @@ export function DeckView({ deckId }: Props) {
             <ToggleButton id="spell">Spells ({counts.spell})</ToggleButton>
           </ToggleButtonGroup>
           <MenuTrigger>
-            <RACButton
-              aria-label={`Sort: ${sort === "updated" ? "Last updated" : "Name"}`}
-              className={styles.sortTrigger}
-            >
+            <RACButton className={styles.sortTrigger}>
               Sort: {sort === "updated" ? "Last updated" : "Name"} <span aria-hidden="true">▾</span>
             </RACButton>
             <Popover className={styles.sortPopover} placement="bottom end">
               <Menu
                 className={styles.sortMenu}
                 onAction={(key) => {
-                  if (key === "updated") {
-                    navigate({
-                      from: "/deck/$deckId",
-                      search: (prev) => ({ ...prev, sort: undefined }),
-                    });
-                  } else if (key === "name") {
-                    navigate({
-                      from: "/deck/$deckId",
-                      search: (prev) => ({ ...prev, sort: "name" }),
-                    });
-                  }
+                  if (key === "updated") updateSearch({ sort: undefined });
+                  else if (key === "name") updateSearch({ sort: "name" });
                 }}
               >
                 <MenuItem id="updated" className={styles.sortMenuItem}>
