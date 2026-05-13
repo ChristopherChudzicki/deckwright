@@ -1,5 +1,7 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
+import { Menu, MenuItem, MenuTrigger, Popover, Button as RACButton } from "react-aria-components";
+import { deckListing } from "../decks/deckListing";
 import { useDeleteCard, useRenameDeck } from "../decks/mutations";
 import { useDeck, useDeckCards } from "../decks/queries";
 import { Button } from "../lib/ui/Button";
@@ -8,6 +10,8 @@ import { Input } from "../lib/ui/Input";
 import { PencilIcon } from "../lib/ui/icons/PencilIcon";
 import { TrashIcon } from "../lib/ui/icons/TrashIcon";
 import { LoadingState } from "../lib/ui/LoadingState";
+import { ToggleButton } from "../lib/ui/ToggleButton";
+import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import { BrowseApiModal } from "./BrowseApiModal";
 import styles from "./DeckView.module.css";
 
@@ -18,13 +22,18 @@ export function DeckView({ deckId }: Props) {
   const cardsQuery = useDeckCards(deckId);
   const renameDeck = useRenameDeck();
   const deleteCard = useDeleteCard();
+  const search = useSearch({ from: "/deck/$deckId" });
+  const navigate = useNavigate();
   const [browseOpen, setBrowseOpen] = useState(false);
 
   if (deckQuery.isLoading || cardsQuery.isLoading) return <LoadingState />;
   if (!deckQuery.data) return <p>This deck no longer exists.</p>;
 
   const deck = deckQuery.data;
-  const cards = cardsQuery.data ?? [];
+  const rawCards = cardsQuery.data ?? [];
+  const kind = search.kind ?? "all";
+  const sort = search.sort ?? "updated";
+  const { cards, counts } = deckListing(rawCards, { kind, sort });
   const isOwner = deck.is_owner;
 
   return (
@@ -58,6 +67,68 @@ export function DeckView({ deckId }: Props) {
           )}
         </div>
       </header>
+
+      {rawCards.length > 0 && (
+        <div className={styles.toolbar}>
+          <ToggleButtonGroup
+            aria-label="Filter by kind"
+            selectionMode="single"
+            disallowEmptySelection
+            selectedKeys={[kind]}
+            onSelectionChange={(keys) => {
+              const next = Array.from(keys)[0];
+              if (next === "all") {
+                navigate({
+                  from: "/deck/$deckId",
+                  search: (prev) => ({ ...prev, kind: undefined }),
+                });
+              } else if (next === "item" || next === "spell") {
+                navigate({
+                  from: "/deck/$deckId",
+                  search: (prev) => ({ ...prev, kind: next }),
+                });
+              }
+            }}
+          >
+            <ToggleButton id="all">All ({counts.all})</ToggleButton>
+            <ToggleButton id="item">Items ({counts.item})</ToggleButton>
+            <ToggleButton id="spell">Spells ({counts.spell})</ToggleButton>
+          </ToggleButtonGroup>
+          <MenuTrigger>
+            <RACButton
+              aria-label={`Sort: ${sort === "updated" ? "Last updated" : "Name"}`}
+              className={styles.sortTrigger}
+            >
+              Sort: {sort === "updated" ? "Last updated" : "Name"} <span aria-hidden="true">▾</span>
+            </RACButton>
+            <Popover className={styles.sortPopover} placement="bottom end">
+              <Menu
+                className={styles.sortMenu}
+                onAction={(key) => {
+                  if (key === "updated") {
+                    navigate({
+                      from: "/deck/$deckId",
+                      search: (prev) => ({ ...prev, sort: undefined }),
+                    });
+                  } else if (key === "name") {
+                    navigate({
+                      from: "/deck/$deckId",
+                      search: (prev) => ({ ...prev, sort: "name" }),
+                    });
+                  }
+                }}
+              >
+                <MenuItem id="updated" className={styles.sortMenuItem}>
+                  Last updated
+                </MenuItem>
+                <MenuItem id="name" className={styles.sortMenuItem}>
+                  Name
+                </MenuItem>
+              </Menu>
+            </Popover>
+          </MenuTrigger>
+        </div>
+      )}
 
       {cards.length === 0 ? (
         <p className={styles.empty}>No cards yet.</p>
