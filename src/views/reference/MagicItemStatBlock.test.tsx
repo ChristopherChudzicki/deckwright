@@ -3,9 +3,10 @@ import { describe, expect, test } from "vitest";
 import { magicItemDetailFactory } from "../../api/factories";
 import { MagicItemStatBlock } from "./MagicItemStatBlock";
 
+// Scope to <dt> so labels can't collide with <dd> values that happen to share
+// the same text (e.g. category "Weapon" with the Weapon stat row).
 const within = (label: string) => {
-  const dt = screen.getByText(label);
-  // The matching <dd> is the next sibling in the document order
+  const dt = screen.getByText(label, { selector: "dt" });
   const dd = dt.nextElementSibling;
   if (!dd) throw new Error(`No <dd> after <dt>${label}`);
   return dd;
