@@ -13,6 +13,8 @@ export const levelLabel = (level: number, schoolName: string): string => {
   return `${ordinal(level)}-level ${schoolName.toLowerCase()}`;
 };
 
+// 2014 SRD packs the count into casting_time (e.g. "10minutes"); 2024 strips it
+// (e.g. just "minute"). Parse out a quantity if present, otherwise default to 1.
 const CONCATENATED_CASTING = /^(\d+)(minute|hour|day|round|turn)s?$/i;
 
 export const castingTimeLabel = (castingTime: string, ritual: boolean): string => {
@@ -32,6 +34,7 @@ export const castingTimeLabel = (castingTime: string, ritual: boolean): string =
   return ritual ? `${base} (ritual)` : base;
 };
 
+// 2024 returns singular units (e.g. "10 minute"); 2014 returns plural ("10 minutes").
 const QUANTIFIED_DURATION = /^(\d+)\s+(minute|hour|day|round|turn)s?$/i;
 
 const formatDuration = (duration: string): string => {
