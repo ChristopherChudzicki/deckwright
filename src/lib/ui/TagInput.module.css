@@ -38,7 +38,8 @@
   cursor: text;
 }
 
-.tag:focus-visible {
+.tag:focus-visible,
+.tag:has(.chipEdit:focus-visible) {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 1px;
 }
@@ -159,9 +160,9 @@
    the chip chrome — strip the input's own border/background/padding so the
    element heights match the chip-view span and no layout shift occurs. Also
    drop the min-width so the input matches the chip's text width instead of
-   widening the chip to 8ch on edit. */
-.tag > .chipEdit,
-.tag > .chipEdit:focus-visible {
+   widening the chip to 8ch on edit. The focused chip ring is provided by
+   .tag:has(.chipEdit:focus-visible) above. */
+.tag > .chipEdit {
   border: 0;
   background: transparent;
   padding: 0;
@@ -174,6 +175,21 @@
     width: auto;
     min-width: 12ch;
     max-width: 100%;
+  }
+  /* In-chip edit input must NOT re-introduce the floor that the modern path
+     dropped, otherwise editing "fire" widens the chip to 12ch on Firefox <144. */
+  .tag > .chipEdit {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+/* In Windows High Contrast Mode, the stripped-chrome edit input has no
+   visible cue. Re-introduce an outline so the editing chip is identifiable. */
+@media (forced-colors: active) {
+  .tag > .chipEdit:focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 1px;
   }
 }
 
