@@ -238,7 +238,7 @@ export function CardEditor({ card, onChange }: Props) {
               <button type="button" className={styles.linkButton} onClick={handleDisconnectApiRef}>
                 {canResetReferenceUrl ? "permanently disconnect" : "Permanently disconnect"}
               </button>
-              .
+              {canResetReferenceUrl ? " from import to remove this option." : " from import."}
             </>
           )}
         </span>
