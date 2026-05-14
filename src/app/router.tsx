@@ -122,6 +122,7 @@ const referenceDetailRoute = createRoute({
   },
 });
 
+/** Exported for tests only — production code should use the configured `router` below. */
 export const routeTree = rootRoute.addChildren([
   appLayoutRoute.addChildren([
     homeRoute,

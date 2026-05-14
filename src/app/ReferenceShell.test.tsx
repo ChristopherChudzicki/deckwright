@@ -5,7 +5,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 import { ReferenceShell } from "./ReferenceShell";
 
@@ -30,9 +30,10 @@ describe("ReferenceShell", () => {
     expect(link).toHaveAttribute("href", "/");
   });
 
-  test("renders the child route via <Outlet/>", async () => {
+  test("renders the child route inside <main> via <Outlet/>", async () => {
     renderInRouter();
-    expect(await screen.findByText("child")).toBeInTheDocument();
+    const main = await screen.findByRole("main");
+    expect(within(main).getByText("child")).toBeInTheDocument();
   });
 
   test("does not render a user menu or footer", async () => {

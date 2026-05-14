@@ -10,7 +10,8 @@ function appAt(pathname: string) {
     routeTree,
     history: createMemoryHistory({ initialEntries: [pathname] }),
   });
-  return render(<App router={router} />);
+  const result = render(<App router={router} />);
+  return { ...result, router };
 }
 
 describe("App auth scope (anon enabled)", () => {
@@ -32,9 +33,29 @@ describe("App auth scope (anon enabled)", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("triggers anonymous sign-in on app routes", async () => {
+  it("does not trigger anonymous sign-in on /reference/* 404s", async () => {
+    const spy = vi.spyOn(supabase.auth, "signInAnonymously");
+    appAt("/reference/magic-items/srd_no-such-thing");
+    await waitFor(() => {
+      expect(document.title).toBe("Not found · Deckwright");
+    });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("triggers anonymous sign-in once on app routes", async () => {
     const spy = vi.spyOn(supabase.auth, "signInAnonymously");
     appAt("/");
-    await waitFor(() => expect(spy).toHaveBeenCalled());
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+  });
+
+  it("re-mounts AuthProvider when navigating from /reference/* to /", async () => {
+    const spy = vi.spyOn(supabase.auth, "signInAnonymously");
+    const { router } = appAt("/reference/magic-items/srd_wand-of-wonder");
+    await waitFor(() => {
+      expect(document.title).toBe("Wand of Wonder · Deckwright");
+    });
+    expect(spy).not.toHaveBeenCalled();
+    await router.navigate({ to: "/" });
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
   });
 });

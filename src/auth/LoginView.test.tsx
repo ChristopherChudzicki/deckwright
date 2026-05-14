@@ -15,16 +15,19 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
 }));
 
-function wrap(ui: ReactNode, session?: SessionState) {
+const unauthenticatedSession: SessionState = {
+  status: "unauthenticated",
+  user: null,
+  session: null,
+};
+
+function wrap(ui: ReactNode, session: SessionState = unauthenticatedSession) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const inner = session ? (
-    <SessionContext.Provider value={session}>{ui}</SessionContext.Provider>
-  ) : (
-    ui
-  );
   return (
     <QueryClientProvider client={client}>
-      <AnnouncementProvider>{inner}</AnnouncementProvider>
+      <AnnouncementProvider>
+        <SessionContext.Provider value={session}>{ui}</SessionContext.Provider>
+      </AnnouncementProvider>
     </QueryClientProvider>
   );
 }

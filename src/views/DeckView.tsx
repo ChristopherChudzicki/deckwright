@@ -26,7 +26,7 @@ export function DeckView({ deckId }: Props) {
   const search = useSearch({ from: "/app/deck/$deckId" });
   const navigate = useNavigate();
   const updateSearch = (patch: Partial<DeckSearch>) =>
-    navigate({ from: "/deck/$deckId", search: (prev) => ({ ...prev, ...patch }) });
+    navigate({ to: ".", search: (prev: DeckSearch) => ({ ...prev, ...patch }) });
   const [browseOpen, setBrowseOpen] = useState(false);
 
   if (deckQuery.isLoading || cardsQuery.isLoading) return <LoadingState />;
