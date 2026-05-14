@@ -27,6 +27,11 @@
   outline-offset: 2px;
 }
 
+.separator {
+  margin: 0 var(--space-1);
+  color: var(--color-text-muted);
+}
+
 @media print {
   .footer {
     display: none;

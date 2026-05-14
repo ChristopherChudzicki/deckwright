@@ -18,4 +18,15 @@ describe("<Footer>", () => {
     expect(link.getAttribute("rel") ?? "").toMatch(/noopener/);
     expect(link.getAttribute("rel") ?? "").toMatch(/noreferrer/);
   });
+
+  it("credits Open5e with a link to open5e.com", () => {
+    render(<Footer />);
+    const link = within(screen.getByRole("contentinfo")).getByRole("link", {
+      name: /open5e/i,
+    });
+    expect(link).toHaveAttribute("href", "https://open5e.com");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link.getAttribute("rel") ?? "").toMatch(/noopener/);
+    expect(link.getAttribute("rel") ?? "").toMatch(/noreferrer/);
+  });
 });
