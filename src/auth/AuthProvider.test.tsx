@@ -24,8 +24,11 @@ describe("useSession contract", () => {
 
   it("throws when used outside an <AuthProvider>", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() => render(<Probe />)).toThrow(/useSession must be used within an <AuthProvider>/);
-    errorSpy.mockRestore();
+    try {
+      expect(() => render(<Probe />)).toThrow(/useSession must be used within an <AuthProvider>/);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("does not throw inside an explicit SessionContext.Provider (used by tests)", () => {

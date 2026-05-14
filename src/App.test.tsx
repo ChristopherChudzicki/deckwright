@@ -1,9 +1,13 @@
 import { createMemoryHistory, createRouter } from "@tanstack/react-router";
+import userEvent from "@testing-library/user-event";
+import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { supabase } from "./api/supabase";
 import { routeTree } from "./app/router";
-import { render, waitFor } from "./test/render";
+import { makeCardRow, makePublicDeck } from "./test/factories";
+import { SB_URL, server } from "./test/msw";
+import { render, screen, waitFor } from "./test/render";
 
 function appAt(pathname: string) {
   const router = createRouter({
@@ -57,5 +61,33 @@ describe("App auth scope (anon enabled)", () => {
     expect(spy).not.toHaveBeenCalled();
     await router.navigate({ to: "/" });
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe("App router (DeckView filter navigation)", () => {
+  // Pins that DeckView's updateSearch call doesn't emit router-core's
+  // "Could not find match for from:" dev warning. Mock-based tests in
+  // DeckView.test.tsx assert the call shape; this exercises the real router.
+  it("clicking a kind filter updates search without router-core warnings", async () => {
+    const deck = makePublicDeck.build({ is_owner: false });
+    const card = makeCardRow.build({ deck_id: deck.id });
+    server.use(
+      http.post(`${SB_URL}/rest/v1/rpc/get_public_deck`, () => HttpResponse.json(deck)),
+      http.post(`${SB_URL}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([card])),
+    );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { router } = appAt(`/deck/${deck.id}`);
+      const itemsFilter = await screen.findByRole("radio", { name: /Items/ });
+      await userEvent.click(itemsFilter);
+      await waitFor(() => {
+        expect(router.state.location.search).toMatchObject({ kind: "item" });
+      });
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringMatching(/Could not find match for from:/),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

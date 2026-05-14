@@ -215,7 +215,7 @@ describe("DeckView toolbar", () => {
     render(wrap(<DeckView deckId="d" />));
     await userEvent.click(await screen.findByRole("radio", { name: "Items (2)" }));
     expect(navigate).toHaveBeenCalledWith({
-      to: ".",
+      from: "/deck/$deckId",
       search: expect.any(Function),
     });
     const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
@@ -231,7 +231,7 @@ describe("DeckView toolbar", () => {
     render(wrap(<DeckView deckId="d" />));
     await userEvent.click(await screen.findByRole("radio", { name: "All (3)" }));
     expect(navigate).toHaveBeenCalledWith({
-      to: ".",
+      from: "/deck/$deckId",
       search: expect.any(Function),
     });
     const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
@@ -247,7 +247,7 @@ describe("DeckView toolbar", () => {
     await userEvent.click(await screen.findByRole("button", { name: /sort.*last updated/i }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Name" }));
     expect(navigate).toHaveBeenCalledWith({
-      to: ".",
+      from: "/deck/$deckId",
       search: expect.any(Function),
     });
     const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as
@@ -264,7 +264,7 @@ describe("DeckView toolbar", () => {
     await userEvent.click(await screen.findByRole("button", { name: /sort.*name/i }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Last updated" }));
     expect(navigate).toHaveBeenCalledWith({
-      to: ".",
+      from: "/deck/$deckId",
       search: expect.any(Function),
     });
     const lastCall = navigate.mock.calls[navigate.mock.calls.length - 1] as

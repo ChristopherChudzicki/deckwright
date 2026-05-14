@@ -11,6 +11,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    // `cancelled` short-circuits the listener after cleanup runs. Under React
+    // StrictMode the effect mounts → cleans up → mounts again; the first
+    // mount's async INITIAL_SESSION handler must not fire signInAnonymously
+    // after its cleanup. App.test.tsx asserts signInAnonymously is called
+    // exactly once — that count depends on this guard.
     let cancelled = false;
     const anonEnabled = isAnonUsersEnabled();
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
