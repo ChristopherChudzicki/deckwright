@@ -13,7 +13,7 @@ import { SpellStatBlock } from "./reference/SpellStatBlock";
 
 export type ReferenceKind = "magic-items" | "mundane-items" | "spells";
 
-type Props = { kind: ReferenceKind | (string & {}); cardKey: string };
+type Props = { kind: ReferenceKind; cardKey: string };
 
 const rulesetFromKey = (key: string): Ruleset => (key.startsWith("srd-2024_") ? "2024" : "2014");
 
