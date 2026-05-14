@@ -231,10 +231,9 @@ export function CardEditor({ card, onChange }: Props) {
                   >
                     Restore original link
                   </button>
-                  .
                 </>
               )}{" "}
-              {canResetReferenceUrl ? "Or " : ""}
+              {canResetReferenceUrl ? "or " : ""}
               <button type="button" className={styles.linkButton} onClick={handleDisconnectApiRef}>
                 {canResetReferenceUrl ? "permanently disconnect" : "Permanently disconnect"}
               </button>
