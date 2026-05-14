@@ -1,7 +1,7 @@
 import { GitHubLogo } from "../lib/ui/icons/GitHubLogo";
 import styles from "./Footer.module.css";
 
-const REPO_URL = "https://github.com/ChristopherChudzicki/dnd-cards";
+const REPO_URL = "https://github.com/ChristopherChudzicki/deckwright";
 
 export function Footer() {
   return (

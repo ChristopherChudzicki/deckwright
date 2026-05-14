@@ -13,7 +13,7 @@ describe("<Footer>", () => {
     const link = within(screen.getByRole("contentinfo")).getByRole("link", {
       name: /view source on github/i,
     });
-    expect(link).toHaveAttribute("href", "https://github.com/ChristopherChudzicki/dnd-cards");
+    expect(link).toHaveAttribute("href", "https://github.com/ChristopherChudzicki/deckwright");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link.getAttribute("rel") ?? "").toMatch(/noopener/);
     expect(link.getAttribute("rel") ?? "").toMatch(/noreferrer/);
