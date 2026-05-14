@@ -31,7 +31,12 @@ export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
     body: detail.desc,
     footerTags,
     source: "api",
-    apiRef: { system: "open5e", slug: detail.key, ruleset: detail.ruleset },
+    apiRef: {
+      system: "open5e",
+      slug: detail.key,
+      ruleset: detail.ruleset,
+      kind: "magic-items",
+    },
     createdAt: now,
     updatedAt: now,
   };

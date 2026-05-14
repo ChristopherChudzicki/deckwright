@@ -46,7 +46,12 @@ export const mundaneItemDetailToCard = (detail: MundaneItemDetail): ItemCard => 
     body: detail.desc,
     footerTags,
     source: "api",
-    apiRef: { system: "open5e", slug: detail.key, ruleset: detail.ruleset },
+    apiRef: {
+      system: "open5e",
+      slug: detail.key,
+      ruleset: detail.ruleset,
+      kind: "mundane-items",
+    },
     createdAt: now,
     updatedAt: now,
   };

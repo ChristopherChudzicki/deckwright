@@ -5,7 +5,12 @@ export type BaseCard = {
   name: string;
   body: string;
   source: "custom" | "api";
-  apiRef?: { system: "open5e"; slug: string; ruleset: "2014" | "2024" };
+  apiRef?: {
+    system: "open5e";
+    slug: string;
+    ruleset: "2014" | "2024";
+    kind: "magic-items" | "mundane-items" | "spells";
+  };
   createdAt: string;
   updatedAt: string;
   iconKey?: string;

@@ -36,7 +36,12 @@ export const spellDetailToCard = (detail: SpellDetail): SpellCard => {
     body: spellBodyMarkdown(detail.desc, detail.higher_level),
     footerTags,
     source: "api",
-    apiRef: { system: "open5e", slug: detail.key, ruleset: detail.ruleset },
+    apiRef: {
+      system: "open5e",
+      slug: detail.key,
+      ruleset: detail.ruleset,
+      kind: "spells",
+    },
     createdAt: now,
     updatedAt: now,
   };
