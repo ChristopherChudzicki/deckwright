@@ -1,12 +1,11 @@
-import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { Link, Outlet } from "@tanstack/react-router";
 import { Announcement, AnnouncementProvider } from "../lib/ui/Announcement";
 import { UserMenu } from "../lib/ui/UserMenu";
 import { DeckBreadcrumb } from "./DeckBreadcrumb";
 import { Footer } from "./Footer";
 import styles from "./root.module.css";
 
-export function Root({ children }: { children: ReactNode }) {
+export function Root() {
   return (
     <AnnouncementProvider>
       <div className={styles.shell}>
@@ -28,7 +27,7 @@ export function Root({ children }: { children: ReactNode }) {
         </header>
         <main className={styles.main}>
           <Announcement />
-          {children}
+          <Outlet />
         </main>
         <Footer />
       </div>

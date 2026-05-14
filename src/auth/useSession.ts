@@ -6,12 +6,15 @@ export type SessionState =
   | { status: "unauthenticated"; user: null; session: null }
   | { status: "authenticated"; user: User; session: Session };
 
-export const SessionContext = createContext<SessionState>({
-  status: "loading",
-  user: null,
-  session: null,
-});
+export const SessionContext = createContext<SessionState | undefined>(undefined);
 
 export function useSession() {
-  return useContext(SessionContext);
+  const ctx = useContext(SessionContext);
+  if (!ctx) {
+    throw new Error(
+      "useSession must be used within an <AuthProvider>. Routes under the `reference` " +
+        "layout intentionally have no AuthProvider — don't consume useSession there.",
+    );
+  }
+  return ctx;
 }

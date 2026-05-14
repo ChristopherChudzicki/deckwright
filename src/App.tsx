@@ -1,13 +1,10 @@
 import { QueryProvider } from "./api/QueryProvider";
-import { RouterProvider, router } from "./app/router";
-import { AuthProvider } from "./auth/AuthProvider";
+import { router as defaultRouter, RouterProvider } from "./app/router";
 
-export default function App() {
+export default function App({ router = defaultRouter }: { router?: typeof defaultRouter } = {}) {
   return (
     <QueryProvider>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <RouterProvider router={router} />
     </QueryProvider>
   );
 }

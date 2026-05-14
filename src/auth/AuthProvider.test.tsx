@@ -4,7 +4,7 @@ import { supabase } from "../api/supabase";
 import { SB_URL, server } from "../test/msw";
 import { render, screen, waitFor } from "../test/render";
 import { AuthProvider } from "./AuthProvider";
-import { useSession } from "./useSession";
+import { SessionContext, useSession } from "./useSession";
 
 function ShowSession() {
   const { user, status } = useSession();
@@ -15,6 +15,32 @@ function ShowSession() {
     </div>
   );
 }
+
+describe("useSession contract", () => {
+  function Probe() {
+    useSession();
+    return null;
+  }
+
+  it("throws when used outside an <AuthProvider>", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(() => render(<Probe />)).toThrow(/useSession must be used within an <AuthProvider>/);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("does not throw inside an explicit SessionContext.Provider (used by tests)", () => {
+    expect(() =>
+      render(
+        <SessionContext.Provider value={{ status: "unauthenticated", user: null, session: null }}>
+          <Probe />
+        </SessionContext.Provider>,
+      ),
+    ).not.toThrow();
+  });
+});
 
 describe("AuthProvider", () => {
   beforeEach(async () => {

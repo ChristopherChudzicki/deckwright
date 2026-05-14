@@ -1,8 +1,7 @@
-import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { Link, Outlet } from "@tanstack/react-router";
 import styles from "./ReferenceShell.module.css";
 
-export function ReferenceShell({ children }: { children: ReactNode }) {
+export function ReferenceShell() {
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
@@ -10,7 +9,9 @@ export function ReferenceShell({ children }: { children: ReactNode }) {
           Deckwright
         </Link>
       </header>
-      <main className={styles.main}>{children}</main>
+      <main className={styles.main}>
+        <Outlet />
+      </main>
     </div>
   );
 }
