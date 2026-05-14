@@ -10,11 +10,15 @@ import { describe, expect, test } from "vitest";
 import { ReferenceShell } from "./ReferenceShell";
 
 function renderInRouter() {
-  const rootRoute = createRootRoute({ component: ReferenceShell });
+  const rootRoute = createRootRoute();
   const childRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/",
-    component: () => <p>child</p>,
+    component: () => (
+      <ReferenceShell>
+        <p>child</p>
+      </ReferenceShell>
+    ),
   });
   const router = createRouter({
     routeTree: rootRoute.addChildren([childRoute]),
@@ -30,7 +34,7 @@ describe("ReferenceShell", () => {
     expect(link).toHaveAttribute("href", "/");
   });
 
-  test("renders the child route via <Outlet/>", async () => {
+  test("renders the children", async () => {
     renderInRouter();
     expect(await screen.findByText("child")).toBeInTheDocument();
   });

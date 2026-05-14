@@ -31,7 +31,9 @@ function renderRoot() {
   return render(
     <QueryClientProvider client={client}>
       <SessionContext.Provider value={loadingSession}>
-        <Root />
+        <Root>
+          <p>child</p>
+        </Root>
       </SessionContext.Provider>
     </QueryClientProvider>,
   );
