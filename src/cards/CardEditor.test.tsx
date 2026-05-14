@@ -178,6 +178,78 @@ describe("<CardEditor>", () => {
     expect(seen[seen.length - 1]?.referenceUrl).toBeUndefined();
   });
 
+  const apiRefBag = {
+    system: "open5e" as const,
+    slug: "srd-2024_bag-of-holding",
+    ruleset: "2024" as const,
+    kind: "magic-items" as const,
+  };
+  const srdUrlBag = `${window.location.origin}/reference/magic-items/srd-2024_bag-of-holding`;
+
+  test("'Use reference page' action is hidden when card has no apiRef", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+    expect(screen.queryByRole("button", { name: /use reference page/i })).not.toBeInTheDocument();
+  });
+
+  test("'Use reference page' action is hidden when referenceUrl already matches the SRD-derived URL", () => {
+    const card = itemCardFactory.build({ apiRef: apiRefBag, referenceUrl: srdUrlBag });
+    render(<Harness initial={card} />);
+    expect(screen.queryByRole("button", { name: /use reference page/i })).not.toBeInTheDocument();
+  });
+
+  test("'Use reference page' action is shown when apiRef exists and referenceUrl is empty", () => {
+    const card = itemCardFactory.build({ apiRef: apiRefBag, referenceUrl: undefined });
+    render(<Harness initial={card} />);
+    expect(screen.getByRole("button", { name: /use reference page/i })).toBeInTheDocument();
+  });
+
+  test("'Use reference page' action is shown when referenceUrl differs from the SRD-derived URL", () => {
+    const card = itemCardFactory.build({
+      apiRef: apiRefBag,
+      referenceUrl: "https://elsewhere.example/x",
+    });
+    render(<Harness initial={card} />);
+    expect(screen.getByRole("button", { name: /use reference page/i })).toBeInTheDocument();
+  });
+
+  test("clicking 'Use reference page' sets referenceUrl to the apiRef-derived URL", async () => {
+    const card = itemCardFactory.build({ apiRef: apiRefBag, referenceUrl: undefined });
+    const seen: RenderableCard[] = [];
+    render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /use reference page/i }));
+
+    expect(seen[seen.length - 1]?.referenceUrl).toBe(srdUrlBag);
+  });
+
+  test("'permanently clear' action is hidden when card has no apiRef", () => {
+    const card = itemCardFactory.build();
+    render(<Harness initial={card} />);
+    expect(screen.queryByRole("button", { name: /permanently clear/i })).not.toBeInTheDocument();
+  });
+
+  test("'permanently clear' action is shown whenever apiRef exists", () => {
+    const card = itemCardFactory.build({ apiRef: apiRefBag, referenceUrl: srdUrlBag });
+    render(<Harness initial={card} />);
+    expect(screen.getByRole("button", { name: /permanently clear/i })).toBeInTheDocument();
+  });
+
+  test("clicking 'permanently clear' clears apiRef but leaves referenceUrl unchanged", async () => {
+    const card = itemCardFactory.build({
+      apiRef: apiRefBag,
+      referenceUrl: "https://example.com/keepme",
+    });
+    const seen: RenderableCard[] = [];
+    render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /permanently clear/i }));
+
+    const last = seen[seen.length - 1];
+    expect(last?.apiRef).toBeUndefined();
+    expect(last?.referenceUrl).toBe("https://example.com/keepme");
+  });
+
   test("switching Type from Item to Spell updates kind without losing other fields", async () => {
     const card = itemCardFactory.build();
     const seen: RenderableCard[] = [];

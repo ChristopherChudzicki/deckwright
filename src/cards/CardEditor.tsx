@@ -8,6 +8,7 @@ import { TagInput } from "../lib/ui/TagInput";
 import { Textarea } from "../lib/ui/Textarea";
 import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
+import { referenceAbsoluteUrl } from "../views/reference/routeUrl";
 import styles from "./CardEditor.module.css";
 import { FALLBACK_ICON_KEY, pickIconKey } from "./iconRules";
 import { MarkdownToolbar } from "./MarkdownToolbar";
@@ -45,6 +46,21 @@ export function CardEditor({ card, onChange }: Props) {
       referenceUrl: value === "" ? undefined : value,
       updatedAt: nowIso(),
     });
+  };
+
+  const srdReferenceUrl = card.apiRef
+    ? referenceAbsoluteUrl(card.apiRef.kind, card.apiRef.slug)
+    : undefined;
+  const canResetReferenceUrl =
+    srdReferenceUrl !== undefined && card.referenceUrl !== srdReferenceUrl;
+
+  const handleResetReferenceUrl = () => {
+    if (!srdReferenceUrl) return;
+    onChange({ ...card, referenceUrl: srdReferenceUrl, updatedAt: nowIso() });
+  };
+
+  const handleDisconnectApiRef = () => {
+    onChange({ ...card, apiRef: undefined, updatedAt: nowIso() });
   };
 
   const handleKindChange = (next: "item" | "spell") => {
@@ -200,8 +216,31 @@ export function CardEditor({ card, onChange }: Props) {
           placeholder="https://…"
         />
         <span id={ids.referenceUrlHelp} className={styles.help}>
-          Rendered as a QR code in the card’s bottom-right corner. Leave blank to omit. SRD-imported
-          cards prefill with the in-app reference page.
+          Rendered as a QR code in the card’s bottom-right corner. Leave blank to omit.
+          {card.apiRef && (
+            <>
+              {" "}
+              This item was imported.
+              {canResetReferenceUrl && (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    className={styles.linkButton}
+                    onClick={handleResetReferenceUrl}
+                  >
+                    Use reference page
+                  </button>
+                  .
+                </>
+              )}{" "}
+              {canResetReferenceUrl ? "Or " : ""}
+              <button type="button" className={styles.linkButton} onClick={handleDisconnectApiRef}>
+                {canResetReferenceUrl ? "permanently clear" : "Permanently clear"}
+              </button>{" "}
+              link to reference.
+            </>
+          )}
         </span>
       </label>
     </form>
