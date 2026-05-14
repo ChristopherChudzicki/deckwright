@@ -73,3 +73,5 @@ Item and spell bodies render as Markdown (CommonMark + GFM tables) and are sanit
 ## Credits
 
 Spell and magic-item data bundled in this app is derived from the System Reference Document 5.1 and System Reference Document 5.2 by Wizards of the Coast LLC, available at [dndbeyond.com/srd](https://www.dndbeyond.com/srd), licensed under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
+
+Huge thanks to the [Open5e](https://open5e.com) project — Deckwright's SRD content is sourced from their curated API at [api.open5e.com](https://api.open5e.com). Their work turning the SRD into clean, queryable JSON is what made this app practical to build.
