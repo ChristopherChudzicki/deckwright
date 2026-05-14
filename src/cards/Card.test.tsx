@@ -170,6 +170,12 @@ describe("<Card> with a referenceUrl (QR code)", () => {
     render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
     expect(screen.getByTestId("card-footer").className).not.toMatch(/footerWithQr/);
   });
+
+  test("does not apply footerWithQr on continuation pages even when card has a referenceUrl", () => {
+    const card = itemCardFactory.build({ referenceUrl: "https://example.com/x" });
+    render(<Card card={card} cardsPerPage={4} pagination={{ page: 2, total: 3 }} />);
+    expect(screen.getByTestId("card-footer").className).not.toMatch(/footerWithQr/);
+  });
 });
 
 describe("<Card> with markdown body", () => {

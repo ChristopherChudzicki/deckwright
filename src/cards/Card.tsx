@@ -24,10 +24,11 @@ export function Card({ card, cardsPerPage, pagination, bodyHtml }: Props) {
 
   const isFirstPage = !pagination || pagination.page === 1;
   const showQr = isFirstPage && !!card.referenceUrl;
-  // When bodyHtml is provided by an upstream paginator (expandCard), it already
-  // carries the qrFloat prefix on page 1 — the slice naturally drops it on
-  // continuation pages. When rendering without pagination (editor preview), we
-  // build the html here and add the prefix ourselves.
+  // When bodyHtml is provided (every paginated render goes through expandCard,
+  // which prefixes the qrFloat onto page 1 and naturally drops it on
+  // continuation pages via the slice), use it as-is. The fallback below
+  // handles non-paginated render paths (tests and any future direct Card use)
+  // by adding the prefix ourselves so the layout still measures correctly.
   const html = bodyHtml ?? (showQr ? qrFloatHtml() + renderBody(card.body) : renderBody(card.body));
 
   const showFooterTags = isFirstPage && card.footerTags.length > 0;

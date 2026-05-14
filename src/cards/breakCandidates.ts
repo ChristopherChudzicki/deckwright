@@ -31,6 +31,10 @@ export function collectBreakCandidates(
     // appear as candidate split points — their getBoundingClientRect would
     // otherwise emit a y at body-bottom and steer the paginator into an
     // empty-chunk loop.
+    // Shallow by design: this check runs only at the top-level loop, not
+    // inside handleChild's recursion. Today's only skip-targets (the QR
+    // floats) are direct children of .body; nested decorations would need
+    // their own opt-out path.
     if ((child as HTMLElement).dataset.paginationSkip === "true") continue;
     handleChild(child as HTMLElement, root, originY, lineBoxes, out);
   }

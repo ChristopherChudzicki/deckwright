@@ -257,10 +257,10 @@
    right. The result: tables on page 1 get pushed below the body entirely and
    the paginator slices them onto page 2+.
    Capping table width gives the table genuine room beside the right-column
-   floats at any vertical position, so it stays in normal flow. Same goes for
-   other BFC-establishing block elements (e.g. <pre>). */
-.body > .qrPusher ~ table,
-.body > .qrPusher ~ pre {
+   floats at any vertical position, so it stays in normal flow. Only <table>
+   appears in renderBody's allowlist today; if other BFC-establishing tags
+   are added (pre, blockquote with overflow, etc.), extend the selector. */
+.body > .qrPusher ~ table {
   max-width: calc(100% - var(--qr-size));
 }
 
