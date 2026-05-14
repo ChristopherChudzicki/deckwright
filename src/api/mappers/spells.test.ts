@@ -10,10 +10,15 @@ describe("spellDetailToCard", () => {
     expect(spellCardSchema.safeParse(card).success).toBe(true);
   });
 
-  test("apiRef carries open5e system, the detail key as slug, and the ruleset", () => {
+  test("apiRef carries open5e system, the detail key as slug, the ruleset, and kind='spells'", () => {
     const detail = spellDetailFactory.build({ key: "srd-2024_fireball" });
     const card = spellDetailToCard(detail);
-    expect(card.apiRef).toEqual({ system: "open5e", slug: "srd-2024_fireball", ruleset: "2024" });
+    expect(card.apiRef).toEqual({
+      system: "open5e",
+      slug: "srd-2024_fireball",
+      ruleset: "2024",
+      kind: "spells",
+    });
   });
 
   test("source is 'api', kind is 'spell', iconKey is left to the heuristic", () => {

@@ -4,6 +4,7 @@ const apiRefSchema = z.object({
   system: z.literal("open5e"),
   slug: z.string(),
   ruleset: z.enum(["2014", "2024"]),
+  kind: z.enum(["magic-items", "mundane-items", "spells"]),
 });
 
 const baseCardSchema = z.object({

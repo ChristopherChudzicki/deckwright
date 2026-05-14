@@ -48,7 +48,7 @@ describe("magicItemDetailToCard", () => {
     expect(card.body).toBe("This suit of armor is reinforced with adamantine.");
   });
 
-  test("apiRef carries open5e system, the detail key as slug, and the ruleset", () => {
+  test("apiRef carries open5e system, the detail key as slug, the ruleset, and kind='magic-items'", () => {
     const detail = magicItemDetailFactory.build({
       key: "srd-2024_bag-of-holding",
     });
@@ -57,6 +57,7 @@ describe("magicItemDetailToCard", () => {
       system: "open5e",
       slug: "srd-2024_bag-of-holding",
       ruleset: "2024",
+      kind: "magic-items",
     });
   });
 

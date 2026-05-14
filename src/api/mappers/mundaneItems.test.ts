@@ -25,13 +25,14 @@ describe("mundaneItemDetailToCard", () => {
     expect(card.body).toBe("50 feet of rope.");
   });
 
-  test("apiRef carries open5e system, the detail key as slug, and the ruleset", () => {
+  test("apiRef carries open5e system, the detail key as slug, the ruleset, and kind='mundane-items'", () => {
     const detail = mundaneItemDetailFactory.build({ key: "srd-2024_battleaxe" });
     const card = mundaneItemDetailToCard(detail);
     expect(card.apiRef).toEqual({
       system: "open5e",
       slug: "srd-2024_battleaxe",
       ruleset: detail.ruleset,
+      kind: "mundane-items",
     });
   });
 
@@ -42,6 +43,7 @@ describe("mundaneItemDetailToCard", () => {
       system: "open5e",
       slug: "srd_rope",
       ruleset: "2014",
+      kind: "mundane-items",
     });
   });
 
