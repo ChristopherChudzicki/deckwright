@@ -1,5 +1,12 @@
-import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { AuthCallback } from "../auth/AuthCallback";
+import { AuthProvider } from "../auth/AuthProvider";
 import { LoginView } from "../auth/LoginView";
 import { RequireOwner } from "../auth/RequireOwner";
 import { DeckView } from "../views/DeckView";
@@ -11,7 +18,32 @@ import { type ReferenceKind, ReferenceView } from "../views/ReferenceView";
 import { ReferenceShell } from "./ReferenceShell";
 import { Root } from "./Root";
 
-const rootRoute = createRootRoute();
+const rootRoute = createRootRoute({
+  component: () => <Outlet />,
+});
+
+// Pathless layout routes: TanStack Router prefixes typed-route paths with the
+// layout `id` (e.g. `from: "/app/deck/$deckId"`), but URLs are unchanged. The
+// layouts exist so AuthProvider can scope to the app subtree — reference
+// routes mount under `referenceLayoutRoute` with no auth wrapper, so QR
+// scanners on /reference/* never trigger anonymous sign-in.
+const appLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "app",
+  component: function AppLayout() {
+    return (
+      <AuthProvider>
+        <Root />
+      </AuthProvider>
+    );
+  },
+});
+
+const referenceLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "reference",
+  component: ReferenceShell,
+});
 
 export type DeckSearch = {
   kind?: "item" | "spell";
@@ -26,117 +58,81 @@ export function validateDeckSearch(raw: Record<string, unknown>): DeckSearch {
 }
 
 const homeRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/",
-  component: function HomeRoute() {
-    return (
-      <Root>
-        <HomeView />
-      </Root>
-    );
-  },
+  component: HomeView,
 });
 
 const deckViewRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/deck/$deckId",
   validateSearch: validateDeckSearch,
   component: function DeckViewRoute() {
     const { deckId } = deckViewRoute.useParams();
-    return (
-      <Root>
-        <DeckView deckId={deckId} />
-      </Root>
-    );
+    return <DeckView deckId={deckId} />;
   },
 });
 
 const editorRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/deck/$deckId/edit/$cardId",
   component: function EditorRoute() {
     const { deckId, cardId } = editorRoute.useParams();
     return (
-      <Root>
-        <RequireOwner deckId={deckId}>
-          <EditorView deckId={deckId} cardId={cardId} />
-        </RequireOwner>
-      </Root>
+      <RequireOwner deckId={deckId}>
+        <EditorView deckId={deckId} cardId={cardId} />
+      </RequireOwner>
     );
   },
 });
 
 const printRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/deck/$deckId/print",
   component: function PrintRoute() {
     const { deckId } = printRoute.useParams();
-    return (
-      <Root>
-        <PrintView deckId={deckId} />
-      </Root>
-    );
+    return <PrintView deckId={deckId} />;
   },
 });
 
 const loginRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/login",
-  component: function LoginRoute() {
-    return (
-      <Root>
-        <LoginView />
-      </Root>
-    );
-  },
+  component: LoginView,
 });
 
 const authCallbackRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/auth/callback",
-  component: function AuthCallbackRoute() {
-    return (
-      <Root>
-        <AuthCallback />
-      </Root>
-    );
-  },
+  component: AuthCallback,
 });
 
 const iconDebugRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/debug/icons",
-  component: function IconDebugRoute() {
-    return (
-      <Root>
-        <IconDebugView />
-      </Root>
-    );
-  },
+  component: IconDebugView,
 });
 
 const referenceDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => referenceLayoutRoute,
   path: "/reference/$kind/$key",
   component: function ReferenceDetailRoute() {
     const { kind, key } = referenceDetailRoute.useParams();
-    return (
-      <ReferenceShell>
-        <ReferenceView kind={kind as ReferenceKind} cardKey={key} />
-      </ReferenceShell>
-    );
+    return <ReferenceView kind={kind as ReferenceKind} cardKey={key} />;
   },
 });
 
-const routeTree = rootRoute.addChildren([
-  homeRoute,
-  deckViewRoute,
-  editorRoute,
-  printRoute,
-  loginRoute,
-  authCallbackRoute,
-  iconDebugRoute,
-  referenceDetailRoute,
+export const routeTree = rootRoute.addChildren([
+  appLayoutRoute.addChildren([
+    homeRoute,
+    deckViewRoute,
+    editorRoute,
+    printRoute,
+    loginRoute,
+    authCallbackRoute,
+    iconDebugRoute,
+  ]),
+  referenceLayoutRoute.addChildren([referenceDetailRoute]),
 ]);
 
 export const router = createRouter({ routeTree });

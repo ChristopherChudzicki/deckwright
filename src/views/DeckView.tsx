@@ -23,7 +23,7 @@ export function DeckView({ deckId }: Props) {
   const cardsQuery = useDeckCards(deckId);
   const renameDeck = useRenameDeck();
   const deleteCard = useDeleteCard();
-  const search = useSearch({ from: "/deck/$deckId" });
+  const search = useSearch({ from: "/app/deck/$deckId" });
   const navigate = useNavigate();
   const updateSearch = (patch: Partial<DeckSearch>) =>
     navigate({ from: "/deck/$deckId", search: (prev) => ({ ...prev, ...patch }) });
