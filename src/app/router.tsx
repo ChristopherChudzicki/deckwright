@@ -7,9 +7,11 @@ import { EditorView } from "../views/EditorView";
 import { HomeView } from "../views/HomeView";
 import { IconDebugView } from "../views/IconDebugView";
 import { PrintView } from "../views/PrintView";
+import { type ReferenceKind, ReferenceView } from "../views/ReferenceView";
+import { ReferenceShell } from "./ReferenceShell";
 import { Root } from "./Root";
 
-const rootRoute = createRootRoute({ component: Root });
+const rootRoute = createRootRoute();
 
 export type DeckSearch = {
   kind?: "item" | "spell";
@@ -26,7 +28,13 @@ export function validateDeckSearch(raw: Record<string, unknown>): DeckSearch {
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: HomeView,
+  component: function HomeRoute() {
+    return (
+      <Root>
+        <HomeView />
+      </Root>
+    );
+  },
 });
 
 const deckViewRoute = createRoute({
@@ -35,7 +43,11 @@ const deckViewRoute = createRoute({
   validateSearch: validateDeckSearch,
   component: function DeckViewRoute() {
     const { deckId } = deckViewRoute.useParams();
-    return <DeckView deckId={deckId} />;
+    return (
+      <Root>
+        <DeckView deckId={deckId} />
+      </Root>
+    );
   },
 });
 
@@ -45,9 +57,11 @@ const editorRoute = createRoute({
   component: function EditorRoute() {
     const { deckId, cardId } = editorRoute.useParams();
     return (
-      <RequireOwner deckId={deckId}>
-        <EditorView deckId={deckId} cardId={cardId} />
-      </RequireOwner>
+      <Root>
+        <RequireOwner deckId={deckId}>
+          <EditorView deckId={deckId} cardId={cardId} />
+        </RequireOwner>
+      </Root>
     );
   },
 });
@@ -57,26 +71,61 @@ const printRoute = createRoute({
   path: "/deck/$deckId/print",
   component: function PrintRoute() {
     const { deckId } = printRoute.useParams();
-    return <PrintView deckId={deckId} />;
+    return (
+      <Root>
+        <PrintView deckId={deckId} />
+      </Root>
+    );
   },
 });
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
-  component: LoginView,
+  component: function LoginRoute() {
+    return (
+      <Root>
+        <LoginView />
+      </Root>
+    );
+  },
 });
 
 const authCallbackRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/auth/callback",
-  component: AuthCallback,
+  component: function AuthCallbackRoute() {
+    return (
+      <Root>
+        <AuthCallback />
+      </Root>
+    );
+  },
 });
 
 const iconDebugRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/debug/icons",
-  component: IconDebugView,
+  component: function IconDebugRoute() {
+    return (
+      <Root>
+        <IconDebugView />
+      </Root>
+    );
+  },
+});
+
+const referenceDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reference/$kind/$key",
+  component: function ReferenceDetailRoute() {
+    const { kind, key } = referenceDetailRoute.useParams();
+    return (
+      <ReferenceShell>
+        <ReferenceView kind={kind as ReferenceKind} cardKey={key} />
+      </ReferenceShell>
+    );
+  },
 });
 
 const routeTree = rootRoute.addChildren([
@@ -87,6 +136,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   authCallbackRoute,
   iconDebugRoute,
+  referenceDetailRoute,
 ]);
 
 export const router = createRouter({ routeTree });

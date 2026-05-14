@@ -1,0 +1,74 @@
+.title {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  margin: 0 0 var(--space-4);
+  line-height: var(--lh-tight);
+}
+
+.body {
+  line-height: var(--lh-body);
+}
+
+.body p {
+  margin: 0 0 var(--space-3);
+}
+
+.body ul,
+.body ol {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+}
+
+.body li {
+  margin-bottom: var(--space-1);
+}
+
+.body table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 var(--space-4);
+  /* Lea Verou scroll-shadow technique — fades hide themselves when not scrolled. */
+  background:
+    linear-gradient(to right, var(--color-surface), var(--color-surface)) left center / 16px 100%
+    no-repeat,
+    linear-gradient(to right, transparent, var(--color-surface)) right center / 16px 100% no-repeat,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.18), transparent) left center / 12px
+    100% no-repeat,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.18), transparent) right center / 12px
+    100% no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+
+.body th,
+.body td {
+  border: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+}
+
+.body th {
+  background: var(--color-surface-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Markdown tables typically have a short identifier in the first column
+   (d100 ranges like "01-05", playing-card names, etc.). Keep that column at
+   its content width so a hyphen doesn't force a two-line wrap. */
+.body td:first-child {
+  white-space: nowrap;
+}
+
+.notFound {
+  text-align: center;
+  padding: var(--space-6) 0;
+}
+
+.notFound h1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  margin: 0 0 var(--space-3);
+}
