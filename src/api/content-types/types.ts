@@ -5,6 +5,7 @@ export type ContentRow = {
   key: string;
   name: string;
   meta: string;
+  kindLabel?: string;
   toCard: () => Card;
 };
 
