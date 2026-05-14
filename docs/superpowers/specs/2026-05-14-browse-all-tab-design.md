@@ -23,8 +23,9 @@ In:
 - New `allContentType` placed first in `CONTENT_TYPES` (becomes the default tab).
 - `ContentRow.kindLabel?: string`. Only `all` sets it — `"Item"` for both magic and mundane item entries, `"Spell"` for spells. `itemsContentType` and `spellsContentType` are untouched.
 - `BrowseApiModal` row renderer: when `typeId === "all"` and `row.kindLabel` is defined, display meta as `${kindLabel} · ${meta}`.
+- `ContentType.emptyMessage: string` — new field used by the modal's empty-state UI in place of the current `No ${type.label.toLowerCase()} match your search.` interpolation. Items: `"No items match your search."`, spells: `"No spells match your search."`, all: `"No results match your search."` This avoids the grammatically broken "No all match your search." that the current interpolation would produce for the new tab.
 - Source filter (2024/2014) keeps working — both kinds support both sources.
-- Tests: a `BrowseApiModal` test covering default tab, mixed results, kind tag visibility, and tag hidden in other tabs.
+- Tests: extensions to `BrowseApiModal.test.tsx` covering default tab, mixed results, kind tag visibility in All, and kind tag absence in both Items and Spells tabs.
 
 Out:
 
@@ -50,20 +51,23 @@ Longsword             Item · Martial Melee Weapon
 
 When the user switches to `Items` or `Spells`, the kind tag disappears (because the renderer only adds it for `typeId === "all"`).
 
+On narrow viewports (`<560px` container width), the tab list collapses into the existing `TypeMenu` dropdown. That menu iterates `CONTENT_TYPES`, so "All" appears at the top of the dropdown automatically — no extra code path is needed.
+
 ## Architecture
 
 ```
 src/api/content-types/
   all.ts                   — new: allContentType
-  all.test.ts              — new: unit test for merge/sort/kindLabel
   index.ts                 — place allContentType first in CONTENT_TYPES
-  types.ts                 — add kindLabel?: string to ContentRow
+  types.ts                 — add kindLabel?: string to ContentRow; add emptyMessage: string to ContentType
+  items.ts                 — add emptyMessage: "No items match your search."
+  spells.ts                — add emptyMessage: "No spells match your search."
 src/views/
-  BrowseApiModal.tsx       — when typeId === "all", render `${row.kindLabel} · ${row.meta}`
+  BrowseApiModal.tsx       — read type.emptyMessage instead of inlining the string; when typeId === "all", render `${row.kindLabel} · ${row.meta}`
   BrowseApiModal.test.tsx  — new assertions for All tab + kind tag visibility
 ```
 
-`itemsContentType` and `spellsContentType` are not modified.
+Existing row-building logic in `itemsContentType` and `spellsContentType` is not modified.
 
 ### `allContentType.useResults`
 
@@ -71,7 +75,11 @@ src/views/
 - Builds a tagged union of all three entry types, with `__source: "magic" | "mundane" | "spell"` (extending the pattern in `items.ts`'s `TaggedEntry`).
 - When `query === ""`: alpha-sort by `name`.
 - When `query !== ""`: `fuzzysort.go(q, tagged, { key: "name" })`.
-- Maps each entry to a `ContentRow`, delegating row-shape decisions to the existing detail-to-card mappers (`magicItemDetailToCard`, `mundaneItemDetailToCard`, `spellDetailToCard`). Sets `kindLabel` based on `__source`: `"Item"` for `magic`/`mundane`, `"Spell"` for `spell`. `meta` matches what items/spells tabs already show (rarity, category, level/school).
+- Maps each entry to a `ContentRow`, dispatching on `__source`:
+    - `"magic"` → `meta: entry.rarity.name`, `kindLabel: "Item"`, `toCard: () => magicItemDetailToCard({ ...entry, ruleset: source })`.
+    - `"mundane"` → `meta: entry.category.name`, `kindLabel: "Item"`, `toCard: () => mundaneItemDetailToCard({ ...entry, ruleset: source })`.
+    - `"spell"` → `meta: levelLabel(entry.level, entry.school.name)`, `kindLabel: "Spell"`, `toCard: () => spellDetailToCard({ ...entry, ruleset: source })`.
+  The `{ ...entry, ruleset: source }` wrap matches the call shape `items.ts` and `spells.ts` use today; the mappers expect a detail object with a `ruleset` field.
 - `isLoading`: OR of all three.
 - `isError`: OR of all three (same posture items uses today — bundled JSON makes partial failure rare).
 - `refetch`: fire-and-forget all three.
@@ -85,19 +93,19 @@ src/views/
 
 ## Tests
 
-`src/views/BrowseApiModal.test.tsx` — add cases:
+All test coverage lives in `src/views/BrowseApiModal.test.tsx`. Content-type modules don't carry their own unit tests in this repo (see `src/api/hooks.test.tsx` for the existing hook-test pattern); the modal test exercises `allContentType.useResults` end-to-end via its UI output, which is enough for this feature.
 
-- All tab is selected by default (assert via the selected `Tab` role / data-selected).
-- With empty query, results include both an item and a spell, with the kind tag visible (e.g., "Item · Wondrous item", "Spell · 3rd-level evocation").
-- Typing a known item name in All returns the item row and the kind tag reads "Item".
-- Typing a known spell name in All returns the spell row and the kind tag reads "Spell".
-- Switching to the Items tab hides the kind tag (meta does not start with "Item · ").
+Cases to add:
 
-`src/api/content-types/all.test.ts` — small unit test:
+- All tab is selected by default (assert via the `Tab` with name "All" being `data-selected`).
+- With empty query and both indices loaded, results include both an item and a spell row; their meta text starts with "Item · " and "Spell · " respectively.
+- Typing a known item name in All returns that item row and the meta starts with "Item · ".
+- Typing a known spell name in All returns that spell row and the meta starts with "Spell · ".
+- Switching to the Items tab: rendered rows' meta does NOT start with "Item · " (the kind tag is omitted outside All).
+- Switching to the Spells tab: same — meta does NOT start with "Spell · ".
+- Empty-state copy in All reads "No results match your search." when a query matches nothing.
 
-- Given mocked item + spell indices, the rows array merges and sorts as expected; each row carries the correct `kindLabel`.
-
-No changes to existing tests for `itemsContentType` or `spellsContentType` are expected, because `kindLabel` is additive on rows and consumers of those tabs ignore it.
+No changes to existing tests for `itemsContentType` or `spellsContentType` are expected.
 
 ## Risks
 
