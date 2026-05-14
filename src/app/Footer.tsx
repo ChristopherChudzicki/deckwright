@@ -11,11 +11,8 @@ export function Footer() {
         <GitHubLogo size={16} />
         <span>View source on GitHub</span>
       </a>
-      <span className={styles.separator} aria-hidden="true">
-        ·
-      </span>
       <a href={OPEN5E_URL} target="_blank" rel="noopener noreferrer" className={styles.link}>
-        SRD data via Open5e
+        Data via Open5e
       </a>
     </footer>
   );

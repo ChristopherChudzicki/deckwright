@@ -133,7 +133,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
             >
               CC BY 4.0
             </Link>
-            . Curated and served by{" "}
+            . Curated by{" "}
             <Link href="https://open5e.com" target="_blank" rel="noopener noreferrer">
               Open5e
             </Link>
