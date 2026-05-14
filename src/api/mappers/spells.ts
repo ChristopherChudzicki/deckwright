@@ -9,6 +9,7 @@ import {
   spellBodyMarkdown,
 } from "../../lib/srd-format/spells";
 import { nowIso } from "../../lib/time";
+import { referenceAbsoluteUrl } from "../../views/reference/routeUrl";
 import type { SpellDetail } from "../endpoints/spells";
 
 export const spellDetailToCard = (detail: SpellDetail): SpellCard => {
@@ -42,6 +43,7 @@ export const spellDetailToCard = (detail: SpellDetail): SpellCard => {
       ruleset: detail.ruleset,
       kind: "spells",
     },
+    referenceUrl: referenceAbsoluteUrl("spells", detail.key),
     createdAt: now,
     updatedAt: now,
   };

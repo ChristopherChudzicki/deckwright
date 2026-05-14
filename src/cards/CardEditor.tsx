@@ -8,6 +8,7 @@ import { TagInput } from "../lib/ui/TagInput";
 import { Textarea } from "../lib/ui/Textarea";
 import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
+import { referenceAbsoluteUrl } from "../views/reference/routeUrl";
 import styles from "./CardEditor.module.css";
 import { FALLBACK_ICON_KEY, pickIconKey } from "./iconRules";
 import { MarkdownToolbar } from "./MarkdownToolbar";
@@ -38,6 +39,30 @@ export function CardEditor({ card, onChange }: Props) {
     onChange({ ...card, footerTags: next, updatedAt: nowIso() });
   };
 
+  const handleReferenceUrlChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    onChange({
+      ...card,
+      referenceUrl: value === "" ? undefined : value,
+      updatedAt: nowIso(),
+    });
+  };
+
+  const srdReferenceUrl = card.apiRef
+    ? referenceAbsoluteUrl(card.apiRef.kind, card.apiRef.slug)
+    : undefined;
+  const canResetReferenceUrl =
+    srdReferenceUrl !== undefined && card.referenceUrl !== srdReferenceUrl;
+
+  const handleResetReferenceUrl = () => {
+    if (!srdReferenceUrl) return;
+    onChange({ ...card, referenceUrl: srdReferenceUrl, updatedAt: nowIso() });
+  };
+
+  const handleDisconnectApiRef = () => {
+    onChange({ ...card, apiRef: undefined, updatedAt: nowIso() });
+  };
+
   const handleKindChange = (next: "item" | "spell") => {
     if (next === card.kind) return;
     onChange({ ...card, kind: next, updatedAt: nowIso() } as RenderableCard);
@@ -61,6 +86,8 @@ export function CardEditor({ card, onChange }: Props) {
     footerTags: `${idBase}-footerTags`,
     footerTagsLabel: `${idBase}-footerTagsLabel`,
     footerTagsHelp: `${idBase}-footerTagsHelp`,
+    referenceUrl: `${idBase}-referenceUrl`,
+    referenceUrlHelp: `${idBase}-referenceUrlHelp`,
     typeLabel: `${idBase}-typeLabel`,
   };
 
@@ -179,6 +206,42 @@ export function CardEditor({ card, onChange }: Props) {
           Suggested order: rarity, cost, weight.
         </span>
       </div>
+      <label className={styles.field} htmlFor={ids.referenceUrl}>
+        <span className={styles.label}>Reference link</span>
+        <Input
+          id={ids.referenceUrl}
+          aria-describedby={ids.referenceUrlHelp}
+          value={card.referenceUrl ?? ""}
+          onChange={handleReferenceUrlChange}
+          placeholder="https://…"
+        />
+        <span id={ids.referenceUrlHelp} className={styles.help}>
+          Rendered as a QR code in the card’s bottom-right corner. Leave blank to omit.
+          {card.apiRef && (
+            <>
+              {" "}
+              This item was imported.
+              {canResetReferenceUrl && (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    className={styles.linkButton}
+                    onClick={handleResetReferenceUrl}
+                  >
+                    Restore original link
+                  </button>
+                </>
+              )}{" "}
+              {canResetReferenceUrl ? "or " : ""}
+              <button type="button" className={styles.linkButton} onClick={handleDisconnectApiRef}>
+                {canResetReferenceUrl ? "permanently disconnect" : "Permanently disconnect"}
+              </button>
+              {canResetReferenceUrl ? " from import to remove this option." : " from import."}
+            </>
+          )}
+        </span>
+      </label>
     </form>
   );
 }

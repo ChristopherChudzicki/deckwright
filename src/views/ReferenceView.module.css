@@ -29,11 +29,13 @@
   max-width: 100%;
   border-collapse: collapse;
   margin: 0 0 var(--space-4);
-  /* Lea Verou scroll-shadow technique — fades hide themselves when not scrolled. */
+  /* Lea Verou scroll-shadow technique — fades hide themselves when not
+     scrolled. The mask color must match the actual surrounding background
+     (--color-bg), not --color-surface, or the masked edge shows as a
+     visibly lighter strip against the page. */
   background:
-    linear-gradient(to right, var(--color-surface), var(--color-surface)) left center / 16px 100%
-    no-repeat,
-    linear-gradient(to right, transparent, var(--color-surface)) right center / 16px 100% no-repeat,
+    linear-gradient(to right, var(--color-bg), var(--color-bg)) left center / 16px 100% no-repeat,
+    linear-gradient(to right, transparent, var(--color-bg)) right center / 16px 100% no-repeat,
     radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.18), transparent) left center / 12px
     100% no-repeat,
     radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.18), transparent) right center / 12px

@@ -13,6 +13,7 @@ const baseCardSchema = z.object({
   body: z.string(),
   source: z.enum(["custom", "api"]),
   apiRef: apiRefSchema.optional(),
+  referenceUrl: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   iconKey: z.string().optional(),

@@ -8,6 +8,7 @@ import {
   weaponPropertyLabel,
 } from "../../lib/srd-format/items";
 import { nowIso } from "../../lib/time";
+import { referenceAbsoluteUrl } from "../../views/reference/routeUrl";
 import type { MundaneItemDetail } from "../endpoints/mundaneItems";
 
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
@@ -52,6 +53,7 @@ export const mundaneItemDetailToCard = (detail: MundaneItemDetail): ItemCard => 
       ruleset: detail.ruleset,
       kind: "mundane-items",
     },
+    referenceUrl: referenceAbsoluteUrl("mundane-items", detail.key),
     createdAt: now,
     updatedAt: now,
   };

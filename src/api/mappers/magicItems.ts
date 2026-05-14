@@ -2,6 +2,7 @@ import type { ItemCard } from "../../cards/types";
 import { newId } from "../../lib/id";
 import { acFormula, formatWeight } from "../../lib/srd-format/items";
 import { nowIso } from "../../lib/time";
+import { referenceAbsoluteUrl } from "../../views/reference/routeUrl";
 import type { MagicItemDetail } from "../endpoints/magicItems";
 
 export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
@@ -37,6 +38,7 @@ export const magicItemDetailToCard = (detail: MagicItemDetail): ItemCard => {
       ruleset: detail.ruleset,
       kind: "magic-items",
     },
+    referenceUrl: referenceAbsoluteUrl("magic-items", detail.key),
     createdAt: now,
     updatedAt: now,
   };

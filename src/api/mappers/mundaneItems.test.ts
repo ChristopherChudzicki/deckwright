@@ -47,6 +47,14 @@ describe("mundaneItemDetailToCard", () => {
     });
   });
 
+  test("referenceUrl points at the in-app /reference/mundane-items/$key route", () => {
+    const detail = mundaneItemDetailFactory.build({ key: "srd-2024_battleaxe" });
+    const card = mundaneItemDetailToCard(detail);
+    expect(card.referenceUrl).toBe(
+      `${window.location.origin}/reference/mundane-items/srd-2024_battleaxe`,
+    );
+  });
+
   test("source is 'api', kind is 'item'", () => {
     const detail = mundaneItemDetailFactory.build();
     const card = mundaneItemDetailToCard(detail);

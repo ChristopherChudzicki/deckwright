@@ -21,12 +21,29 @@
   --card-base: 17px;
   --card-width: 3.75in;
   --card-height: 5in;
+  /* Expressed in px (via calc) rather than em so the resolved length stays
+     constant across contexts that change font-size (e.g. .body table has
+     font-size: 0.92em, which would otherwise shrink an em-based --qr-size
+     by ~8% relative to its value at .body — enough for the table to overhang
+     the QR float and trip BFC clearing). */
+  --qr-size: calc(3.4 * var(--card-base));
+  /* How much of the QR sits INSIDE the body (vs straddling into the footer).
+     Equals qr-size minus the footer's rendered height. The footer is sized
+     by its own style values (font-size 0.85em, margin-top + padding-top
+     0.5em each, 1px border, default line-height ~1.2): roughly
+     1.92 * card-base + 1px. We undershoot slightly to 1.9 * card-base so
+     the body reserve is a few px taller than strictly needed — small safety
+     buffer that prevents text from crossing into the QR if the footer
+     renders any taller. */
+  --qr-body-overhang: calc(var(--qr-size) - 1.9 * var(--card-base));
 }
 
 .perPage2 {
   --card-base: 24px;
   --card-width: 5in;
   --card-height: 7.5in;
+  --qr-size: calc(3.2 * var(--card-base));
+  --qr-body-overhang: calc(var(--qr-size) - 1.9 * var(--card-base));
 }
 
 .icon {
@@ -107,6 +124,68 @@
   /* Wrapper span — groups tags as a single flex item alongside .footerRight. */
 }
 
+/* When a card has a referenceUrl, the QR overlays the footer's right column.
+   The margin-right pulls the footer's right edge (and its border-top divider)
+   in so there's a visible gap between the divider and the QR. The gap matches
+   the card's own padding (1.15em of card-base) so the QR has the same
+   breathing room from the divider as content has from the card edge.
+   Pagination text keeps its default margin-left:auto (from .footerRight), so
+   it stays right-aligned within the narrowed footer — matching continuation
+   pages. */
+.footerWithQr {
+  margin-right: calc(var(--qr-size) + 1.15 * var(--card-base));
+}
+
+/* QR layout. Three pieces:
+   - .qrPusher: zero-width float at the top of .body. Reserves vertical space
+     on the right column without obstructing block-level children (tables, DLs,
+     etc. — which establish their own BFC and would otherwise be pushed below
+     any nonzero-width float). Its sole purpose is to push the next floated
+     sibling down to the bottom of the body.
+   - .qrReserve: actual float that .qrPusher displaces to the bottom-right.
+     This is what inline text wraps around. A table only conflicts with it if
+     the table extends down into the bottom-right corner — in which case the
+     paginator naturally pushes it to the next page.
+   - .qrCorner: the visible QR, absolutely positioned in the card's
+     bottom-right corner. Overlaps the body's bottom corner AND the right
+     portion of the footer (which is left empty when QR is present, see
+     .footerWithQr).
+*/
+.qrPusher {
+  float: right;
+  width: 0;
+  height: calc(100% - var(--qr-body-overhang));
+}
+
+.qrReserve {
+  float: right;
+  clear: right;
+  width: var(--qr-size);
+  height: var(--qr-body-overhang);
+}
+
+.qrCorner {
+  position: absolute;
+  bottom: 1.15em;
+  right: 1.15em;
+  width: var(--qr-size);
+  height: var(--qr-size);
+  background: var(--print-color-paper);
+}
+
+.qrCorner svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* When the QR decoration is present, the first normal-flow markdown element
+   follows .qrReserve in source order. Apply the same margin-top reset the
+   real first child gets (.body > :first-child rule above). */
+.body > .qrReserve + * {
+  margin-top: 0;
+}
+
 .footerTag + .footerTag::before {
   content: " | ";
   white-space: pre;
@@ -167,6 +246,22 @@
 
 .body th {
   font-weight: 600;
+}
+
+/* Tables establish their own Block Formatting Context, and the CSS spec
+   forbids a BFC's border box from overlapping the margin box of any float in
+   the same BFC. Our .body table is width: 100%, which (without this rule)
+   shares its right edge with the QR floats. Browsers conservatively treat
+   edge-sharing as overlap and "clear" the table by placing it below all
+   preceding floats — i.e. below .qrReserve, which sits at the body's bottom
+   right. The result: tables on page 1 get pushed below the body entirely and
+   the paginator slices them onto page 2+.
+   Capping table width gives the table genuine room beside the right-column
+   floats at any vertical position, so it stays in normal flow. Only <table>
+   appears in renderBody's allowlist today; if other BFC-establishing tags
+   are added (pre, blockquote with overflow, etc.), extend the selector. */
+.body > .qrPusher ~ table {
+  max-width: calc(100% - var(--qr-size));
 }
 
 @media print {

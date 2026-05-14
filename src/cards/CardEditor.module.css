@@ -39,3 +39,26 @@
   flex: 1;
   min-width: 0;
 }
+
+/* Inline action styled as a link, used inside .help text for the
+   Reset-to-SRD-link and Disconnect-from-SRD affordances. Matches the Link
+   primitive's accent + underline, but renders as a <button> because these
+   are actions, not navigation. */
+.linkButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  color: var(--color-accent-hover);
+}
+
+.linkButton:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
