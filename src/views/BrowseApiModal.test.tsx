@@ -53,7 +53,101 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Items", "Spells"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["All", "Items", "Spells"]);
+  });
+
+  test("All tab is selected by default", async () => {
+    const client = makeClient();
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("All tab merges items and spells alphabetically", async () => {
+    const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const spell = spellIndexEntryFactory.build({ name: "Fireball" });
+    const client = makeClient({
+      items: { "2024": { count: 1, results: [item] } },
+      spells: { "2024": { count: 1, results: [spell] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await screen.findByRole("button", { name: /Bag of Holding/ });
+    const rows = screen.getAllByRole("button", { name: /Bag of Holding|Fireball/ });
+    const names = rows.map((b) => b.textContent ?? "");
+    const bagIdx = names.findIndex((n) => /Bag of Holding/.test(n));
+    const fireIdx = names.findIndex((n) => /Fireball/.test(n));
+    expect(bagIdx).toBeGreaterThanOrEqual(0);
+    expect(fireIdx).toBeGreaterThanOrEqual(0);
+    expect(bagIdx).toBeLessThan(fireIdx);
+  });
+
+  test("All tab prefixes item rows with 'Item · '", async () => {
+    const item = magicItemIndexEntryFactory.build({
+      name: "Bag of Holding",
+      rarity: { name: "Uncommon" },
+    });
+    const client = makeClient({ items: { "2024": { count: 1, results: [item] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    const row = await screen.findByRole("button", { name: /Bag of Holding/ });
+    expect(row).toHaveTextContent("Item · Uncommon");
+  });
+
+  test("All tab prefixes spell rows with 'Spell · '", async () => {
+    const spell = spellIndexEntryFactory.build({
+      name: "Fireball",
+      level: 3,
+      school: { name: "evocation" },
+    });
+    const client = makeClient({ spells: { "2024": { count: 1, results: [spell] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    const row = await screen.findByRole("button", { name: /Fireball/ });
+    expect(row).toHaveTextContent("Spell · 3rd-level evocation");
+  });
+
+  test("Items tab does not prefix rows with 'Item · '", async () => {
+    const item = magicItemIndexEntryFactory.build({
+      name: "Bag of Holding",
+      rarity: { name: "Uncommon" },
+    });
+    const client = makeClient({ items: { "2024": { count: 1, results: [item] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Items" }));
+    const row = await screen.findByRole("button", { name: /Bag of Holding/ });
+    expect(row).toHaveTextContent("Uncommon");
+    expect(row).not.toHaveTextContent("Item · ");
+  });
+
+  test("Spells tab does not prefix rows with 'Spell · '", async () => {
+    const spell = spellIndexEntryFactory.build({
+      name: "Fireball",
+      level: 3,
+      school: { name: "evocation" },
+    });
+    const client = makeClient({ spells: { "2024": { count: 1, results: [spell] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    const row = await screen.findByRole("button", { name: /Fireball/ });
+    expect(row).toHaveTextContent("3rd-level evocation");
+    expect(row).not.toHaveTextContent("Spell · ");
+  });
+
+  test("All tab empty state reads 'No results match your search.'", async () => {
+    const client = makeClient();
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.type(screen.getByRole("searchbox"), "xyzzy");
+
+    expect(await screen.findByText("No results match your search.")).toBeInTheDocument();
   });
 
   test("shows index entries once the items list loads", async () => {
@@ -168,6 +262,7 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
+    await userEvent.click(screen.getByRole("tab", { name: "Items" }));
     await screen.findByRole("button", { name: /Bag of Holding/ });
     const matched = screen.getAllByRole("button", { name: /Bag of Holding|Battleaxe/ });
     const names = matched.map((b) => b.textContent ?? "");
@@ -215,6 +310,13 @@ describe("<BrowseApiModal>", () => {
     const spellsSearch = await screen.findByRole("searchbox");
     expect(spellsSearch).toHaveValue("");
     expect(spellsSearch).toHaveAttribute("placeholder", "Search spells…");
+  });
+
+  test("All tab search placeholder reads 'Search SRD…'", async () => {
+    const client = makeClient();
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    expect(screen.getByRole("searchbox")).toHaveAttribute("placeholder", "Search SRD…");
   });
 
   test("clicking an item POSTs a card with kind:item", async () => {

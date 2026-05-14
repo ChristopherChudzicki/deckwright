@@ -211,7 +211,7 @@ function TypePanel({
   onPick,
 }: TypePanelProps) {
   const results = type.useResults(source, query);
-  const emptyMessage = `No ${type.label.toLowerCase()} match your search.`;
+  const emptyMessage = type.emptyMessage;
 
   return (
     <>
@@ -264,7 +264,13 @@ function TypePanel({
             disabled={pickingKey !== null}
           >
             <span className={styles.rowName}>{row.name}</span>
-            <span className={styles.rowMeta}>{pickingKey === row.key ? "Loading…" : row.meta}</span>
+            <span className={styles.rowMeta}>
+              {pickingKey === row.key
+                ? "Loading…"
+                : type.id === "all" && row.kindLabel
+                  ? `${row.kindLabel} · ${row.meta}`
+                  : row.meta}
+            </span>
           </button>
         ))}
       </div>
