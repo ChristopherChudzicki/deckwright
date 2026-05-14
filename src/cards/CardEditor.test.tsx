@@ -152,6 +152,32 @@ describe("<CardEditor>", () => {
     expect(screen.getByText(/suggested order: rarity, cost, weight/i)).toBeInTheDocument();
   });
 
+  test("Reference link field reflects card.referenceUrl", () => {
+    const card = itemCardFactory.build({ referenceUrl: "https://example.com/r" });
+    render(<Harness initial={card} />);
+    expect(screen.getByLabelText(/reference link/i)).toHaveValue("https://example.com/r");
+  });
+
+  test("typing in the Reference link field updates card.referenceUrl", async () => {
+    const card = itemCardFactory.build();
+    const seen: RenderableCard[] = [];
+    render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
+
+    await userEvent.type(screen.getByLabelText(/reference link/i), "https://x");
+
+    expect(seen[seen.length - 1]?.referenceUrl).toBe("https://x");
+  });
+
+  test("clearing the Reference link field sets referenceUrl to undefined", async () => {
+    const card = itemCardFactory.build({ referenceUrl: "https://example.com/r" });
+    const seen: RenderableCard[] = [];
+    render(<Harness initial={card} onEach={(c) => seen.push(c)} />);
+
+    await userEvent.clear(screen.getByLabelText(/reference link/i));
+
+    expect(seen[seen.length - 1]?.referenceUrl).toBeUndefined();
+  });
+
   test("switching Type from Item to Spell updates kind without losing other fields", async () => {
     const card = itemCardFactory.build();
     const seen: RenderableCard[] = [];

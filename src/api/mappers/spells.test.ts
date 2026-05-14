@@ -21,6 +21,12 @@ describe("spellDetailToCard", () => {
     });
   });
 
+  test("referenceUrl points at the in-app /reference/spells/$key route", () => {
+    const detail = spellDetailFactory.build({ key: "srd-2024_fireball" });
+    const card = spellDetailToCard(detail);
+    expect(card.referenceUrl).toBe(`${window.location.origin}/reference/spells/srd-2024_fireball`);
+  });
+
   test("source is 'api', kind is 'spell', iconKey is left to the heuristic", () => {
     const detail = spellDetailFactory.build();
     const card = spellDetailToCard(detail);

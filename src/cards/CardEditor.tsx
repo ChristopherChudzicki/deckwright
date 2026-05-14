@@ -38,6 +38,15 @@ export function CardEditor({ card, onChange }: Props) {
     onChange({ ...card, footerTags: next, updatedAt: nowIso() });
   };
 
+  const handleReferenceUrlChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    onChange({
+      ...card,
+      referenceUrl: value === "" ? undefined : value,
+      updatedAt: nowIso(),
+    });
+  };
+
   const handleKindChange = (next: "item" | "spell") => {
     if (next === card.kind) return;
     onChange({ ...card, kind: next, updatedAt: nowIso() } as RenderableCard);
@@ -61,6 +70,8 @@ export function CardEditor({ card, onChange }: Props) {
     footerTags: `${idBase}-footerTags`,
     footerTagsLabel: `${idBase}-footerTagsLabel`,
     footerTagsHelp: `${idBase}-footerTagsHelp`,
+    referenceUrl: `${idBase}-referenceUrl`,
+    referenceUrlHelp: `${idBase}-referenceUrlHelp`,
     typeLabel: `${idBase}-typeLabel`,
   };
 
@@ -179,6 +190,20 @@ export function CardEditor({ card, onChange }: Props) {
           Suggested order: rarity, cost, weight.
         </span>
       </div>
+      <label className={styles.field} htmlFor={ids.referenceUrl}>
+        <span className={styles.label}>Reference link</span>
+        <Input
+          id={ids.referenceUrl}
+          aria-describedby={ids.referenceUrlHelp}
+          value={card.referenceUrl ?? ""}
+          onChange={handleReferenceUrlChange}
+          placeholder="https://…"
+        />
+        <span id={ids.referenceUrlHelp} className={styles.help}>
+          Rendered as a QR code in the card’s bottom-right corner. Leave blank to omit. SRD-imported
+          cards prefill with the in-app reference page.
+        </span>
+      </label>
     </form>
   );
 }

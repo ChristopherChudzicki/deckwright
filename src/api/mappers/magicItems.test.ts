@@ -61,6 +61,14 @@ describe("magicItemDetailToCard", () => {
     });
   });
 
+  test("referenceUrl points at the in-app /reference/magic-items/$key route", () => {
+    const detail = magicItemDetailFactory.build({ key: "srd-2024_bag-of-holding" });
+    const card = magicItemDetailToCard(detail);
+    expect(card.referenceUrl).toBe(
+      `${window.location.origin}/reference/magic-items/srd-2024_bag-of-holding`,
+    );
+  });
+
   test("source is 'api'", () => {
     const detail = magicItemDetailFactory.build();
     const card = magicItemDetailToCard(detail);

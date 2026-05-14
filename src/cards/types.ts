@@ -11,6 +11,7 @@ export type BaseCard = {
     ruleset: "2014" | "2024";
     kind: "magic-items" | "mundane-items" | "spells";
   };
+  referenceUrl?: string;
   createdAt: string;
   updatedAt: string;
   iconKey?: string;

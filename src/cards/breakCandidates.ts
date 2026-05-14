@@ -26,6 +26,12 @@ export function collectBreakCandidates(
   const lineBoxes = opts.lineBoxes ?? defaultLineBoxes;
 
   for (const child of Array.from(root.children)) {
+    // Floated decorations (e.g. the QR-corner reserve in Card.tsx) carry
+    // data-pagination-skip="true". They are out of normal flow and must not
+    // appear as candidate split points — their getBoundingClientRect would
+    // otherwise emit a y at body-bottom and steer the paginator into an
+    // empty-chunk loop.
+    if ((child as HTMLElement).dataset.paginationSkip === "true") continue;
     handleChild(child as HTMLElement, root, originY, lineBoxes, out);
   }
 

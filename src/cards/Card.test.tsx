@@ -140,6 +140,38 @@ describe("<Card> with pagination", () => {
   });
 });
 
+describe("<Card> with a referenceUrl (QR code)", () => {
+  test("renders the QR corner when card has a referenceUrl", () => {
+    const card = itemCardFactory.build({ referenceUrl: "https://example.com/x" });
+    render(<Card card={card} cardsPerPage={4} />);
+    expect(screen.getByTestId("card-qr")).toBeInTheDocument();
+  });
+
+  test("omits the QR corner when card has no referenceUrl", () => {
+    const card = itemCardFactory.build();
+    render(<Card card={card} cardsPerPage={4} />);
+    expect(screen.queryByTestId("card-qr")).not.toBeInTheDocument();
+  });
+
+  test("omits the QR corner on continuation pages even when referenceUrl is set", () => {
+    const card = itemCardFactory.build({ referenceUrl: "https://example.com/x" });
+    render(<Card card={card} cardsPerPage={4} pagination={{ page: 2, total: 3 }} />);
+    expect(screen.queryByTestId("card-qr")).not.toBeInTheDocument();
+  });
+
+  test("applies the footerWithQr layout (narrowed divider) when a QR is present", () => {
+    const card = itemCardFactory.build({ referenceUrl: "https://example.com/x" });
+    render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
+    expect(screen.getByTestId("card-footer").className).toMatch(/footerWithQr/);
+  });
+
+  test("does not switch the footer layout when there is no referenceUrl", () => {
+    const card = itemCardFactory.build();
+    render(<Card card={card} cardsPerPage={4} pagination={{ page: 1, total: 3 }} />);
+    expect(screen.getByTestId("card-footer").className).not.toMatch(/footerWithQr/);
+  });
+});
+
 describe("<Card> with markdown body", () => {
   test("renders bold and italic", () => {
     const card = itemCardFactory.build({ body: "**Curse**. _italic_ text." });

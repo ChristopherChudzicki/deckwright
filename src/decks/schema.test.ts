@@ -141,4 +141,20 @@ describe("itemCardSchema", () => {
     };
     expect(itemCardSchema.safeParse(card).success).toBe(false);
   });
+
+  test("accepts an item card with a referenceUrl", () => {
+    const card = {
+      id: "abc",
+      kind: "item" as const,
+      name: "Bag of Holding",
+      headerTags: [],
+      body: "Big bag.",
+      footerTags: [],
+      source: "custom" as const,
+      referenceUrl: "https://example.com/reference/magic-items/srd-2024_bag-of-holding",
+      createdAt: "2026-05-14T00:00:00.000Z",
+      updatedAt: "2026-05-14T00:00:00.000Z",
+    };
+    expect(itemCardSchema.safeParse(card).success).toBe(true);
+  });
 });
