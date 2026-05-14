@@ -53,7 +53,34 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Items", "Spells"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["All", "Items", "Spells"]);
+  });
+
+  test("All tab is selected by default", async () => {
+    const client = makeClient();
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("All tab merges items and spells alphabetically", async () => {
+    const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const spell = spellIndexEntryFactory.build({ name: "Fireball" });
+    const client = makeClient({
+      items: { "2024": { count: 1, results: [item] } },
+      spells: { "2024": { count: 1, results: [spell] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await screen.findByRole("button", { name: /Bag of Holding/ });
+    const rows = screen.getAllByRole("button", { name: /Bag of Holding|Fireball/ });
+    const names = rows.map((b) => b.textContent ?? "");
+    const bagIdx = names.findIndex((n) => /Bag of Holding/.test(n));
+    const fireIdx = names.findIndex((n) => /Fireball/.test(n));
+    expect(bagIdx).toBeGreaterThanOrEqual(0);
+    expect(fireIdx).toBeGreaterThanOrEqual(0);
+    expect(bagIdx).toBeLessThan(fireIdx);
   });
 
   test("shows index entries once the items list loads", async () => {
