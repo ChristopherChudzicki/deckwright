@@ -83,6 +83,64 @@ describe("<BrowseApiModal>", () => {
     expect(bagIdx).toBeLessThan(fireIdx);
   });
 
+  test("All tab prefixes item rows with 'Item · '", async () => {
+    const item = magicItemIndexEntryFactory.build({
+      name: "Bag of Holding",
+      rarity: { name: "Uncommon" },
+    });
+    const client = makeClient({ items: { "2024": { count: 1, results: [item] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    const row = await screen.findByRole("button", { name: /Bag of Holding/ });
+    expect(row).toHaveTextContent("Item · Uncommon");
+  });
+
+  test("All tab prefixes spell rows with 'Spell · '", async () => {
+    const spell = spellIndexEntryFactory.build({
+      name: "Fireball",
+      level: 3,
+      school: { name: "evocation" },
+    });
+    const client = makeClient({ spells: { "2024": { count: 1, results: [spell] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    const row = await screen.findByRole("button", { name: /Fireball/ });
+    expect(row).toHaveTextContent("Spell · 3rd-level evocation");
+  });
+
+  test("Items tab does not prefix rows with 'Item · '", async () => {
+    const item = magicItemIndexEntryFactory.build({
+      name: "Bag of Holding",
+      rarity: { name: "Uncommon" },
+    });
+    const client = makeClient({ items: { "2024": { count: 1, results: [item] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Items" }));
+    const row = await screen.findByRole("button", { name: /Bag of Holding/ });
+    expect(row).toHaveTextContent("Uncommon");
+    expect(row).not.toHaveTextContent("Item · ");
+  });
+
+  test("Spells tab does not prefix rows with 'Spell · '", async () => {
+    const spell = spellIndexEntryFactory.build({
+      name: "Fireball",
+      level: 3,
+      school: { name: "evocation" },
+    });
+    const client = makeClient({ spells: { "2024": { count: 1, results: [spell] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    const row = await screen.findByRole("button", { name: /Fireball/ });
+    expect(row).toHaveTextContent("3rd-level evocation");
+    expect(row).not.toHaveTextContent("Spell · ");
+  });
+
   test("shows index entries once the items list loads", async () => {
     const entryA = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const entryB = magicItemIndexEntryFactory.build({ name: "Cloak of Protection" });
