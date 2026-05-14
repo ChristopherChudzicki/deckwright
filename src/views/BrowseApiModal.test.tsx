@@ -141,6 +141,15 @@ describe("<BrowseApiModal>", () => {
     expect(row).not.toHaveTextContent("Spell · ");
   });
 
+  test("All tab empty state reads 'No results match your search.'", async () => {
+    const client = makeClient();
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.type(screen.getByRole("searchbox"), "xyzzy");
+
+    expect(await screen.findByText("No results match your search.")).toBeInTheDocument();
+  });
+
   test("shows index entries once the items list loads", async () => {
     const entryA = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const entryB = magicItemIndexEntryFactory.build({ name: "Cloak of Protection" });

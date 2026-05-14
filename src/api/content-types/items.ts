@@ -12,6 +12,7 @@ export const itemsContentType: ContentType = {
   id: "items",
   label: "Items",
   searchPlaceholder: "Search items…",
+  emptyMessage: "No items match your search.",
   supportedSources: ["2024", "2014"],
   useResults: (source, query) => {
     const magic = useMagicItemIndex(source);

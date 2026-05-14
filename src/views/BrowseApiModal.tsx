@@ -211,7 +211,7 @@ function TypePanel({
   onPick,
 }: TypePanelProps) {
   const results = type.useResults(source, query);
-  const emptyMessage = `No ${type.label.toLowerCase()} match your search.`;
+  const emptyMessage = type.emptyMessage;
 
   return (
     <>

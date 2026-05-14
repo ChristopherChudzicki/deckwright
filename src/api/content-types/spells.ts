@@ -9,6 +9,7 @@ export const spellsContentType: ContentType = {
   id: "spells",
   label: "Spells",
   searchPlaceholder: "Search spells…",
+  emptyMessage: "No spells match your search.",
   supportedSources: ["2024", "2014"],
   useResults: (source, query) => {
     const idx = useSpellIndex(source);
