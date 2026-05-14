@@ -6,14 +6,10 @@ import {
   componentsLabel,
   durationLabel,
   levelLabel,
+  spellBodyMarkdown,
 } from "../../lib/srd-format/spells";
 import { nowIso } from "../../lib/time";
 import type { SpellDetail } from "../endpoints/spells";
-
-const buildBody = (desc: string, higherLevel: string): string => {
-  if (higherLevel.trim() === "") return desc;
-  return `${desc}\n\n***At Higher Levels.*** ${higherLevel}`;
-};
 
 export const spellDetailToCard = (detail: SpellDetail): SpellCard => {
   const now = nowIso();
@@ -37,7 +33,7 @@ export const spellDetailToCard = (detail: SpellDetail): SpellCard => {
     kind: "spell",
     name: detail.name,
     headerTags,
-    body: buildBody(detail.desc, detail.higher_level),
+    body: spellBodyMarkdown(detail.desc, detail.higher_level),
     footerTags,
     source: "api",
     apiRef: { system: "open5e", slug: detail.key, ruleset: detail.ruleset },

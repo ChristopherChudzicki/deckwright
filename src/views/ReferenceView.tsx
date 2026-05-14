@@ -1,15 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { fetchMagicItemIndex, type Ruleset } from "../api/endpoints/magicItems";
 import { fetchMundaneItemIndex } from "../api/endpoints/mundaneItems";
 import { fetchSpellIndex } from "../api/endpoints/spells";
 import { renderBody } from "../cards/renderBody";
 import type { MagicItem, MundaneItem, Spell } from "../data/srd-schema";
+import { spellBodyMarkdown } from "../lib/srd-format/spells";
 import { LoadingState } from "../lib/ui/LoadingState";
 import styles from "./ReferenceView.module.css";
 import { MagicItemStatBlock } from "./reference/MagicItemStatBlock";
 import { MundaneItemStatBlock } from "./reference/MundaneItemStatBlock";
 import { SpellStatBlock } from "./reference/SpellStatBlock";
+
+const DEFAULT_TITLE = "Deckwright";
 
 export type ReferenceKind = "magic-items" | "mundane-items" | "spells";
 
@@ -45,13 +49,16 @@ async function loadRecord(kind: string, key: string): Promise<Loaded | null> {
 function NotFound() {
   useEffect(() => {
     document.title = "Not found · Deckwright";
+    return () => {
+      document.title = DEFAULT_TITLE;
+    };
   }, []);
   return (
     <article className={styles.notFound}>
       <h1>Not found</h1>
       <p>That reference page doesn't exist.</p>
       <p>
-        <a href="/">Deckwright home</a>
+        <Link to="/">Back to Deckwright</Link>
       </p>
     </article>
   );
@@ -65,9 +72,7 @@ function StatBlockForKind({ loaded }: { loaded: Loaded }) {
 
 function bodyMarkdown(loaded: Loaded): string {
   if (loaded.kind === "spells") {
-    const higher = loaded.record.higher_level.trim();
-    if (higher === "") return loaded.record.desc;
-    return `${loaded.record.desc}\n\n***At Higher Levels.*** ${higher}`;
+    return spellBodyMarkdown(loaded.record.desc, loaded.record.higher_level);
   }
   return loaded.record.desc;
 }
@@ -82,6 +87,9 @@ export function ReferenceView({ kind, cardKey }: Props) {
   useEffect(() => {
     if (query.data) {
       document.title = `${query.data.record.name} · Deckwright`;
+      return () => {
+        document.title = DEFAULT_TITLE;
+      };
     }
   }, [query.data]);
 

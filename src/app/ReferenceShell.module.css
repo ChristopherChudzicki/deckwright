@@ -20,6 +20,12 @@
   text-decoration: none;
   letter-spacing: 0.02em;
   border-radius: var(--radius-sm);
+  /* QR scanners land on a phone, one-handed, often in dim light. Give the
+     header's only tap target a 44px hit area per iOS HIG / WCAG 2.5.5. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-2);
 }
 
 .brand:focus-visible {

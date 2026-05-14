@@ -83,3 +83,8 @@ export const classesLabel = (classes: { name: string }[]): string =>
     .map((c) => c.name)
     .sort((a, b) => a.localeCompare(b))
     .join(", ");
+
+export const spellBodyMarkdown = (desc: string, higherLevel: string): string => {
+  if (higherLevel.trim() === "") return desc;
+  return `${desc}\n\n***At Higher Levels.*** ${higherLevel}`;
+};
