@@ -52,6 +52,14 @@
 .body th {
   background: var(--color-surface-2);
   font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Markdown tables typically have a short identifier in the first column
+   (d100 ranges like "01-05", playing-card names, etc.). Keep that column at
+   its content width so a hyphen doesn't force a two-line wrap. */
+.body td:first-child {
+  white-space: nowrap;
 }
 
 .notFound {
