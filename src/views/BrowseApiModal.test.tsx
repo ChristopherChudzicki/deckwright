@@ -262,6 +262,7 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
+    await userEvent.click(screen.getByRole("tab", { name: "Items" }));
     await screen.findByRole("button", { name: /Bag of Holding/ });
     const matched = screen.getAllByRole("button", { name: /Bag of Holding|Battleaxe/ });
     const names = matched.map((b) => b.textContent ?? "");
@@ -309,6 +310,13 @@ describe("<BrowseApiModal>", () => {
     const spellsSearch = await screen.findByRole("searchbox");
     expect(spellsSearch).toHaveValue("");
     expect(spellsSearch).toHaveAttribute("placeholder", "Search spells…");
+  });
+
+  test("All tab search placeholder reads 'Search SRD…'", async () => {
+    const client = makeClient();
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    expect(screen.getByRole("searchbox")).toHaveAttribute("placeholder", "Search SRD…");
   });
 
   test("clicking an item POSTs a card with kind:item", async () => {
