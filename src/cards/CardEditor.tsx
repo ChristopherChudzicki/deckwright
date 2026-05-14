@@ -229,16 +229,16 @@ export function CardEditor({ card, onChange }: Props) {
                     className={styles.linkButton}
                     onClick={handleResetReferenceUrl}
                   >
-                    Use reference page
+                    Restore original link
                   </button>
                   .
                 </>
               )}{" "}
               {canResetReferenceUrl ? "Or " : ""}
               <button type="button" className={styles.linkButton} onClick={handleDisconnectApiRef}>
-                {canResetReferenceUrl ? "permanently clear" : "Permanently clear"}
-              </button>{" "}
-              link to reference.
+                {canResetReferenceUrl ? "permanently disconnect" : "Permanently disconnect"}
+              </button>
+              .
             </>
           )}
         </span>
