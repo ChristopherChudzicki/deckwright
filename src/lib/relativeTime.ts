@@ -1,3 +1,4 @@
+// Locale pinned to "en" so wording ("2 hours ago", "now") is deterministic.
 const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
 const DIVISIONS: { amount: number; unit: Intl.RelativeTimeFormatUnit }[] = [
@@ -15,9 +16,8 @@ export function relativeTime(iso: string, now: Date = new Date()): string {
   let duration = (new Date(iso).getTime() - now.getTime()) / 1000;
   for (const division of DIVISIONS) {
     if (Math.abs(duration) < division.amount) {
-      const rounded = Math.round(duration);
-      // For seconds, round to 0 to get "now" for small durations
-      const value = division.unit === "second" && Math.abs(rounded) < 60 ? 0 : rounded;
+      // Sub-minute durations collapse to "now" rather than "N seconds ago".
+      const value = division.unit === "second" ? 0 : Math.round(duration);
       return rtf.format(value, division.unit);
     }
     duration /= division.amount;
