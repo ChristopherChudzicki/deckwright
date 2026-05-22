@@ -14,6 +14,7 @@ Thin wrappers around `react-aria-components` (and a couple of native elements) t
 | `Textarea` | A multi-line text field. |
 | `TagInput` | A controlled chip-input field. Click a chip to edit in place; click between chips to insert; `×` removes. Full keyboard nav via ←/→ and Enter/Delete. |
 | `Switch` | An on/off toggle with a track + thumb. Children are the label. |
+| `Checkbox` | A checkbox. Supports `isIndeterminate` for tri-state (renders `aria-checked="mixed"`). Children are the label; omit them and pass `aria-label` for a label-less control. |
 | `ToggleButton` | A toggleable button (alone or inside a `ToggleButtonGroup`). |
 | `ToggleButtonGroup` | A segmented selector — wraps `ToggleButton` children. |
 | `DialogShell` | The outer scaffolding (overlay + modal + dialog) for any modal. |
