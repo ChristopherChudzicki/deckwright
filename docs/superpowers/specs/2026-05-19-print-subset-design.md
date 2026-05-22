@@ -56,12 +56,12 @@ The sidebar grows one new block, sitting **above** the existing controls
 
 - A live count line: **"All 15 cards"**, **"7 of 15 cards"**, or
   **"0 of 15 cards"** depending on selection state.
-- A button: **"Customize selection…"** that opens the picker modal.
+- A button: **"Choose cards…"** that opens the picker modal.
 - A **"Select all"** link, shown only when the selection is narrowed
   (`0 < selection.size < renderable.length`). Hidden at all-selected and
   at zero-selected, since neither case has a useful target for the link.
 
-The full new sidebar order: count → Customize button → Select all link →
+The full new sidebar order: count → Choose cards button → Select all link →
 divider → Cards per page → Print backs (with sub-option) → Print button →
 margins tip.
 
@@ -95,10 +95,12 @@ The modal — `PrintSelectionModal` — is where the work happens:
   "Name A→Z").
 - A **footer** with:
   - When filters or search hide at least one *selected* card, a line:
-    **"N selected card(s) hidden by filters — Apply prints all N."** with
-    a "Clear filters" link. This is the central mitigation for the
-    filter↔selection coupling risk: it names the invisible state and says
-    what Apply will do with it.
+    **"N selected card(s) are hidden by filters — still included when you
+    Apply."** with a "Clear filters" link. This is the central mitigation
+    for the filter↔selection coupling risk: it names the invisible state
+    and confirms those cards still print. (The line counts the *hidden
+    selected* cards; the Apply button always shows the full total, which
+    may be larger when visible cards are also checked.)
   - **Cancel** and **Apply** buttons. Apply is labelled **"Apply (X
     cards)"** — the single source of the full-draft total at the commit
     moment. (The header's "X of Y shown" is a visible-subset status; Apply
@@ -117,7 +119,7 @@ The friction case is: "I just edited two cards in a 15-card deck, I want
 to reprint just those two." Realistic flow:
 
 1. Open print view → sidebar reads **"All 15 cards"**.
-2. Click "Customize selection…" → modal opens with all 15 checked and no
+2. Click "Choose cards…" → modal opens with all 15 checked and no
    filter active, so all 15 are "shown".
 3. Click the **header checkbox** once → since all visible are checked, it
    clears all 15. (One click, not 15 unchecks — this is what the header
@@ -137,8 +139,13 @@ never engages a filter — recency sort alone surfaces the edited cards.
 ### Initial selection
 
 When `useDeckCards` resolves, the selection is initialized to
-`new Set(renderable.map(c => c.id))`. This happens once per deck load.
-Subsequent re-renders don't reset the selection.
+`new Set(renderable.map(c => c.id))`. The trigger must be pinned so a
+background refetch (which changes the query data's identity) doesn't
+silently reset a narrowed selection: initialize keyed on `deckId` (e.g.
+re-run only when `deckId` changes, not when `cardsQuery.data` changes
+identity). Switching decks re-initializes to all; a refetch of the same
+deck does not. This is what makes the added/removed-card behavior below
+hold.
 
 ### Selection state through deck mutations
 
@@ -159,8 +166,8 @@ worth a dedicated UI hint.
 If the user clears every card and clicks Apply, the sidebar shows
 "0 of 15 cards" in a warning treatment and the Print button is disabled
 with a small hint ("Select at least 1 card to print"). The sheet preview
-area shows a new empty-selection message ("No cards selected — click
-Customize selection to choose what to print"), distinct from today's
+area shows a new empty-selection message ("No cards selected — use
+Choose cards to pick what to print"), distinct from today's
 "No printable cards in this deck yet" message (which still fires only
 when the deck itself is empty of renderable cards).
 
@@ -190,7 +197,9 @@ When the modal opens a second time on a narrowed selection, the draft
 starts from the current narrowed checkbox state. Filters reset to
 defaults (All kind / empty search) and sort resets to "Recently edited".
 This gives the user a predictable starting position each open without
-losing their committed selection.
+losing their committed selection. The trade-off is deliberate: a user
+who sorted by name last time gets recency sort again on re-open. The
+committed *selection* persists; the *view* (filters, sort) does not.
 
 ### Filters
 
@@ -228,10 +237,15 @@ alone.
 
 ## Accessibility
 
-- The modal is labelled by its visible heading, using `aria-labelledby`.
+- The modal has an accessible name via `aria-label` (e.g. "Choose cards
+  to print"), matching the existing `BrowseApiModal` idiom. Note: the
+  repo's `DialogShell` only accepts a string `aria-label`, not
+  `aria-labelledby` pointing at the visible heading — the plan can either
+  use `aria-label` as-is or widen `DialogShell` to support
+  `aria-labelledby`.
 - Focus moves to the **name search input** when the modal opens (matching
   the existing `BrowseApiModal` search idiom). On close, focus returns to
-  the **"Customize selection…"** button.
+  the **"Choose cards…"** button.
 - **One** polite live region announces the full-draft total as it
   changes. The Apply button label carries the same number but is *not* a
   live region — buttons announce their label on focus, so a live region
@@ -261,7 +275,7 @@ alone.
 
 PrintView's existing 16rem sticky sidebar collapses to a full-width strip
 above the sheet at the existing `max-width: 1399px` breakpoint. With the
-new count + Customize button + Select all link sitting above the
+new count + Choose cards button + Select all link sitting above the
 existing controls, the collapsed layout should still read top-to-bottom
 in the same order. No new breakpoint is introduced.
 
@@ -282,7 +296,47 @@ widths; that's acceptable.
 
 The selection state could live inline in `PrintView` or be extracted to
 a `usePrintSelection(deckId)` hook. The implementation plan can decide;
-the behavior is the same either way.
+the behavior is the same either way (but the init trigger above must be
+honored regardless).
+
+### Reuse and net-new pieces
+
+- **Filter + sort logic already exists.** `src/decks/deckListing.ts`
+  implements kind filtering ("all" / "item" / "spell") and "updated" /
+  "name" sorting with stable tie-breakers — directly reusable for the
+  modal list. Substring name search is a small addition on top. Don't
+  re-derive this.
+- **Three primitives are net-new, not reuse.** `src/lib/ui/` has no
+  `Checkbox` and no `RadioGroup` today. The tri-state header checkbox
+  (with `mixed` state), the per-row checkboxes, and the single-select
+  Kind chip group all have to be built from raw `react-aria-components`.
+  This is the bulk of the work and the riskiest part — treat it as such
+  in the plan. The earlier note about `ToggleButtonGroup` not fitting
+  stands: it's a toolbar/group role, not a `radiogroup`.
+- **A relative-time helper is net-new.** "2 hours ago" needs a small
+  `Intl.RelativeTimeFormat`-based helper (no new dependency) with its own
+  unit test and defined bucketing thresholds (e.g. seconds → minutes →
+  hours → days). The repo has no date library and no existing formatter.
+- **Live region.** The repo has a global `Announcement` singleton
+  (`useSetNextAnnouncement`). The plan should decide between reusing it
+  and adding a local `aria-live="polite"` node inside the modal; a local
+  node is likely cleaner for a count that updates frequently.
+
+### Implementation sequencing
+
+Stage the work so the feature isn't blocked on the novel primitives:
+
+1. **Selection plumbing + sidebar.** Selection state + init trigger, the
+   sidebar count / Choose-cards button / Select-all link, Print-button
+   disable, and the empty-selection message — plus their tests. Shippable
+   on its own with no new primitives (the modal can be stubbed).
+2. **Net-new primitives.** Build the `Checkbox` (incl. indeterminate /
+   `mixed`), the Kind chip `RadioGroup`, and the relative-time helper,
+   each with focused tests. This is the riskiest stage; isolating it
+   keeps risk off the critical path.
+3. **Assemble `PrintSelectionModal`.** Wire the filter row, list (reusing
+   `deckListing.ts`), header checkbox, footer, and `onApply`; add the
+   modal behavior tests.
 
 ## Tests
 
@@ -290,7 +344,7 @@ Behavior tests, written against accessible roles per project convention:
 
 - Print view opens with all renderable cards selected and shows
   "All N cards".
-- Clicking "Customize selection…" opens the modal listing all
+- Clicking "Choose cards…" opens the modal listing all
   renderable cards.
 - Focus lands on the name search input on open.
 - The card list defaults to `updatedAt` descending — recently-updated
@@ -307,8 +361,8 @@ Behavior tests, written against accessible roles per project convention:
 - Name search narrows the list by substring on card name,
   case-insensitive.
 - When a filter or search hides a selected card, the "N selected
-  card(s) hidden by filters — Apply prints all N" line appears with a
-  working "Clear filters" link.
+  card(s) are hidden by filters — still included when you Apply" line
+  appears with a working "Clear filters" link.
 - Apply button text reflects the full-draft total: "Apply (3 cards)".
 - Empty selection disables the Print button.
 - The sidebar "Select all" link is hidden at all-selected and at zero;
