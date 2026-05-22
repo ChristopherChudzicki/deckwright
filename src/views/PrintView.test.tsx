@@ -288,6 +288,36 @@ describe("<PrintView>", () => {
     expect(back1.querySelector('[data-role="card-body"]')).toHaveTextContent("pg2");
   });
 
+  test("opens with all renderable cards selected and shows 'All N cards'", async () => {
+    const cards = makeCardRow.buildList(3);
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getAllByTestId("page")).toHaveLength(1));
+    expect(screen.getByText("All 3 cards")).toBeInTheDocument();
+  });
+
+  test("the 'Select all' link is hidden when all cards are selected", async () => {
+    const cards = makeCardRow.buildList(3);
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getByText("All 3 cards")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: /select all/i })).not.toBeInTheDocument();
+  });
+
+  test("exposes a 'Choose cards' button", async () => {
+    const cards = makeCardRow.buildList(2);
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getByText("All 2 cards")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /choose cards/i })).toBeInTheDocument();
+  });
+
   test("'Continue content on back' selected state persists across disable/re-enable", async () => {
     const card = makeCardRow.build({ payload: makeItemPayload.build({ body: "X" }) });
     vi.spyOn(layoutPaginatorModule, "layoutPaginate").mockImplementation(({ bodyHtml }) =>

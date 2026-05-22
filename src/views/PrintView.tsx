@@ -1,4 +1,4 @@
-import { Fragment, useId, useState } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
 import { imposeBackPage } from "../cards/backImposition";
 import { Card, type CardsPerPage } from "../cards/Card";
 import { CardBack } from "../cards/CardBack";
@@ -10,6 +10,8 @@ import { Button } from "../lib/ui/Button";
 import { LoadingState } from "../lib/ui/LoadingState";
 import { Switch } from "../lib/ui/Switch";
 import styles from "./PrintView.module.css";
+import { selectionCountLabel } from "./printSelectionLabel";
+import { usePrintSelection } from "./usePrintSelection";
 
 type Props = { deckId: string };
 
@@ -39,10 +41,24 @@ export function PrintView({ deckId }: Props) {
   const [printBacks, setPrintBacks] = useState(false);
   const [contentOnBack, setContentOnBack] = useState(false);
   const perPageId = useId();
+  const emptyHintId = useId();
 
   const cards = cardsQuery.data ?? [];
-  const printable = cards.filter(isRenderableCard);
-  const { physicalCards } = useExpandedCards(printable, perPage);
+  const printable = useMemo(() => cards.filter(isRenderableCard), [cards]);
+  const renderableIds = useMemo(() => printable.map((c) => c.id), [printable]);
+
+  const {
+    selected,
+    setSelected: _setSelected,
+    selectAll,
+  } = usePrintSelection(deckId, renderableIds, cardsQuery.isSuccess);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  const selectedPrintable = printable.filter((c) => selected.has(c.id));
+  const isEmptySelection = printable.length > 0 && selectedPrintable.length === 0;
+  const isNarrowed = selected.size > 0 && selected.size < printable.length;
+  const noneSelected = selectedPrintable.length === 0;
+  const { physicalCards } = useExpandedCards(selectedPrintable, perPage);
   const printSlots = pairSlots(physicalCards, {
     contentOnBack: printBacks && contentOnBack,
   });
@@ -56,6 +72,22 @@ export function PrintView({ deckId }: Props) {
   return (
     <div className={styles.root} data-print-view>
       <aside className={styles.sidebar}>
+        {printable.length > 0 && (
+          <div className={styles.selectionBlock}>
+            <p className={styles.selectionCount} data-empty={isEmptySelection || undefined}>
+              {selectionCountLabel(selectedPrintable.length, printable.length)}
+            </p>
+            <Button variant="secondary" size="sm" onPress={() => setIsPickerOpen(true)}>
+              Choose cards…
+            </Button>
+            {isNarrowed && (
+              <button type="button" className={styles.selectAllLink} onClick={selectAll}>
+                Select all
+              </button>
+            )}
+          </div>
+        )}
+        <hr className={styles.divider} />
         <div className={styles.field}>
           <label htmlFor={perPageId} className={styles.fieldLabel}>
             Cards per page
@@ -104,11 +136,20 @@ export function PrintView({ deckId }: Props) {
           className={styles.printButton}
           variant="primary"
           size="lg"
-          onPress={() => window.print()}
-          isDisabled={printable.length === 0}
+          aria-disabled={noneSelected || undefined}
+          aria-describedby={isEmptySelection ? emptyHintId : undefined}
+          onPress={() => {
+            if (noneSelected) return;
+            window.print();
+          }}
         >
           Print
         </Button>
+        {isEmptySelection && (
+          <p id={emptyHintId} className={styles.tip}>
+            Select at least 1 card to print.
+          </p>
+        )}
         <p className={styles.tip}>
           Tip: in the print dialog, choose <em>Margins: None</em> and uncheck{" "}
           <em>Headers and footers</em> for best results.
@@ -117,6 +158,7 @@ export function PrintView({ deckId }: Props) {
 
       <div>
         {printable.length === 0 && <p>No printable cards in this deck yet.</p>}
+        {isEmptySelection && <p>No cards selected — use Choose cards to pick what to print.</p>}
 
         <div className={styles.sheet}>
           {pages.map((pageSlots) => {
@@ -165,6 +207,14 @@ export function PrintView({ deckId }: Props) {
           })}
         </div>
       </div>
+      {isPickerOpen && (
+        <div role="dialog" aria-label="Choose cards to print">
+          {/* Placeholder — replaced by PrintSelectionModal in Stage 3. */}
+          <button type="button" onClick={() => setIsPickerOpen(false)}>
+            Close
+          </button>
+        </div>
+      )}
     </div>
   );
 }

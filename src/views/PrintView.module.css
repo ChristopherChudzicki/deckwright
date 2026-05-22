@@ -72,6 +72,37 @@
   padding-left: var(--space-4);
 }
 
+.selectionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.selectionCount {
+  margin: 0;
+  font-weight: 500;
+}
+
+.selectionCount[data-empty] {
+  color: var(--color-warning-fg, var(--color-danger-fg));
+}
+
+.selectAllLink {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.selectAllLink:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 .divider {
   border: 0;
   border-top: 1px solid var(--color-border);
