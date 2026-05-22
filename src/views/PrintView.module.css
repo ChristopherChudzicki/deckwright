@@ -85,7 +85,7 @@
 }
 
 .selectionCount[data-empty] {
-  color: var(--color-warning-fg, var(--color-danger-fg));
+  color: var(--color-warning-fg);
 }
 
 .selectAllLink {

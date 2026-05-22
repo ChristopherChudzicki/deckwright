@@ -47,11 +47,7 @@ export function PrintView({ deckId }: Props) {
   const printable = useMemo(() => cards.filter(isRenderableCard), [cards]);
   const renderableIds = useMemo(() => printable.map((c) => c.id), [printable]);
 
-  const {
-    selected,
-    setSelected: _setSelected,
-    selectAll,
-  } = usePrintSelection(deckId, renderableIds, cardsQuery.isSuccess);
+  const { selected, selectAll } = usePrintSelection(deckId, renderableIds, cardsQuery.isSuccess);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const selectedPrintable = printable.filter((c) => selected.has(c.id));
@@ -73,21 +69,23 @@ export function PrintView({ deckId }: Props) {
     <div className={styles.root} data-print-view>
       <aside className={styles.sidebar}>
         {printable.length > 0 && (
-          <div className={styles.selectionBlock}>
-            <p className={styles.selectionCount} data-empty={isEmptySelection || undefined}>
-              {selectionCountLabel(selectedPrintable.length, printable.length)}
-            </p>
-            <Button variant="secondary" size="sm" onPress={() => setIsPickerOpen(true)}>
-              Choose cards…
-            </Button>
-            {isNarrowed && (
-              <button type="button" className={styles.selectAllLink} onClick={selectAll}>
-                Select all
-              </button>
-            )}
-          </div>
+          <>
+            <div className={styles.selectionBlock}>
+              <p className={styles.selectionCount} data-empty={isEmptySelection || undefined}>
+                {selectionCountLabel(selectedPrintable.length, printable.length)}
+              </p>
+              <Button variant="secondary" size="sm" onPress={() => setIsPickerOpen(true)}>
+                Choose cards…
+              </Button>
+              {isNarrowed && (
+                <button type="button" className={styles.selectAllLink} onClick={selectAll}>
+                  Select all
+                </button>
+              )}
+            </div>
+            <hr className={styles.divider} />
+          </>
         )}
-        <hr className={styles.divider} />
         <div className={styles.field}>
           <label htmlFor={perPageId} className={styles.fieldLabel}>
             Cards per page
