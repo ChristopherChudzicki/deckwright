@@ -31,15 +31,12 @@ describe("Checkbox", () => {
     expect(box).toBeChecked();
   });
 
-  test("indeterminate renders aria-checked=mixed", () => {
+  test("indeterminate renders as partially checked", () => {
     render(
       <Checkbox isSelected={false} isIndeterminate onChange={() => {}} aria-label="Select all">
         {null}
       </Checkbox>,
     );
-    expect(screen.getByRole("checkbox", { name: "Select all" })).toHaveAttribute(
-      "aria-checked",
-      "mixed",
-    );
+    expect(screen.getByRole("checkbox", { name: "Select all" })).toBePartiallyChecked();
   });
 });
