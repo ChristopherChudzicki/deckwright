@@ -101,11 +101,14 @@ The modal — `PrintSelectionModal` — is where the work happens:
     and confirms those cards still print. (The line counts the *hidden
     selected* cards; the Apply button always shows the full total, which
     may be larger when visible cards are also checked.)
-  - **Cancel** and **Apply** buttons. Apply is labelled **"Apply (X
-    cards)"** — the single source of the full-draft total at the commit
-    moment. (The header's "X of Y shown" is a visible-subset status; Apply
-    is the full total. They differ by design and sit in clearly different
-    contexts.)
+  - **Cancel** and **Apply** buttons. Apply is labelled **"Apply (T
+    cards)"** where T is the full-draft total — the single source of that
+    total at the commit moment. (Notation, to keep the three readouts
+    straight: the header shows **X of Y shown** — X = checked-and-visible,
+    Y = visible; the hidden line shows **N** = checked-and-hidden; and
+    **T = X + N**. The header and Apply differ precisely when N > 0 — which
+    is exactly when the hidden line appears, so the two numbers never
+    diverge silently.)
 
 Filters apply only to what's *shown* in the modal — they're a way to
 find cards faster, not a saved query. Checkbox state survives filter
@@ -129,10 +132,12 @@ to reprint just those two." Realistic flow:
 5. Apply reads **"Apply (2 cards)"**. Click it.
 6. Sidebar reads **"2 of 15 cards"**. Click Print.
 
-Six interactions beyond today's default — two of them the actual card
-checks — with no hunting and no ambiguity. The header checkbox is the
-linchpin: it collapses "uncheck 13 cards" into one click. Note the path
-never engages a filter — recency sort alone surfaces the edited cards.
+Five interactions beyond today's default — Choose cards, the header
+clear, two card checks, and Apply (Print is in today's flow too) — with
+no hunting and no ambiguity. The header checkbox is the linchpin: step 3
+clears all 15 in one click, so the user only adds back the two they
+want rather than unchecking thirteen by hand. Note the path never
+engages a filter — recency sort alone surfaces the edited cards.
 
 ## Behavior details
 
