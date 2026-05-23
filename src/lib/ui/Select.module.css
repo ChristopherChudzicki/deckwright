@@ -1,0 +1,69 @@
+.trigger {
+  font: inherit;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.trigger[data-hovered] {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+}
+
+.trigger[data-pressed] {
+  background: var(--color-border);
+}
+
+.trigger[data-focus-visible] {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.popover {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  outline: none;
+}
+
+.listbox {
+  padding: var(--space-1);
+  outline: none;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  /* --space-2 vertical for a comfortable touch target (the Type Select is the mobile control). */
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  outline: none;
+}
+
+.option[data-hovered],
+.option[data-focused] {
+  background: var(--color-surface-2);
+}
+
+/* Reserve the check column on every option so popover width + highlight rows don't
+   shift between selected/unselected; reveal only on the current one. --color-accent
+   matches the active tab's treatment. */
+.option::after {
+  content: "✓";
+  color: var(--color-accent);
+  visibility: hidden;
+}
+
+.option[data-selected]::after {
+  visibility: visible;
+}
