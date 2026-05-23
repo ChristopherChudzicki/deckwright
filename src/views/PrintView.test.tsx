@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { describe, expect, test, vi } from "vitest";
 import * as layoutPaginatorModule from "../cards/layoutPaginator";
 import { invariant } from "../lib/invariant";
-import { makeCardRow, makeItemPayload } from "../test/factories";
+import { makeAbilityPayload, makeCardRow, makeItemPayload } from "../test/factories";
 import { SB_URL as SB, server } from "../test/msw";
 import { render, screen, waitFor } from "../test/render";
 import { PrintView } from "./PrintView";
@@ -316,6 +316,91 @@ describe("<PrintView>", () => {
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getByText("All 2 cards")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /choose cards/i })).toBeInTheDocument();
+  });
+
+  test("narrowing via the modal updates the count and the printed set", async () => {
+    const keep = makeCardRow.build({ payload: makeItemPayload.build({ name: "Keep" }) });
+    const drop = makeCardRow.build({ payload: makeItemPayload.build({ name: "Drop" }) });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([keep, drop])),
+    );
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getByText("All 2 cards")).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole("button", { name: /choose cards/i }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Drop" }));
+    await userEvent.click(screen.getByRole("button", { name: /apply/i }));
+
+    expect(screen.getByText("1 of 2 cards")).toBeInTheDocument();
+    // Card.tsx renders the card name in an <h3> inside data-role="card-root".
+    // After Apply the modal is closed, so these headings belong only to printed cards.
+    const printedNames = Array.from(document.querySelectorAll('[data-role="card-root"] h3')).map(
+      (el) => el.textContent,
+    );
+    expect(printedNames).toContain("Keep");
+    expect(printedNames).not.toContain("Drop");
+  });
+
+  test("Cancel preserves the previous selection", async () => {
+    const cards = makeCardRow.buildList(2);
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getByText("All 2 cards")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: /choose cards/i }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /select all shown cards/i })); // clears draft
+    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(screen.getByText("All 2 cards")).toBeInTheDocument();
+  });
+
+  test("empty selection disables Print and shows the empty message", async () => {
+    const cards = makeCardRow.buildList(2);
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json(cards)),
+    );
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getByText("All 2 cards")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: /choose cards/i }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /select all shown cards/i })); // clears
+    await userEvent.click(screen.getByRole("button", { name: /apply/i }));
+    expect(screen.getByText("0 of 2 cards")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^print$/i })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByText(/no cards selected/i)).toBeInTheDocument();
+  });
+
+  test("Select all link restores the full selection after narrowing", async () => {
+    const a = makeCardRow.build({ payload: makeItemPayload.build({ name: "Alpha" }) });
+    const b = makeCardRow.build({ payload: makeItemPayload.build({ name: "Beta" }) });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () => HttpResponse.json([a, b])),
+    );
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getByText("All 2 cards")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: /choose cards/i }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Beta" }));
+    await userEvent.click(screen.getByRole("button", { name: /apply/i }));
+    expect(screen.getByText("1 of 2 cards")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /select all/i }));
+    expect(screen.getByText("All 2 cards")).toBeInTheDocument();
+  });
+
+  test("ability (non-renderable) cards never reach the picker", async () => {
+    const item = makeCardRow.build({ payload: makeItemPayload.build({ name: "Cloak" }) });
+    const ability = makeCardRow.build({ payload: makeAbilityPayload.build({ name: "Rage" }) });
+    server.use(
+      http.post(`${SB}/rest/v1/rpc/get_public_deck_cards`, () =>
+        HttpResponse.json([item, ability]),
+      ),
+    );
+    render(wrap(<PrintView deckId="d1" />));
+    await waitFor(() => expect(screen.getByText("All 1 card")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: /choose cards/i }));
+    expect(screen.getByRole("checkbox", { name: "Cloak" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Rage" })).not.toBeInTheDocument();
   });
 
   test("'Continue content on back' selected state persists across disable/re-enable", async () => {

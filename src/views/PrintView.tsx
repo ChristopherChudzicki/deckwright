@@ -9,6 +9,7 @@ import { useDeckCards } from "../decks/queries";
 import { Button } from "../lib/ui/Button";
 import { LoadingState } from "../lib/ui/LoadingState";
 import { Switch } from "../lib/ui/Switch";
+import { PrintSelectionModal } from "./PrintSelectionModal";
 import styles from "./PrintView.module.css";
 import { selectionCountLabel } from "./printSelectionLabel";
 import { usePrintSelection } from "./usePrintSelection";
@@ -47,7 +48,11 @@ export function PrintView({ deckId }: Props) {
   const printable = useMemo(() => cards.filter(isRenderableCard), [cards]);
   const renderableIds = useMemo(() => printable.map((c) => c.id), [printable]);
 
-  const { selected, selectAll } = usePrintSelection(deckId, renderableIds, cardsQuery.isSuccess);
+  const { selected, setSelected, selectAll } = usePrintSelection(
+    deckId,
+    renderableIds,
+    cardsQuery.isSuccess,
+  );
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const selectedPrintable = printable.filter((c) => selected.has(c.id));
@@ -206,12 +211,12 @@ export function PrintView({ deckId }: Props) {
         </div>
       </div>
       {isPickerOpen && (
-        <div role="dialog" aria-label="Choose cards to print">
-          {/* Placeholder — replaced by PrintSelectionModal in Stage 3. */}
-          <button type="button" onClick={() => setIsPickerOpen(false)}>
-            Close
-          </button>
-        </div>
+        <PrintSelectionModal
+          cards={printable}
+          initialSelection={selected}
+          onApply={setSelected}
+          onClose={() => setIsPickerOpen(false)}
+        />
       )}
     </div>
   );
