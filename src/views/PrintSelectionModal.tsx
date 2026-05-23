@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { TextField } from "react-aria-components";
 import type { CardId, RenderableCard } from "../cards/types";
 import { type DeckSort, deckListing } from "../decks/deckListing";
@@ -22,6 +22,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   const [draft, setDraft] = useState<Set<CardId>>(() => new Set(initialSelection));
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<DeckSort>("updated");
+  const sortId = useId();
 
   const visible = useMemo(() => {
     const { cards: sorted } = deckListing(cards, { kind: "all", sort });
@@ -61,9 +62,10 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
                 autoFocus
               />
             </TextField>
-            <label className={styles.sortLabel}>
-              <span>Sort</span>
+            <div className={styles.sortLabel}>
+              <label htmlFor={sortId}>Sort</label>
               <select
+                id={sortId}
                 className={styles.sortSelect}
                 value={sort}
                 onChange={(e) => setSort(e.target.value as DeckSort)}
@@ -71,7 +73,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
                 <option value="updated">Recently edited</option>
                 <option value="name">Name A→Z</option>
               </select>
-            </label>
+            </div>
           </div>
 
           <ul className={styles.list}>
