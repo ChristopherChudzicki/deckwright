@@ -1,40 +1,92 @@
-.modal {
+.modalContainer {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  gap: var(--space-3);
-  padding: var(--space-4);
+  min-height: 0;
 }
 
-.filterRow {
-  display: flex;
-  gap: var(--space-3);
-  align-items: end;
-  flex-wrap: wrap;
+.searchRow {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .searchField {
-  flex: 1 1 12rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--fs-sm);
+  display: block;
 }
 
-.sortLabel {
+.toolbar {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--fs-sm);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.sortSelect {
+.sortTrigger {
   font: inherit;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border-strong);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
+  cursor: pointer;
+}
+
+.sortTrigger[data-hovered] {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+}
+
+.sortTrigger[data-pressed] {
+  background: var(--color-border);
+}
+
+.sortTrigger[data-focus-visible] {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.sortPopover {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  outline: none;
+}
+
+.sortMenu {
+  padding: var(--space-1);
+  outline: none;
+}
+
+.sortMenuItem {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  outline: none;
+}
+
+.sortMenuItem[data-hovered],
+.sortMenuItem[data-focused] {
+  background: var(--color-surface-2);
+}
+
+.bulkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.shownCount {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
 }
 
 .list {
@@ -43,6 +95,7 @@
   padding: 0;
   overflow-y: auto;
   flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -52,8 +105,12 @@
   grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-1);
+  padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border);
+}
+
+.row:last-child {
+  border-bottom: 0;
 }
 
 .rowKind {
@@ -67,12 +124,19 @@
   color: var(--color-text-muted);
 }
 
+.emptyState {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
 .footer {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--color-border);
-  padding-top: var(--space-3);
+  background: var(--color-surface-2);
 }
 
 .footerActions {
@@ -81,41 +145,10 @@
   gap: var(--space-3);
 }
 
-.bulkRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-1);
-  border-bottom: 1px solid var(--color-border-strong);
-}
-
-.shownCount {
+.hiddenLine {
+  margin: 0;
   font-size: var(--fs-sm);
   color: var(--color-text-muted);
-}
-
-.kindGroup {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.chip {
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: var(--fs-sm);
-}
-
-.chip[data-selected] {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-accent-fg);
-}
-
-.chip[data-focus-visible] {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
 }
 
 .clearFiltersLink {
@@ -126,17 +159,6 @@
   color: var(--color-accent);
   text-decoration: underline;
   cursor: pointer;
-}
-
-.hiddenLine {
-  font-size: var(--fs-sm);
-  color: var(--color-text-muted);
-}
-
-.emptyState {
-  color: var(--color-text-muted);
-  font-size: var(--fs-sm);
-  padding: var(--space-3) var(--space-1);
 }
 
 .srOnly {

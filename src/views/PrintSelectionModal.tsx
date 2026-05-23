@@ -1,13 +1,23 @@
-import { useId, useMemo, useState } from "react";
-import { Radio, RadioGroup } from "react-aria-components";
+import { useMemo, useState } from "react";
+import {
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
+  Button as RACButton,
+  TextField,
+} from "react-aria-components";
 import type { CardId, RenderableCard } from "../cards/types";
 import { type DeckKindFilter, type DeckSort, deckListing } from "../decks/deckListing";
 import { pluralize } from "../lib/pluralize";
 import { relativeTime } from "../lib/relativeTime";
 import { Button } from "../lib/ui/Button";
 import { Checkbox } from "../lib/ui/Checkbox";
+import { DialogHeader } from "../lib/ui/DialogHeader";
 import { DialogShell } from "../lib/ui/DialogShell";
 import { Input } from "../lib/ui/Input";
+import { ToggleButton } from "../lib/ui/ToggleButton";
+import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import styles from "./PrintSelectionModal.module.css";
 
 type Props = {
@@ -22,14 +32,15 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<DeckSort>("updated");
   const [kind, setKind] = useState<DeckKindFilter>("all");
-  const sortId = useId();
-  const searchId = useId();
 
+  const { cards: listed, counts } = useMemo(
+    () => deckListing(cards, { kind, sort }),
+    [cards, kind, sort],
+  );
   const visible = useMemo(() => {
-    const { cards: sorted } = deckListing(cards, { kind, sort });
     const q = search.trim().toLowerCase();
-    return q ? sorted.filter((c) => c.name.toLowerCase().includes(q)) : sorted;
-  }, [cards, kind, sort, search]);
+    return q ? listed.filter((c) => c.name.toLowerCase().includes(q)) : listed;
+  }, [listed, search]);
 
   const visibleIds = useMemo(() => visible.map((c) => c.id), [visible]);
   const visibleCheckedCount = useMemo(
@@ -82,47 +93,58 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
       bleed
     >
       {() => (
-        <div className={styles.modal}>
-          <div className={styles.filterRow}>
-            <RadioGroup
-              className={styles.kindGroup}
-              aria-label="Filter by card kind"
-              value={kind}
-              onChange={(v) => setKind(v as DeckKindFilter)}
-            >
-              <Radio value="all" className={styles.chip}>
-                All
-              </Radio>
-              <Radio value="item" className={styles.chip}>
-                Items
-              </Radio>
-              <Radio value="spell" className={styles.chip}>
-                Spells
-              </Radio>
-            </RadioGroup>
-            <div className={styles.searchField}>
-              <label htmlFor={searchId}>Search cards</label>
+        <div className={styles.modalContainer}>
+          <DialogHeader title="Choose cards to print" onClose={onClose} />
+
+          <div className={styles.searchRow}>
+            <TextField aria-label="Search cards" className={styles.searchField}>
               <Input
-                id={searchId}
                 type="search"
                 placeholder="Search cards…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoFocus
               />
-            </div>
-            <div className={styles.sortLabel}>
-              <label htmlFor={sortId}>Sort</label>
-              <select
-                id={sortId}
-                className={styles.sortSelect}
-                value={sort}
-                onChange={(e) => setSort(e.target.value as DeckSort)}
-              >
-                <option value="updated">Recently edited</option>
-                <option value="name">Name A→Z</option>
-              </select>
-            </div>
+            </TextField>
+          </div>
+
+          <div className={styles.toolbar}>
+            <ToggleButtonGroup
+              aria-label="Filter by kind"
+              selectionMode="single"
+              disallowEmptySelection
+              selectedKeys={[kind]}
+              onSelectionChange={(keys) => {
+                const next = Array.from(keys)[0];
+                if (next === "all" || next === "item" || next === "spell") setKind(next);
+              }}
+            >
+              <ToggleButton id="all">All ({counts.all})</ToggleButton>
+              <ToggleButton id="item">Items ({counts.item})</ToggleButton>
+              <ToggleButton id="spell">Spells ({counts.spell})</ToggleButton>
+            </ToggleButtonGroup>
+            <MenuTrigger>
+              <RACButton className={styles.sortTrigger}>
+                Sort: {sort === "updated" ? "Recently edited" : "Name"}{" "}
+                <span aria-hidden="true">▾</span>
+              </RACButton>
+              <Popover className={styles.sortPopover} placement="bottom end">
+                <Menu
+                  className={styles.sortMenu}
+                  onAction={(key) => {
+                    if (key === "updated") setSort("updated");
+                    else if (key === "name") setSort("name");
+                  }}
+                >
+                  <MenuItem id="updated" className={styles.sortMenuItem}>
+                    Recently edited
+                  </MenuItem>
+                  <MenuItem id="name" className={styles.sortMenuItem}>
+                    Name
+                  </MenuItem>
+                </Menu>
+              </Popover>
+            </MenuTrigger>
           </div>
 
           <div className={styles.bulkRow}>
