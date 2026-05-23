@@ -156,6 +156,8 @@ describe("<PrintSelectionModal>", () => {
     open(cards, allIds(cards));
     await userEvent.click(screen.getByRole("radio", { name: /items/i }));
     expect(screen.getByText(/1 selected card is hidden by filters/i)).toBeInTheDocument();
+    expect(screen.getByText("1 of 1 shown")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply (2 cards)" })).toBeInTheDocument();
   });
 
   test("Clear filters link restores the full list and removes the hidden-checked line", async () => {
@@ -174,5 +176,34 @@ describe("<PrintSelectionModal>", () => {
     open(cards, allIds(cards));
     const live = screen.getByText(/3 cards selected/i);
     expect(live).toHaveAttribute("aria-live", "polite");
+  });
+
+  test("Clear filters resets a name search and restores hidden selected cards", async () => {
+    const cloak = itemCardFactory.build({ name: "Cloak" });
+    const bless = spellCardFactory.build({ name: "Bless" });
+    const cards = [cloak, bless];
+    open(cards, allIds(cards));
+    await userEvent.type(screen.getByRole("searchbox", { name: /search cards/i }), "cloak");
+    expect(screen.queryByRole("checkbox", { name: "Bless" })).not.toBeInTheDocument();
+    expect(screen.getByText(/1 selected card is hidden by filters/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /clear filters/i }));
+    expect(screen.getByRole("checkbox", { name: "Bless" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: /search cards/i })).toHaveValue("");
+  });
+
+  test("sorting by name reorders rows alphabetically", async () => {
+    // Recency order (default) is Bravo (newer) then Alpha (older); name sort flips it.
+    const bravo = itemCardFactory.build({ name: "Bravo", updatedAt: "2026-05-20T00:00:00Z" });
+    const alpha = itemCardFactory.build({ name: "Alpha", updatedAt: "2026-05-01T00:00:00Z" });
+    const cards = [bravo, alpha];
+    open(cards, allIds(cards));
+    // Default recency: Bravo first.
+    let rows = screen.getAllByRole("checkbox", { name: /Alpha|Bravo/ });
+    expect(rows[0]).toHaveAccessibleName("Bravo");
+    expect(rows[1]).toHaveAccessibleName("Alpha");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: /sort/i }), "name");
+    rows = screen.getAllByRole("checkbox", { name: /Alpha|Bravo/ });
+    expect(rows[0]).toHaveAccessibleName("Alpha");
+    expect(rows[1]).toHaveAccessibleName("Bravo");
   });
 });
