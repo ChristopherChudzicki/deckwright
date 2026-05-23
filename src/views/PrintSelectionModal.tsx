@@ -157,6 +157,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
             <span className={styles.shownCount}>
               {visibleCheckedCount} of {visible.length} shown
             </span>
+            {visible.length > 0 && <span className={styles.colHeader}>Updated</span>}
           </div>
 
           <ul className={styles.list}>
