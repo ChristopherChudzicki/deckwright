@@ -1,6 +1,5 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
-import { Menu, MenuItem, MenuTrigger, Popover, Button as RACButton } from "react-aria-components";
 import type { DeckSearch } from "../app/router";
 import { deckListing } from "../decks/deckListing";
 import { useDeleteCard, useRenameDeck } from "../decks/mutations";
@@ -11,6 +10,7 @@ import { Input } from "../lib/ui/Input";
 import { PencilIcon } from "../lib/ui/icons/PencilIcon";
 import { TrashIcon } from "../lib/ui/icons/TrashIcon";
 import { LoadingState } from "../lib/ui/LoadingState";
+import { Select } from "../lib/ui/Select";
 import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import { BrowseApiModal } from "./BrowseApiModal";
@@ -88,27 +88,15 @@ export function DeckView({ deckId }: Props) {
             <ToggleButton id="item">Items ({counts.item})</ToggleButton>
             <ToggleButton id="spell">Spells ({counts.spell})</ToggleButton>
           </ToggleButtonGroup>
-          <MenuTrigger>
-            <RACButton className={styles.sortTrigger}>
-              Sort: {sort === "updated" ? "Last updated" : "Name"} <span aria-hidden="true">▾</span>
-            </RACButton>
-            <Popover className={styles.sortPopover} placement="bottom end">
-              <Menu
-                className={styles.sortMenu}
-                onAction={(key) => {
-                  if (key === "updated") updateSearch({ sort: undefined });
-                  else if (key === "name") updateSearch({ sort: "name" });
-                }}
-              >
-                <MenuItem id="updated" className={styles.sortMenuItem}>
-                  Last updated
-                </MenuItem>
-                <MenuItem id="name" className={styles.sortMenuItem}>
-                  Name
-                </MenuItem>
-              </Menu>
-            </Popover>
-          </MenuTrigger>
+          <Select
+            label="Sort"
+            selectedKey={sort}
+            onSelectionChange={(key) => updateSearch({ sort: key === "name" ? "name" : undefined })}
+            items={[
+              { id: "updated", label: "Last updated" },
+              { id: "name", label: "Name" },
+            ]}
+          />
         </div>
       )}
 
