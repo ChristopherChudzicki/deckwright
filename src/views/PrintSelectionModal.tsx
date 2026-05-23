@@ -1,12 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import {
-  Menu,
-  MenuItem,
-  MenuTrigger,
-  Popover,
-  Button as RACButton,
-  TextField,
-} from "react-aria-components";
+import { TextField } from "react-aria-components";
 import type { CardId, RenderableCard } from "../cards/types";
 import { type DeckKindFilter, type DeckSort, deckListing } from "../decks/deckListing";
 import { pluralize } from "../lib/pluralize";
@@ -16,6 +9,7 @@ import { Checkbox } from "../lib/ui/Checkbox";
 import { DialogHeader } from "../lib/ui/DialogHeader";
 import { DialogShell } from "../lib/ui/DialogShell";
 import { Input } from "../lib/ui/Input";
+import { Select } from "../lib/ui/Select";
 import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import styles from "./PrintSelectionModal.module.css";
@@ -124,28 +118,15 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
               <ToggleButton id="item">Items ({counts.item})</ToggleButton>
               <ToggleButton id="spell">Spells ({counts.spell})</ToggleButton>
             </ToggleButtonGroup>
-            <MenuTrigger>
-              <RACButton className={styles.sortTrigger}>
-                Sort: {sort === "updated" ? "Recently edited" : "Name"}{" "}
-                <span aria-hidden="true">▾</span>
-              </RACButton>
-              <Popover className={styles.sortPopover} placement="bottom end">
-                <Menu
-                  className={styles.sortMenu}
-                  onAction={(key) => {
-                    if (key === "updated") setSort("updated");
-                    else if (key === "name") setSort("name");
-                  }}
-                >
-                  <MenuItem id="updated" className={styles.sortMenuItem}>
-                    Recently edited
-                  </MenuItem>
-                  <MenuItem id="name" className={styles.sortMenuItem}>
-                    Name
-                  </MenuItem>
-                </Menu>
-              </Popover>
-            </MenuTrigger>
+            <Select
+              label="Sort"
+              selectedKey={sort}
+              onSelectionChange={(key) => setSort(key as DeckSort)}
+              items={[
+                { id: "updated", label: "Recently edited" },
+                { id: "name", label: "Name" },
+              ]}
+            />
           </div>
 
           <div className={styles.bulkRow}>
