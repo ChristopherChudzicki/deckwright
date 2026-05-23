@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import { Radio, RadioGroup, TextField } from "react-aria-components";
+import { Radio, RadioGroup } from "react-aria-components";
 import type { CardId, RenderableCard } from "../cards/types";
 import { type DeckKindFilter, type DeckSort, deckListing } from "../decks/deckListing";
 import { relativeTime } from "../lib/relativeTime";
@@ -24,6 +24,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   const [sort, setSort] = useState<DeckSort>("updated");
   const [kind, setKind] = useState<DeckKindFilter>("all");
   const sortId = useId();
+  const searchId = useId();
 
   const visible = useMemo(() => {
     const { cards: sorted } = deckListing(cards, { kind, sort });
@@ -100,15 +101,17 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
                 Spells
               </Radio>
             </RadioGroup>
-            <TextField aria-label="Search cards" className={styles.searchField}>
+            <div className={styles.searchField}>
+              <label htmlFor={searchId}>Search cards</label>
               <Input
+                id={searchId}
                 type="search"
                 placeholder="Search cards…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoFocus
               />
-            </TextField>
+            </div>
             <div className={styles.sortLabel}>
               <label htmlFor={sortId}>Sort</label>
               <select

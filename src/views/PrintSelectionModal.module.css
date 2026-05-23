@@ -15,6 +15,10 @@
 
 .searchField {
   flex: 1 1 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
 }
 
 .sortLabel {
