@@ -127,4 +127,52 @@ describe("<PrintSelectionModal>", () => {
     open(cards, allIds(cards));
     expect(screen.getByText("3 of 3 shown")).toBeInTheDocument();
   });
+
+  test("Kind filter hides the other kind without unchecking it", async () => {
+    const item = itemCardFactory.build({ name: "Cloak" });
+    const spell = spellCardFactory.build({ name: "Bless" });
+    const cards = [item, spell];
+    open(cards, allIds(cards));
+    await userEvent.click(screen.getByRole("radio", { name: /items/i }));
+    expect(screen.queryByRole("checkbox", { name: "Bless" })).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Cloak" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: /all/i }));
+    expect(screen.getByRole("checkbox", { name: "Bless" })).toBeChecked();
+  });
+
+  test("name search narrows the list case-insensitively", async () => {
+    const a = itemCardFactory.build({ name: "Acid Arrow" });
+    const b = itemCardFactory.build({ name: "Bless" });
+    open([a, b], allIds([a, b]));
+    await userEvent.type(screen.getByRole("searchbox", { name: /search cards/i }), "acid");
+    expect(screen.getByRole("checkbox", { name: "Acid Arrow" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Bless" })).not.toBeInTheDocument();
+  });
+
+  test("hidden-checked line appears when a filter hides a selected card", async () => {
+    const item = itemCardFactory.build({ name: "Cloak" });
+    const spell = spellCardFactory.build({ name: "Bless" });
+    const cards = [item, spell];
+    open(cards, allIds(cards));
+    await userEvent.click(screen.getByRole("radio", { name: /items/i }));
+    expect(screen.getByText(/1 selected card is hidden by filters/i)).toBeInTheDocument();
+  });
+
+  test("Clear filters link restores the full list and removes the hidden-checked line", async () => {
+    const item = itemCardFactory.build({ name: "Cloak" });
+    const spell = spellCardFactory.build({ name: "Bless" });
+    const cards = [item, spell];
+    open(cards, allIds(cards));
+    await userEvent.click(screen.getByRole("radio", { name: /items/i }));
+    await userEvent.click(screen.getByRole("button", { name: /clear filters/i }));
+    expect(screen.getByRole("checkbox", { name: "Bless" })).toBeInTheDocument();
+    expect(screen.queryByText(/hidden by filters/i)).not.toBeInTheDocument();
+  });
+
+  test("exposes a polite live region announcing the selected total", () => {
+    const cards = itemCardFactory.buildList(3);
+    open(cards, allIds(cards));
+    const live = screen.getByText(/3 cards selected/i);
+    expect(live).toHaveAttribute("aria-live", "polite");
+  });
 });

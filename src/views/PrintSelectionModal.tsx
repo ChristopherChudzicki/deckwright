@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from "react";
-import { TextField } from "react-aria-components";
+import { Radio, RadioGroup, TextField } from "react-aria-components";
 import type { CardId, RenderableCard } from "../cards/types";
-import { type DeckSort, deckListing } from "../decks/deckListing";
+import { type DeckKindFilter, type DeckSort, deckListing } from "../decks/deckListing";
 import { relativeTime } from "../lib/relativeTime";
 import { Button } from "../lib/ui/Button";
 import { Checkbox } from "../lib/ui/Checkbox";
@@ -22,13 +22,14 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   const [draft, setDraft] = useState<Set<CardId>>(() => new Set(initialSelection));
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<DeckSort>("updated");
+  const [kind, setKind] = useState<DeckKindFilter>("all");
   const sortId = useId();
 
   const visible = useMemo(() => {
-    const { cards: sorted } = deckListing(cards, { kind: "all", sort });
+    const { cards: sorted } = deckListing(cards, { kind, sort });
     const q = search.trim().toLowerCase();
     return q ? sorted.filter((c) => c.name.toLowerCase().includes(q)) : sorted;
-  }, [cards, sort, search]);
+  }, [cards, kind, sort, search]);
 
   const visibleIds = useMemo(() => visible.map((c) => c.id), [visible]);
   const visibleCheckedCount = useMemo(
@@ -57,6 +58,16 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
     setDraft(next);
   };
 
+  const hiddenSelectedCount = useMemo(() => {
+    const visibleIdSet = new Set(visibleIds);
+    return cards.filter((c) => draft.has(c.id) && !visibleIdSet.has(c.id)).length;
+  }, [cards, draft, visibleIds]);
+
+  const clearFilters = () => {
+    setKind("all");
+    setSearch("");
+  };
+
   const total = draft.size;
 
   return (
@@ -73,6 +84,22 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
       {() => (
         <div className={styles.modal}>
           <div className={styles.filterRow}>
+            <RadioGroup
+              className={styles.kindGroup}
+              aria-label="Filter by card kind"
+              value={kind}
+              onChange={(v) => setKind(v as DeckKindFilter)}
+            >
+              <Radio value="all" className={styles.chip}>
+                All
+              </Radio>
+              <Radio value="item" className={styles.chip}>
+                Items
+              </Radio>
+              <Radio value="spell" className={styles.chip}>
+                Spells
+              </Radio>
+            </RadioGroup>
             <TextField aria-label="Search cards" className={styles.searchField}>
               <Input
                 type="search"
@@ -125,6 +152,19 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
           </ul>
 
           <div className={styles.footer}>
+            {hiddenSelectedCount > 0 && (
+              <p className={styles.hiddenLine}>
+                {`${hiddenSelectedCount} selected ${cardWord(hiddenSelectedCount)} ${
+                  hiddenSelectedCount === 1 ? "is" : "are"
+                } hidden by filters — still included when you Apply.`}{" "}
+                <button type="button" className={styles.clearFiltersLink} onClick={clearFilters}>
+                  Clear filters
+                </button>
+              </p>
+            )}
+            <span className={styles.srOnly} aria-live="polite">
+              {`${total} ${cardWord(total)} selected`}
+            </span>
             <div className={styles.footerActions}>
               <Button variant="secondary" onPress={onClose}>
                 Cancel
