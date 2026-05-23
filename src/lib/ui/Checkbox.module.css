@@ -13,6 +13,8 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
 }
 
@@ -20,6 +22,20 @@
 .checkbox[data-indeterminate] .box {
   background: var(--color-accent);
   border-color: var(--color-accent);
+}
+
+.checkbox[data-selected] .box::after {
+  content: "✓";
+  color: var(--color-accent-fg);
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.checkbox[data-indeterminate] .box::after {
+  content: "–";
+  color: var(--color-accent-fg);
+  font-size: 0.8rem;
+  line-height: 1;
 }
 
 .checkbox[data-disabled] {

@@ -113,6 +113,11 @@
   width: 100%;
 }
 
+.printButton[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .tip {
   font-size: var(--fs-sm);
   color: var(--color-text-muted);

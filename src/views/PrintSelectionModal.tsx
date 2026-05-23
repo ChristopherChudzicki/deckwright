@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from "react";
 import { Radio, RadioGroup } from "react-aria-components";
 import type { CardId, RenderableCard } from "../cards/types";
 import { type DeckKindFilter, type DeckSort, deckListing } from "../decks/deckListing";
+import { pluralize } from "../lib/pluralize";
 import { relativeTime } from "../lib/relativeTime";
 import { Button } from "../lib/ui/Button";
 import { Checkbox } from "../lib/ui/Checkbox";
@@ -15,8 +16,6 @@ type Props = {
   onApply: (next: Set<CardId>) => void;
   onClose: () => void;
 };
-
-const cardWord = (n: number) => (n === 1 ? "card" : "cards");
 
 export function PrintSelectionModal({ cards, initialSelection, onApply, onClose }: Props) {
   const [draft, setDraft] = useState<Set<CardId>>(() => new Set(initialSelection));
@@ -139,25 +138,29 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
           </div>
 
           <ul className={styles.list}>
-            {visible.map((c) => (
-              <li key={c.id} className={styles.row}>
-                <Checkbox isSelected={draft.has(c.id)} onChange={() => toggle(c.id)}>
-                  {c.name}
-                </Checkbox>
-                <span className={styles.rowKind} aria-hidden="true">
-                  {c.kind}
-                </span>
-                <time className={styles.rowTime} dateTime={c.updatedAt}>
-                  {relativeTime(c.updatedAt)}
-                </time>
-              </li>
-            ))}
+            {visible.length === 0 ? (
+              <li className={styles.emptyState}>No cards match.</li>
+            ) : (
+              visible.map((c) => (
+                <li key={c.id} className={styles.row}>
+                  <Checkbox isSelected={draft.has(c.id)} onChange={() => toggle(c.id)}>
+                    {c.name}
+                  </Checkbox>
+                  <span className={styles.rowKind} aria-hidden="true">
+                    {c.kind}
+                  </span>
+                  <time className={styles.rowTime} dateTime={c.updatedAt}>
+                    {relativeTime(c.updatedAt)}
+                  </time>
+                </li>
+              ))
+            )}
           </ul>
 
           <div className={styles.footer}>
             {hiddenSelectedCount > 0 && (
               <p className={styles.hiddenLine}>
-                {`${hiddenSelectedCount} selected ${cardWord(hiddenSelectedCount)} ${
+                {`${hiddenSelectedCount} selected ${hiddenSelectedCount === 1 ? "card" : "cards"} ${
                   hiddenSelectedCount === 1 ? "is" : "are"
                 } hidden by filters — still included when you Apply.`}{" "}
                 <button type="button" className={styles.clearFiltersLink} onClick={clearFilters}>
@@ -166,7 +169,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
               </p>
             )}
             <span className={styles.srOnly} aria-live="polite">
-              {`${total} ${cardWord(total)} selected`}
+              {`${pluralize(total, "card")} selected`}
             </span>
             <div className={styles.footerActions}>
               <Button variant="secondary" onPress={onClose}>
@@ -179,7 +182,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
                   onClose();
                 }}
               >
-                {`Apply (${total} ${cardWord(total)})`}
+                {`Apply (${pluralize(total, "card")})`}
               </Button>
             </div>
           </div>
