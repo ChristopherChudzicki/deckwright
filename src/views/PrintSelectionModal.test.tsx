@@ -129,10 +129,28 @@ describe("<PrintSelectionModal>", () => {
     expect(screen.getByRole("button", { name: "Apply (0 cards)" })).toBeInTheDocument();
   });
 
-  test("header shows 'X of Y shown' status", () => {
+  test("header shows 'X of Y shown' status, associated with the checkbox", () => {
     const cards = itemCardFactory.buildList(3);
     open(cards, allIds(cards));
     expect(screen.getByText("3 of 3 shown")).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: /select all shown cards/i }),
+    ).toHaveAccessibleDescription(/3 of 3 shown/);
+  });
+
+  test("the Kind filter defaults to All", () => {
+    const cards = itemCardFactory.buildList(2);
+    open(cards, allIds(cards));
+    expect(screen.getByRole("radio", { name: /^all/i })).toBeChecked();
+  });
+
+  test("shows an empty state when no cards match, hiding the Updated header", async () => {
+    const cards = itemCardFactory.buildList(3);
+    open(cards, allIds(cards));
+    await userEvent.type(screen.getByRole("searchbox", { name: /search cards/i }), "zzzzz");
+    expect(screen.getByText("No cards match.")).toBeInTheDocument();
+    expect(screen.getByText("0 of 0 shown")).toBeInTheDocument();
+    expect(screen.queryByText("Updated")).not.toBeInTheDocument();
   });
 
   test("Kind filter hides the other kind without unchecking it", async () => {

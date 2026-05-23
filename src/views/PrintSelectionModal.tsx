@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   Menu,
   MenuItem,
@@ -80,6 +80,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   };
 
   const total = draft.size;
+  const shownCountId = useId();
 
   return (
     <DialogShell
@@ -150,11 +151,12 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
           <div className={styles.bulkRow}>
             <Checkbox
               aria-label="Select all shown cards"
+              aria-describedby={shownCountId}
               isSelected={allVisibleChecked}
               isIndeterminate={headerIndeterminate}
               onChange={onHeaderToggle}
             />
-            <span className={styles.shownCount}>
+            <span id={shownCountId} className={styles.shownCount}>
               {visibleCheckedCount} of {visible.length} shown
             </span>
             {visible.length > 0 && (
