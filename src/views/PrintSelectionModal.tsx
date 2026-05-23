@@ -30,6 +30,24 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
     return q ? sorted.filter((c) => c.name.toLowerCase().includes(q)) : sorted;
   }, [cards, sort, search]);
 
+  const visibleIds = useMemo(() => visible.map((c) => c.id), [visible]);
+  const visibleCheckedCount = useMemo(
+    () => visibleIds.filter((id) => draft.has(id)).length,
+    [visibleIds, draft],
+  );
+  const allVisibleChecked = visible.length > 0 && visibleCheckedCount === visible.length;
+  const headerIndeterminate = !allVisibleChecked && visibleCheckedCount > 0;
+
+  const onHeaderToggle = () => {
+    const next = new Set(draft);
+    if (visibleCheckedCount > 0) {
+      for (const id of visibleIds) next.delete(id);
+    } else {
+      for (const id of visibleIds) next.add(id);
+    }
+    setDraft(next);
+  };
+
   const toggle = (id: CardId) => {
     const next = new Set(draft);
     if (next.has(id)) next.delete(id);
@@ -74,6 +92,18 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
                 <option value="name">Name A→Z</option>
               </select>
             </div>
+          </div>
+
+          <div className={styles.bulkRow}>
+            <Checkbox
+              aria-label="Select all shown cards"
+              isSelected={allVisibleChecked}
+              isIndeterminate={headerIndeterminate}
+              onChange={onHeaderToggle}
+            />
+            <span className={styles.shownCount}>
+              {visibleCheckedCount} of {visible.length} shown
+            </span>
           </div>
 
           <ul className={styles.list}>

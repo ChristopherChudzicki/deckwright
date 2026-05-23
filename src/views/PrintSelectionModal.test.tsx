@@ -82,4 +82,49 @@ describe("<PrintSelectionModal>", () => {
     expect(screen.getByRole("checkbox", { name: "Cloak" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Bless" })).toBeInTheDocument();
   });
+
+  test("header checkbox clears all visible when all are checked", async () => {
+    const cards = itemCardFactory.buildList(3);
+    open(cards, allIds(cards));
+    const header = screen.getByRole("checkbox", { name: /select all shown cards/i });
+    expect(header).toBeChecked();
+    await userEvent.click(header);
+    expect(screen.getByRole("button", { name: "Apply (0 cards)" })).toBeInTheDocument();
+  });
+
+  test("header checkbox selects all visible when none are checked", async () => {
+    const cards = itemCardFactory.buildList(3);
+    open(cards, new Set()); // start empty
+    const header = screen.getByRole("checkbox", { name: /select all shown cards/i });
+    expect(header).not.toBeChecked();
+    await userEvent.click(header);
+    expect(screen.getByRole("button", { name: "Apply (3 cards)" })).toBeInTheDocument();
+  });
+
+  test("header checkbox is indeterminate (mixed) when some visible are checked", async () => {
+    const cards = itemCardFactory.buildList(3);
+    open(cards, allIds(cards));
+    const [first] = cards;
+    if (!first) throw new Error("expected a card");
+    await userEvent.click(screen.getByRole("checkbox", { name: first.name }));
+    const header = screen.getByRole("checkbox", { name: /select all shown cards/i });
+    expect(header).toBePartiallyChecked();
+  });
+
+  test("clicking an indeterminate header clears all visible", async () => {
+    const cards = itemCardFactory.buildList(3);
+    open(cards, allIds(cards));
+    const [first] = cards;
+    if (!first) throw new Error("expected a card");
+    await userEvent.click(screen.getByRole("checkbox", { name: first.name })); // now 2 of 3
+    const header = screen.getByRole("checkbox", { name: /select all shown cards/i });
+    await userEvent.click(header);
+    expect(screen.getByRole("button", { name: "Apply (0 cards)" })).toBeInTheDocument();
+  });
+
+  test("header shows 'X of Y shown' status", () => {
+    const cards = itemCardFactory.buildList(3);
+    open(cards, allIds(cards));
+    expect(screen.getByText("3 of 3 shown")).toBeInTheDocument();
+  });
 });
