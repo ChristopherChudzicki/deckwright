@@ -38,6 +38,8 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   const allVisibleChecked = visible.length > 0 && visibleCheckedCount === visible.length;
   const headerIndeterminate = !allVisibleChecked && visibleCheckedCount > 0;
 
+  // Intentionally ignores RAC's onChange boolean: RAC passes `true` when clicked
+  // from the indeterminate state, but the rule is always "any visible checked → clear".
   const onHeaderToggle = () => {
     const next = new Set(draft);
     if (visibleCheckedCount > 0) {
