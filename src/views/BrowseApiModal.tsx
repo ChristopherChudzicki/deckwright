@@ -1,16 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Menu,
-  MenuItem,
-  MenuTrigger,
-  Popover,
-  Button as RACButton,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-  TextField,
-} from "react-aria-components";
+import { Tab, TabList, TabPanel, Tabs, TextField } from "react-aria-components";
 import { CONTENT_TYPES, type ContentType } from "../api/content-types";
 import type { Ruleset } from "../api/endpoints/magicItems";
 import type { Card } from "../cards/types";
@@ -21,6 +10,7 @@ import { DialogShell } from "../lib/ui/DialogShell";
 import { Input } from "../lib/ui/Input";
 import { Link } from "../lib/ui/Link";
 import { LoadingState } from "../lib/ui/LoadingState";
+import { Select } from "../lib/ui/Select";
 import styles from "./BrowseApiModal.module.css";
 
 type Props = {
@@ -155,43 +145,24 @@ function SourceMenu({
   onChange: (next: Ruleset) => void;
 }) {
   return (
-    <MenuTrigger>
-      <RACButton aria-label={`Source: SRD ${source}`} className={styles.menuTrigger}>
-        Source: {source} <span aria-hidden="true">▾</span>
-      </RACButton>
-      <Popover className={styles.menuPopover} placement="bottom end">
-        <Menu className={styles.menu} onAction={(key) => onChange(String(key) as Ruleset)}>
-          {options.map((opt) => (
-            <MenuItem key={opt} id={opt} className={styles.menuItem}>
-              {opt}
-            </MenuItem>
-          ))}
-        </Menu>
-      </Popover>
-    </MenuTrigger>
+    <Select
+      label="Source"
+      selectedKey={source}
+      onSelectionChange={(key) => onChange(key as Ruleset)}
+      items={options.map((opt) => ({ id: opt, label: opt }))}
+    />
   );
 }
 
 function TypeMenu({ activeId, onChange }: { activeId: string; onChange: (next: string) => void }) {
-  const active = CONTENT_TYPES.find((t) => t.id === activeId) ?? CONTENT_TYPES[0];
   return (
-    <MenuTrigger>
-      <RACButton
-        aria-label={`Type: ${active.label}`}
-        className={`${styles.menuTrigger} ${styles.typeMenuTrigger}`}
-      >
-        Type: {active.label} <span aria-hidden="true">▾</span>
-      </RACButton>
-      <Popover className={styles.menuPopover} placement="bottom end">
-        <Menu className={styles.menu} onAction={(key) => onChange(String(key))}>
-          {CONTENT_TYPES.map((t) => (
-            <MenuItem key={t.id} id={t.id} className={styles.menuItem}>
-              {t.label}
-            </MenuItem>
-          ))}
-        </Menu>
-      </Popover>
-    </MenuTrigger>
+    <Select
+      label="Type"
+      selectedKey={activeId}
+      onSelectionChange={onChange}
+      triggerClassName={styles.typeMenuTrigger}
+      items={CONTENT_TYPES.map((t) => ({ id: t.id, label: t.label }))}
+    />
   );
 }
 
