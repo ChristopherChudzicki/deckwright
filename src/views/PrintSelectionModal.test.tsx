@@ -74,6 +74,13 @@ describe("<PrintSelectionModal>", () => {
     expect(screen.getByRole("button", { name: "Apply (2 cards)" })).toBeInTheDocument();
   });
 
+  test("each timestamp is labelled 'Updated' for screen readers", () => {
+    const card = itemCardFactory.build({ name: "Cloak", updatedAt: "2026-05-23T11:00:00Z" });
+    open([card], allIds([card]));
+    const time = document.querySelector("time");
+    expect(time).toHaveTextContent(/^Updated /);
+  });
+
   test("a spell and an item both appear when present", () => {
     const item = itemCardFactory.build({ name: "Cloak" });
     const spell = spellCardFactory.build({ name: "Bless" });

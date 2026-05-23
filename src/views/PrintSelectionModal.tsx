@@ -157,7 +157,11 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
             <span className={styles.shownCount}>
               {visibleCheckedCount} of {visible.length} shown
             </span>
-            {visible.length > 0 && <span className={styles.colHeader}>Updated</span>}
+            {visible.length > 0 && (
+              <span className={styles.colHeader} aria-hidden="true">
+                Updated
+              </span>
+            )}
           </div>
 
           <ul className={styles.list}>
@@ -173,6 +177,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
                     {c.kind}
                   </span>
                   <time className={styles.rowTime} dateTime={c.updatedAt}>
+                    <span className={styles.srOnly}>{"Updated "}</span>
                     {relativeTime(c.updatedAt)}
                   </time>
                 </li>
