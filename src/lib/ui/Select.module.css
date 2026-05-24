@@ -24,6 +24,12 @@
   outline-offset: 2px;
 }
 
+.caret {
+  display: inline-flex;
+  margin-left: var(--space-1);
+  vertical-align: middle;
+}
+
 .popover {
   background: var(--color-surface);
   border: 1px solid var(--color-border);

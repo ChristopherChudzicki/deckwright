@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from "react-aria-components";
 import { cx } from "../cx";
+import { ChevronDownIcon } from "./icons/ChevronDownIcon";
 import styles from "./Select.module.css";
 
 // label is `string` (not ReactNode): all call sites pass strings, SelectValue renders a
@@ -41,7 +42,9 @@ export function Select({
       <RACButton className={cx(styles.trigger, triggerClassName)}>
         <span aria-hidden="true">{label}: </span>
         <SelectValue />
-        <span aria-hidden="true"> ▾</span>
+        <span className={styles.caret} aria-hidden="true">
+          <ChevronDownIcon />
+        </span>
       </RACButton>
       <Popover className={styles.popover} placement="bottom end">
         <ListBox className={styles.listbox} items={items}>
