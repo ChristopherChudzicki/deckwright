@@ -74,6 +74,38 @@ describe("anonImport storage", () => {
     expect(window.localStorage.getItem("dndCards.pendingAnonImport")).toBeNull();
     expect(readPending()).toEqual(payload);
   });
+
+  it("returns null on a v2 payload with a non-array anonDeckIds", () => {
+    window.localStorage.setItem(
+      "deckwright.pendingAnonImport",
+      JSON.stringify({ version: 2, anonDeckIds: "nope", importedDeckIds: [] }),
+    );
+    expect(readPending()).toBeNull();
+  });
+
+  it("returns null on a v2 payload missing importedDeckIds", () => {
+    window.localStorage.setItem(
+      "deckwright.pendingAnonImport",
+      JSON.stringify({ version: 2, anonDeckIds: [] }),
+    );
+    expect(readPending()).toBeNull();
+  });
+
+  it("returns null on a v2 payload with non-string array elements", () => {
+    window.localStorage.setItem(
+      "deckwright.pendingAnonImport",
+      JSON.stringify({ version: 2, anonDeckIds: [1, 2], importedDeckIds: [] }),
+    );
+    expect(readPending()).toBeNull();
+  });
+
+  it("validates a v2 payload with unknown extra keys, stripping them", () => {
+    window.localStorage.setItem(
+      "deckwright.pendingAnonImport",
+      JSON.stringify({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [], junk: "x" }),
+    );
+    expect(readPending()).toEqual({ version: 2, anonDeckIds: ["d1"], importedDeckIds: [] });
+  });
 });
 
 type FakeSupabase = {

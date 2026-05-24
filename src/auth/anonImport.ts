@@ -1,14 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import type { Database } from "../api/database.types";
 
 const STORAGE_KEY = "deckwright.pendingAnonImport";
 const LEGACY_STORAGE_KEY = "dndCards.pendingAnonImport";
 
-export type PendingAnonImport = {
-  version: 2;
-  anonDeckIds: string[];
-  importedDeckIds: string[];
-};
+const pendingAnonImportSchema = z.object({
+  version: z.literal(2),
+  anonDeckIds: z.array(z.string()),
+  importedDeckIds: z.array(z.string()),
+});
+
+export type PendingAnonImport = z.infer<typeof pendingAnonImportSchema>;
 
 export function stash(payload: PendingAnonImport): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -24,13 +27,14 @@ export function readPending(): PendingAnonImport | null {
   const raw =
     window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY);
   if (!raw) return null;
+  let json: unknown;
   try {
-    const parsed = JSON.parse(raw) as { version?: number };
-    if (parsed.version !== 2) return null;
-    return parsed as PendingAnonImport;
+    json = JSON.parse(raw);
   } catch {
     return null;
   }
+  const result = pendingAnonImportSchema.safeParse(json);
+  return result.success ? result.data : null;
 }
 
 export type ResumeResult =
