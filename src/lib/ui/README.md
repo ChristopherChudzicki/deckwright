@@ -23,7 +23,8 @@ Thin wrappers around `react-aria-components` (and a couple of native elements) t
 | `EmptyHero` | A centered hero block for page-level empty states: title + optional description + actions. Inline "no rows yet" notes can stay as plain `<p>` — reach for this when the empty state replaces a whole view. |
 | `IconPickerDialog` | The game-icons picker (used by the card editor). |
 | `IconPreview` | A static icon render. |
-| `UserMenu` | The signed-in user dropdown. |
+| `Select` | A value-select dropdown: a trigger showing "Label: value ▾" that opens a listbox of options (the current one marked selected). Pass `label`, `items` (`{id,label}[]`), `selectedKey`, `onSelectionChange`. Use for sort/filter/source pickers. For a command menu (actions, not a value), see `UserMenu`. |
+| `UserMenu` | The signed-in user dropdown. A command menu (single sign-out action), not a value-select — see `Select` for value pickers. |
 
 ## Wrapper pattern
 
