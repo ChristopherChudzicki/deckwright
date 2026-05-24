@@ -32,6 +32,7 @@ Each primitive follows the same shape. `Button.tsx` is the canonical reference:
 
 ```tsx
 import { Button as RACButton, type ButtonProps as RACButtonProps } from "react-aria-components";
+import { cx } from "../cx";
 import styles from "./Button.module.css";
 
 export type ButtonProps = Omit<RACButtonProps, "className"> & {
@@ -39,16 +40,11 @@ export type ButtonProps = Omit<RACButtonProps, "className"> & {
 };
 
 export function Button({ className, ...rest }: ButtonProps) {
-  return (
-    <RACButton
-      {...rest}
-      className={[styles.btn, className].filter(Boolean).join(" ")}
-    />
-  );
+  return <RACButton {...rest} className={cx(styles.btn, className)} />;
 }
 ```
 
-**Why `Omit<..., "className">` then re-add `className?: string`:** RAC's `className` is `string | ((values) => string)` — it supports a render-function form for state-based classes. Our merge logic (`[styles.x, className].filter(Boolean).join(" ")`) assumes a string. Stripping RAC's wider type and re-adding the narrower one prevents callers from passing a function and silently producing garbage class names.
+**Why `Omit<..., "className">` then re-add `className?: string`:** RAC's `className` is `string | ((values) => string)` — it supports a render-function form for state-based classes. Our merge logic (`cx(styles.x, className)`) assumes a string. Stripping RAC's wider type and re-adding the narrower one prevents callers from passing a function and silently producing garbage class names.
 
 ## Tokens
 

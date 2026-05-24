@@ -1,4 +1,5 @@
 import { Input as RACInput, type InputProps as RACInputProps } from "react-aria-components";
+import { cx } from "../cx";
 import styles from "./Input.module.css";
 
 export type InputProps = Omit<RACInputProps, "className"> & {
@@ -6,5 +7,5 @@ export type InputProps = Omit<RACInputProps, "className"> & {
 };
 
 export function Input({ className, ...rest }: InputProps) {
-  return <RACInput {...rest} className={[styles.input, className].filter(Boolean).join(" ")} />;
+  return <RACInput {...rest} className={cx(styles.input, className)} />;
 }

@@ -1,4 +1,5 @@
 import { Button as RACButton, type ButtonProps as RACButtonProps } from "react-aria-components";
+import { cx } from "../cx";
 import styles from "./Button.module.css";
 
 export type ButtonVariant = "primary" | "secondary" | "danger";
@@ -16,7 +17,7 @@ export function Button({ variant = "secondary", size = "md", className, ...rest 
       {...rest}
       data-variant={variant}
       data-size={size}
-      className={[styles.btn, className].filter(Boolean).join(" ")}
+      className={cx(styles.btn, className)}
     />
   );
 }
