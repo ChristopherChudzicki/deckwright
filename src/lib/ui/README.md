@@ -23,7 +23,8 @@ Thin wrappers around `react-aria-components` (and a couple of native elements) t
 | `EmptyHero` | A centered hero block for page-level empty states: title + optional description + actions. Inline "no rows yet" notes can stay as plain `<p>` — reach for this when the empty state replaces a whole view. |
 | `IconPickerDialog` | The game-icons picker (used by the card editor). |
 | `IconPreview` | A static icon render. |
-| `UserMenu` | The signed-in user dropdown. |
+| `Select` | A value-select dropdown: a trigger showing "Label: value ▾" that opens a listbox of options (the current one marked selected). Pass `label`, `items` (`{id,label}[]`), `selectedKey`, `onSelectionChange`. Use for sort/filter/source pickers. For a command menu (actions, not a value), see `UserMenu`. |
+| `UserMenu` | The signed-in user dropdown. A command menu (single sign-out action), not a value-select — see `Select` for value pickers. |
 
 ## Wrapper pattern
 
@@ -31,6 +32,7 @@ Each primitive follows the same shape. `Button.tsx` is the canonical reference:
 
 ```tsx
 import { Button as RACButton, type ButtonProps as RACButtonProps } from "react-aria-components";
+import { cx } from "../cx";
 import styles from "./Button.module.css";
 
 export type ButtonProps = Omit<RACButtonProps, "className"> & {
@@ -38,16 +40,11 @@ export type ButtonProps = Omit<RACButtonProps, "className"> & {
 };
 
 export function Button({ className, ...rest }: ButtonProps) {
-  return (
-    <RACButton
-      {...rest}
-      className={[styles.btn, className].filter(Boolean).join(" ")}
-    />
-  );
+  return <RACButton {...rest} className={cx(styles.btn, className)} />;
 }
 ```
 
-**Why `Omit<..., "className">` then re-add `className?: string`:** RAC's `className` is `string | ((values) => string)` — it supports a render-function form for state-based classes. Our merge logic (`[styles.x, className].filter(Boolean).join(" ")`) assumes a string. Stripping RAC's wider type and re-adding the narrower one prevents callers from passing a function and silently producing garbage class names.
+**Why `Omit<..., "className">` then re-add `className?: string`:** RAC's `className` is `string | ((values) => string)` — it supports a render-function form for state-based classes. Our merge logic (`cx(styles.x, className)`) assumes a string. Stripping RAC's wider type and re-adding the narrower one prevents callers from passing a function and silently producing garbage class names.
 
 ## Tokens
 

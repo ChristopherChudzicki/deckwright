@@ -3,6 +3,7 @@ import {
   Checkbox as RACCheckbox,
   type CheckboxProps as RACCheckboxProps,
 } from "react-aria-components";
+import { cx } from "../cx";
 import styles from "./Checkbox.module.css";
 
 export type CheckboxProps = Omit<RACCheckboxProps, "className" | "children"> & {
@@ -12,7 +13,7 @@ export type CheckboxProps = Omit<RACCheckboxProps, "className" | "children"> & {
 
 export function Checkbox({ className, children, ...rest }: CheckboxProps) {
   return (
-    <RACCheckbox {...rest} className={[styles.checkbox, className].filter(Boolean).join(" ")}>
+    <RACCheckbox {...rest} className={cx(styles.checkbox, className)}>
       <span className={styles.box} aria-hidden="true" />
       {children}
     </RACCheckbox>

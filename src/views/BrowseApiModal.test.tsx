@@ -44,7 +44,7 @@ const wrap = (ui: ReactNode, client: QueryClient) =>
   render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 
 const openSourceMenu = async () => {
-  await userEvent.click(screen.getByRole("button", { name: /^Source:/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Source/ }));
 };
 
 describe("<BrowseApiModal>", () => {
@@ -224,7 +224,7 @@ describe("<BrowseApiModal>", () => {
 
     await screen.findByRole("button", { name: /Ring A/ });
     await openSourceMenu();
-    await userEvent.click(screen.getByRole("menuitem", { name: "2014" }));
+    await userEvent.click(screen.getByRole("option", { name: "2014" }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: /Ring Z/ })).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: /Ring A/ })).not.toBeInTheDocument();
@@ -244,7 +244,7 @@ describe("<BrowseApiModal>", () => {
 
     await screen.findByRole("button", { name: /Hempen Rope/ });
     await openSourceMenu();
-    await userEvent.click(screen.getByRole("menuitem", { name: "2014" }));
+    await userEvent.click(screen.getByRole("option", { name: "2014" }));
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Silken Rope/ })).toBeInTheDocument(),
@@ -498,8 +498,9 @@ describe("<BrowseApiModal>", () => {
     const client = makeClient({ items: { "2024": { count: 0, results: [] } } });
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
+    expect(screen.getByRole("button", { name: /Source/ })).toHaveTextContent(/2024/);
     await openSourceMenu();
-    const items = screen.getAllByRole("menuitem");
+    const items = screen.getAllByRole("option");
     expect(items.map((el) => el.textContent)).toEqual(["2024", "2014"]);
   });
 

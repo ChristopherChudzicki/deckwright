@@ -226,8 +226,10 @@ describe("<PrintSelectionModal>", () => {
     let rows = screen.getAllByRole("checkbox", { name: /Alpha|Bravo/ });
     expect(rows[0]).toHaveAccessibleName("Bravo");
     expect(rows[1]).toHaveAccessibleName("Alpha");
-    await userEvent.click(screen.getByRole("button", { name: /sort/i }));
-    await userEvent.click(screen.getByRole("menuitem", { name: /name/i }));
+    const sortTrigger = screen.getByRole("button", { name: /sort/i });
+    expect(sortTrigger).toHaveTextContent(/recently edited/i);
+    await userEvent.click(sortTrigger);
+    await userEvent.click(screen.getByRole("option", { name: /name/i }));
     rows = screen.getAllByRole("checkbox", { name: /Alpha|Bravo/ });
     expect(rows[0]).toHaveAccessibleName("Alpha");
     expect(rows[1]).toHaveAccessibleName("Bravo");

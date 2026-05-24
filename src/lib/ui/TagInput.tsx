@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { cx } from "../cx";
 import styles from "./TagInput.module.css";
 import { type Action, initialState, type State, tagInputReducer } from "./TagInput.reducer";
 
@@ -192,7 +193,7 @@ export function TagInput({
     // biome-ignore lint/a11y/useSemanticElements: <fieldset> would impose default form styling; the widget is not a form group
     <div
       ref={wrapperRef}
-      className={[styles.wrapper, className].filter(Boolean).join(" ")}
+      className={cx(styles.wrapper, className)}
       role="group"
       aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? "Tags")}
       aria-labelledby={ariaLabelledBy}

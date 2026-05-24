@@ -164,7 +164,7 @@ describe("DeckView toolbar", () => {
     setupDeck();
     render(wrap(<DeckView deckId="d" />));
     expect(await screen.findByRole("radio", { name: "All (3)" })).toBeChecked();
-    expect(screen.getByRole("button", { name: /sort.*last updated/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sort/i })).toHaveTextContent(/last updated/i);
   });
 
   it("default render sorts by updatedAt descending", async () => {
@@ -207,7 +207,7 @@ describe("DeckView toolbar", () => {
     setupDeck({ is_owner: false });
     render(wrap(<DeckView deckId="d" />));
     expect(await screen.findByRole("radio", { name: "All (3)" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /sort.*last updated/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sort/i })).toHaveTextContent(/last updated/i);
   });
 
   it("clicking Items navigates with kind=item, leaving other search keys untouched", async () => {
@@ -244,8 +244,8 @@ describe("DeckView toolbar", () => {
   it("selecting Name from sort menu navigates with sort=name", async () => {
     setupDeck();
     render(wrap(<DeckView deckId="d" />));
-    await userEvent.click(await screen.findByRole("button", { name: /sort.*last updated/i }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Name" }));
+    await userEvent.click(await screen.findByRole("button", { name: /sort/i }));
+    await userEvent.click(await screen.findByRole("option", { name: "Name" }));
     expect(navigate).toHaveBeenCalledWith({
       from: "/deck/$deckId",
       search: expect.any(Function),
@@ -261,8 +261,10 @@ describe("DeckView toolbar", () => {
     setupDeck();
     useSearchMock.mockReturnValue({ sort: "name" });
     render(wrap(<DeckView deckId="d" />));
-    await userEvent.click(await screen.findByRole("button", { name: /sort.*name/i }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Last updated" }));
+    const sortTrigger = await screen.findByRole("button", { name: /sort/i });
+    expect(sortTrigger).toHaveTextContent(/name/i);
+    await userEvent.click(sortTrigger);
+    await userEvent.click(await screen.findByRole("option", { name: "Last updated" }));
     expect(navigate).toHaveBeenCalledWith({
       from: "/deck/$deckId",
       search: expect.any(Function),
