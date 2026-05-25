@@ -7,24 +7,24 @@ The "Choose cards to print" modal (`PrintSelectionModal`, shipped in
 Selecting a subset means toggling cards one at a time, or hitting the
 header "select all shown" and then unchecking the ones you don't want.
 
-For the common goal — grab a contiguous run of recently-edited cards
+For the common goal — keep a contiguous run of recently-edited cards
 ("everything I've touched since last week"), which the default recency
-sort already floats to the top of the list — there's no fast gesture.
-Narrowing a 20-card deck to its 12 newest is 12 clicks (or 8 unchecks
-after select-all). Every other list-selection UI the user reaches for
-(Google Drive, Gmail, the macOS Finder) lets them click one item and
-Shift-click another to take the whole range in two clicks.
+sort already floats to the top of the list — the work is **linear in
+the number of cards toggled**. Narrowing a 20-card deck to its 12 newest
+is 8 unchecks; a 50-card deck to its 30 newest is 20. Every other
+list-selection UI the user reaches for (Google Drive, Gmail, the macOS
+Finder) makes a contiguous range a **constant** two-or-three-gesture
+operation regardless of run length.
 
 ## Goals
 
-- **One-gesture range select.** Click the first card, Shift-click the
-  last → every card between them (inclusive) is selected. The Drive /
-  Gmail / file-manager convention.
+- **Range select in a constant number of gestures.** Click the first
+  card, Shift-click the last → the whole inclusive range is selected, no
+  matter how long. The Drive / Gmail / file-manager convention.
 - **Keyboard parity, not a lesser path.** Keyboard-only users get the
-  *same* range power: arrow to a card (moves focus only), Space to
-  toggle, **Shift+↑/↓ to extend a range** (and Cmd/Ctrl+Shift+Home/End
-  to extend to an end), Cmd/Ctrl+A to select all shown, type-ahead to
-  jump by name.
+  *same* power: arrow to a card (moves focus only), Space to toggle,
+  **Shift+↑/↓ to extend a range** (Cmd/Ctrl+Shift+Home/End to extend to
+  an end), Cmd/Ctrl+A to select all shown, type-ahead to jump by name.
 - **Additive single toggle.** Cmd/Ctrl-click toggles one card without
   disturbing the rest — like Drive's checkbox column.
 - **Everything else is preserved exactly.** Name search, the kind
@@ -36,345 +36,379 @@ Shift-click another to take the whole range in two clicks.
 - **No regression to print output.** The pipeline downstream of the
   modal still receives the same `Set<CardId>`.
 
+Note on what range-select does *not* do: RAC's Shift-extend is
+**additive only** — it selects the anchor→target range, it never
+*deselects* a range (verified in source, see Approach). So from the
+default all-selected state, "drop the oldest tail" is done by
+clear-then-select, not by Shift-deselecting the tail. The walkthrough
+below reflects this.
+
 ## Non-goals
 
-- **No discoverability affordance, for this iteration.** No "Tip:
-  Shift-click to select a range" hint or coachmark. Per decision, the
-  affordance relies on convention. (Review flagged a one-line static
-  hint as near-zero-cost and worth reconsidering, since this is a
-  rare-use tool with no analytics to detect a missed gesture — recorded
-  as a fast follow, not built here.)
-- **No recency/date *filter*.** ("Edited this week / since a date.")
-  The existing recency *sort* already surfaces recent cards at the top
-  and is preserved; a date filter is a possible future follow-up, out
-  of scope here. Considered and deferred so this change stays a pure
-  interaction-layer upgrade.
+- **Discoverability affordance — pending one decision (see Risks).** The
+  default position is to rely on convention with no hint. Review raised a
+  stronger case than "undiscovered new feature": the Tab model changes
+  (see Accessibility), which is a mild *regression* for existing
+  keyboard users, and a single static line ("Use arrow keys to move,
+  Space to select, Shift to extend") would mitigate both the regression
+  and discoverability at near-zero cost. Flagged for the owner; built
+  only if chosen.
+- **No recency/date *filter*.** ("Edited this week / since a date.") The
+  existing recency *sort* already surfaces recent cards at the top and is
+  preserved; a date filter is a possible future follow-up, out of scope.
 - **No "true Finder" destructive plain-click.** A plain click or Space
-  toggles a card; it never clears the rest of the selection. The
-  checked set *is* the print output, so a click that wipes the prior
-  selection would be a footgun. (This is why Finder's model was rejected
-  in favour of Drive's checkbox-column model.)
-- **No changes to filters/search/sort logic, the sidebar,
+  toggles a card; it never clears the rest. The checked set *is* the
+  print output, so a click that wipes the prior selection would be a
+  footgun. (This is why Finder's replace-on-click model was rejected for
+  Drive's checkbox-column model.)
+- **No changes to filter/search/sort logic, the sidebar,
   `usePrintSelection`, the print pipeline, page layout, or the `Card`
-  component.** Only how the list renders and how selection is driven
-  changes.
+  component.**
+
+Scope note: this is *not* a "pure interaction-layer" tweak — be honest
+about the surface. It is a contained rewrite of the modal's card list
+(`<ul>` + per-row `Checkbox` → RAC `ListBox`/`ListBoxItem` with a
+decorative selection glyph), one new pure helper, a CSS migration of the
+row layout onto options, and a **partly non-mechanical** test migration
+(see Tests). The print pipeline, sidebar, and hook are genuinely
+untouched; the modal's list is genuinely rewritten.
 
 ## Approach
 
 Replace the hand-rolled `<ul>` of name-labelled `lib/ui/Checkbox` rows
 with a `react-aria-components` **`ListBox`** in `selectionMode="multiple"`,
 `selectionBehavior="toggle"`. RAC's selection manager then provides the
-entire Drive-style interaction model — for both pointer and keyboard —
-conforming to the WAI-ARIA listbox pattern, with roving focus, the
-selection anchor, and `aria-selected` announcements handled by the
-library:
+entire Drive-style model — pointer and keyboard — conforming to the
+WAI-ARIA listbox pattern, with roving focus, the selection anchor, and
+`aria-selected` handled by the library:
 
-- **Pointer:** click toggles a card; Shift-click selects the range from
-  the anchor to the clicked card; Cmd/Ctrl-click toggles a single card.
+- **Pointer:** click toggles a card; Shift-click selects the additive
+  range from the anchor to the clicked card; Cmd/Ctrl-click toggles a
+  single card.
 - **Keyboard:** ↑/↓ move focus *without* changing selection
-  (`selectOnFocus` is `false` under `toggle` behavior); Space toggles
-  the focused card; Shift+↑/↓ extend a contiguous range; Cmd/Ctrl+A
-  selects all shown; type-ahead jumps by card name.
+  (`selectOnFocus` is `false` under `toggle`); Space toggles; Shift+↑/↓
+  extend the additive range; Cmd/Ctrl+A selects all shown; type-ahead
+  jumps by name.
+
+### Selection semantics are additive (verified)
+
+`react-stately`'s `SelectionManager.extendSelection`
+(`SelectionManager.mjs:127-148`) trims the *previous* extension range
+then `.add()`s the anchor→target range; it never toggles-off based on
+state. Both Shift-click and Shift+Arrow route through it
+(`useSelectableItem.mjs`). The anchor moves only on a toggle-*on*
+(`toggleSelection` sets `anchorKey` when adding, not when removing). So
+Shift always *selects* a range. This is determined fact, not a spike
+question.
+
+**Drivability is proven.** A throwaway spike (a 4-option multi-select
+`toggle` ListBox in this exact jsdom + `react-aria-components@1.17.0` +
+`@testing-library/user-event` stack) confirmed that Shift-click range,
+Cmd/Ctrl-click toggle, and Shift+ArrowDown keyboard extend all update
+`aria-selected` as expected — driven with modifier-held `user.keyboard`
+around `user.click`. So the interaction tests below are writable
+directly in jsdom: **no `@react-aria/test-utils` dependency and no
+browser/e2e harness are required.** (See Validation.)
 
 ### Why `ListBox`, not `GridList`
 
-These rows are a single column of selectable items with **no
-interactive children** — just name, kind, and a timestamp, all text.
-That is the textbook `role="listbox"` / `role="option"` case. `GridList`
-(`role="grid"`/`row`/`gridcell`) is for rows that contain focusable
-controls reachable by arrow/tab navigation — which is why the icon
-picker (`IconPickerDialog`, genuinely 2-D) correctly uses it, and why
-this list should not. Verified against the installed
-`react-aria-components@1.17.0` source, `ListBox` gives us, equivalently
-to GridList: `selectionMode="multiple"` + `selectionBehavior="toggle"`,
-Shift+Arrow range extension, Cmd/Ctrl+A, Shift-click / Cmd-click,
-type-ahead, and the same `escapeKeyBehavior` prop. ListBox is the better
-fit for three concrete reasons:
+These rows are a single column of selectable items with **no interactive
+children** — name, kind, timestamp, all text. That is the textbook
+`role="listbox"`/`option` case. `GridList` (`role="grid"`/`row`/
+`gridcell`) is for rows containing focusable controls reachable by
+arrow/tab navigation — which is why the icon picker (`IconPickerDialog`,
+genuinely 2-D) correctly uses it and this list should not. Verified
+against the installed 1.17.0 source, `ListBox` matches `GridList` on
+`selectionMode="multiple"` + `selectionBehavior="toggle"`, Shift+Arrow,
+Cmd/Ctrl+A, Shift-/Cmd-click, type-ahead, and `escapeKeyBehavior`, and
+is the better fit for three reasons:
 
 1. **No double-announcement.** `GridList` ships its own selection
    `LiveAnnouncer` (`useGridSelectionAnnouncement`) that speaks on every
-   in-grid selection change. `ListBox` ships **none** — selection is
-   conveyed purely via `aria-selected`. So the modal's existing single
-   polite "N cards selected" region stays the *sole* announcer; with
-   GridList it would double-speak.
+   in-grid change. `ListBox` ships **none** (verified) — selection is
+   conveyed via `aria-selected` and roving focus. So the modal's single
+   existing polite region stays the sole *total* announcer; with GridList
+   it would double-speak.
 2. **Cleaner SR semantics** — a list of options announces as a list, not
    a one-column table.
-3. **No anti-pattern.** A real focusable checkbox is invalid inside
-   `role="option"` (RAC enforces "checkboxes are not allowed inside a
-   listbox"), so the per-row checkbox becomes a **decorative,
-   `aria-hidden` visual** driven by the option's `isSelected` render
-   prop — selection state is carried by `aria-selected`, the glyph is
-   presentation only. (In a GridList it would be a real
-   `<Checkbox slot="selection">`; we don't want that here.)
-
-The cost is a refactor of one component plus a selector migration in its
-tests (`checkbox`→`option`); see Tests.
+3. **No anti-pattern.** A focusable checkbox inside `role="option"` is
+   invalid ARIA. (RAC documents this as a convention — a source comment
+   in `useListBox.mjs`, *not* a runtime guard — so don't expect a thrown
+   error.) The per-row checkbox therefore becomes a **decorative,
+   `aria-hidden` glyph** driven by the option's `isSelected` render prop;
+   selection state lives on `aria-selected`, the glyph is presentation.
 
 ### Escape must close the dialog, not clear selection
 
 RAC's selection layer defaults `escapeKeyBehavior="clearSelection"` —
-pressing Escape inside the list would clear the selection (when
-non-empty) instead of bubbling up to close the modal. The modal's
-contract is "Escape = Cancel = close, discarding the draft". So the
-`ListBox` sets **`escapeKeyBehavior="none"`** so Escape propagates to the
-Dialog. Confirmed present on `ListBox` in 1.17.0. Gets its own test.
+Escape inside the list would clear a non-empty selection instead of
+closing the modal. The contract is "Escape = Cancel = close, discarding
+the draft", so the `ListBox` sets **`escapeKeyBehavior="none"`** to let
+Escape propagate to the Dialog. (The prop is inherited via
+`AriaListBoxProps`; it is not declared on RAC's own `ListBoxProps`
+typedoc, so a reader checking that list won't find it — it's real.)
+Gets its own test.
 
 ### Source of truth and the filter/search interaction
 
-`draft: Set<CardId>` remains the single source of truth for what will
-print — unchanged. The `ListBox` is a *controlled selection view over
-only the visible (post-filter, post-search) cards*:
+`draft: Set<CardId>` remains the single source of truth — unchanged. The
+`ListBox` is a *controlled selection view over only the visible
+(post-filter, post-search) cards*:
 
-- `selectedKeys` = the visible cards that are in `draft`, `useMemo`'d
-  over `[draft, visibleIds]`.
-- `onSelectionChange(keys)` merges the new visible selection back with
-  the selected-but-hidden cards. This logic is extracted into a **pure,
-  unit-tested helper** rather than living inline:
+- `selectedKeys` = the visible cards in `draft`, `useMemo`'d over
+  `[draft, visibleIds]`.
+- `onSelectionChange(keys)` merges back via a **pure, unit-tested
+  helper** rather than inline logic:
 
   ```ts
   // printSelectionMerge.ts — colocated with printSelectionLabel.ts
   mergeVisibleSelection(
     draft: Set<CardId>,
     visibleIds: CardId[],
-    keys: Selection,        // RAC: "all" | Set<Key>
+    keys: Selection,        // RAC: "all" | Set<Key>  (Key = string | number)
   ): Set<CardId>
   ```
 
-  - `hidden` = `draft` minus `visibleIds` (cards selected but filtered
-    out),
+  - `hidden` = `draft` minus `visibleIds`.
   - `keys === "all"` (the Cmd/Ctrl+A sentinel) resolves to all
-    `visibleIds` — and *only* visible ids, because the ListBox's
-    collection is fed only the visible cards, so RAC's `"all"` can only
-    mean "all visible",
-  - `next = hidden ∪ resolvedVisibleSelection`.
+    `visibleIds` — and only those, because the ListBox collection is fed
+    only the visible cards.
+  - otherwise `resolvedVisible = visibleIds.filter(id => keys.has(id))`
+    — an **intersection**, not a cast. This narrows RAC's `Key`
+    (`string | number`) to `CardId` and guarantees
+    `result ⊆ (hidden ∪ visibleIds)` regardless of what `keys` contains.
+  - `next = hidden ∪ resolvedVisible`.
 
-  The helper always resolves to a concrete `Set` (never re-emits the
-  `"all"` sentinel) and is **idempotent**: re-applying the current
-  visible selection yields a content-equal `draft`. This matters under
-  React `StrictMode` (double-invoked renders) and because
-  `onSelectionChange` calls `setDraft`.
+  The helper always returns a concrete `Set` (never re-emits `"all"`) and
+  is **idempotent**: re-applying the current visible selection yields a
+  content-equal `draft` (matters under React `StrictMode` double-invoke,
+  since `onSelectionChange` calls `setDraft`).
 
-Extracting the helper is also the mitigation for the test-feasibility
-risk below: it puts the *correctness* of the merge (hidden∪visible, the
-`"all"` sentinel, empty-visible) under fast deterministic unit tests
-that don't depend on whether jsdom can fake a Shift-pointer.
+Extracting the helper is deliberate: it puts the merge's *correctness*
+(hidden∪visible, the `"all"` sentinel, the intersection invariant, empty
+visible) under fast deterministic unit tests independent of any RAC/jsdom
+interaction.
 
 This preserves today's contract exactly: filters/search change only
 which rows are *shown*, never the selection; selected-but-hidden cards
 stay selected and still print; the "N selected cards are hidden by
-filters — still included when you Apply" footer line and its "Clear
-filters" link behave as before. Range selection necessarily operates
-only over visible rows (you can't range across a hidden card), which is
-the correct and expected behavior. The merge is the same *shape* as
-today's `onHeaderToggle` (`PrintSelectionModal.tsx:49`), which already
-splits visible vs. hidden — it's a generalization, not a new concept.
+filters — still included when you Apply" footer line and Clear-filters
+link behave as before. Range selection necessarily operates only over
+visible rows. The merge is the same *shape* as today's `onHeaderToggle`
+(`PrintSelectionModal.tsx:49`), generalized.
 
-### Header "select all shown" and sidebar
+### Header "select all shown" and Cmd/Ctrl+A
 
-The header tri-state checkbox ("Select all shown cards" + "X of Y
-shown" status) stays, sitting *outside* the `ListBox`. It drives the
-same `mergeVisibleSelection` path: clear-all-visible / select-all-visible
-per the existing two-outcome rule, with the indeterminate (`mixed`)
-state when only some visible cards are selected. Keyboard users
-additionally get Cmd/Ctrl+A inside the list as an equivalent
-select-all-shown.
+The header tri-state checkbox ("Select all shown cards" + "X of Y shown"
+status) stays, *outside* the `ListBox` (it remains a real `lib/ui/
+Checkbox`). It drives the same `mergeVisibleSelection` path:
+clear-all-visible / select-all-visible per the existing two-outcome rule,
+with the `mixed` indeterminate state.
 
-Note one accepted divergence between the two select-all paths: from a
-*partially* selected state, the header follows its "any visible checked →
-clear" rule, while RAC's Cmd/Ctrl+A follows "select all, then a second
-press deselects all". Different outcomes from the same mixed start, but
-both routes go through `mergeVisibleSelection` and neither can drop a
-hidden-selected card, so the divergence is acceptable and documented
-rather than reconciled. (Test asserts that after Cmd/Ctrl+A the header
-reads checked, not mixed.)
+Keyboard users also get Cmd/Ctrl+A inside the list. These two paths are
+**not equivalent** and the spec does not claim they are: from a
+*partially* selected state, the header follows "any visible checked →
+clear", while Cmd/Ctrl+A follows the standard listbox "select all (then a
+second press deselects all)". Different outcomes from the same mixed
+start. Both route through `mergeVisibleSelection` and neither can drop a
+hidden-selected card, so the divergence is accepted and documented rather
+than reconciled (reconciling would change shipped #84 behavior + tests).
+A test asserts the header reads checked, not mixed, after Cmd/Ctrl+A.
 
 The sidebar count, Select-all link, Apply/Cancel, Print-button disable,
-and empty-selection messaging are untouched.
+and empty-selection messaging are untouched. Empty selection is reachable
+via header-clear or a second Cmd/Ctrl+A (Shift can't reach it — it's
+additive); the existing disabled-Print + "Select at least 1 card" state
+handles it, unchanged.
 
 ### Anchor across view changes
 
-The range anchor is managed internally by RAC, keyed by item. The
-modal mutates the visible collection constantly (search-as-you-type,
-kind filter, sort flip), so the anchor's referent can move or vanish:
-
-- If the anchor card is filtered/searched out of the collection, a
-  subsequent Shift-click extends from RAC's current focus fallback, not
-  from the now-absent card.
-- If the sort flips, the anchor's *visual position* changes, so a
-  Shift-click spans a different visual run than before the flip.
-
-This is accepted: it is fine for the anchor to reset/relocate when the
-collection changes, as long as the result is sensible and **never
-destructive**. The merge guarantees the worst case is mis-selecting some
-*visible* rows (fully recoverable by the user), never dropping a
-hidden-selected card. A test pins that Shift-click after a sort change
-produces a sane, non-destructive selection.
+The range anchor is RAC-internal, keyed by item. The modal mutates the
+visible collection constantly (search, filter, sort), so the anchor can
+move or vanish: if the anchor card is filtered out, a later Shift-click
+extends from RAC's focus fallback; if sort flips, the anchor's visual
+position changes so a Shift-click spans a different run. This is
+accepted: the anchor may reset/relocate, as long as the result is
+sensible and **never destructive**. The merge guarantees the worst case
+is mis-selecting some *visible* rows (fully recoverable), never dropping a
+hidden-selected card. A test pins that Shift-click after a sort flip is
+sane and non-destructive.
 
 ### Touch and pointers without modifiers
 
-Range-select is inherently a modifier gesture; there is no Shift or Cmd
-key on touch. On touch (and any modifier-less pointer), tapping a card
-**toggles** it — additive and non-destructive, because
-`selectionBehavior="toggle"` makes a plain press a toggle, never a
-replace. So touch users keep exactly today's one-tap-per-card behavior;
-the range gesture simply doesn't exist for them. Their fast path is the
-header "select all shown" + recency sort (tap select-all, then tap off
-the few they don't want). This limitation is stated, not hidden, and a
-test confirms a plain tap toggles rather than replaces the selection.
+Range-select needs a modifier key, which touch lacks. On touch, tapping a
+card *toggles* it (additive, non-destructive — `toggle` behavior makes a
+plain press a toggle, never a replace; verified). So touch users keep
+exactly today's per-card behavior — this feature adds nothing new for
+them, and that's fine; their flow is unchanged from #84. (No false "fast
+path" claim: tapping select-all then tapping off a few only helps when
+keeping a majority.) A test confirms a plain tap toggles rather than
+replaces.
+
+## Walkthrough — "keep everything since last week"
+
+The list opens all-selected (default = whole deck), recency-sorted
+(newest first). Goal: keep the newest run, drop the older tail.
+
+1. Click the header "select all shown" → clears all (**1**).
+2. Click the newest card → toggles it on; it becomes the anchor (**1**).
+3. Shift-click the cutoff card → the anchor→cutoff range is selected
+   (**1**).
+
+**3 gestures, constant** regardless of how many cards are in the kept
+run — versus today's *N* unchecks (8 for a 20→12 narrowing, 20 for a
+50→30 one). Keyboard equivalent: header checkbox (Space) → Tab into list
+→ arrow to newest, Space → Shift+↓ to the cutoff.
 
 ## Accessibility
 
-- The list becomes `role="listbox"` with `aria-multiselectable`, each
-  card a `role="option"` carrying `aria-selected`; the list gets an
-  `aria-label` (e.g. "Cards to print"). RAC manages roving focus, the
-  selection anchor, and focus order.
-- **Keyboard parity with the pointer** — the direct answer to "how does
-  range-select work for keyboard-only users": arrow moves focus only,
-  Space toggles, Shift+↑/↓ extend a range (Cmd/Ctrl+Shift+Home/End to an
-  end), Cmd/Ctrl+A selects all shown, type-ahead by name. Same power as
-  the mouse.
-- **One announcer.** ListBox emits no selection live-announcements
-  (verified), so the modal's single existing polite region
-  (`PrintSelectionModal.tsx:182`) announces the running total and is the
-  *only* selection announcer — no double-speak. It covers both header
-  select-all and in-list selection changes.
-- **`textValue={card.name}`** so type-ahead jumps by name; the kind and
-  the relative timestamp stay `aria-hidden` row decoration (as today),
-  so the option's accessible name is exactly the card name and
+- The list is `role="listbox"` with `aria-multiselectable`, each card a
+  `role="option"` with `aria-selected`; the listbox gets
+  `aria-label="Cards to print"`. RAC manages roving focus and the anchor.
+- **Per-item feedback comes from roving focus, the total from the polite
+  region.** As Shift+↓ moves focus, the SR announces each option it lands
+  on with its state ("Bravo, selected") — that's the per-item feedback,
+  inherent to the listbox pattern, not something the live region must
+  supply. The modal's existing single polite region
+  (`PrintSelectionModal.tsx:182`) supplements with the running *total*
+  ("12 cards selected"); it is the *only* live region (ListBox adds
+  none), so no double-speak. The total may not re-announce on a Shift
+  step that nets zero change — acceptable, because focus already conveyed
+  the per-item change. Choosing the running-total (not per-item naming)
+  in the live region is deliberate, so it doesn't fight the focus
+  announcement.
+- **`textValue={card.name}`** for type-ahead; the kind span, the `<time>`
+  element, **and** its sr-only "Updated " text are all `aria-hidden`, so
+  the option's accessible name is exactly the card name and
   `getByRole("option", { name })` resolves cleanly. The decorative
-  checkbox glyph is `aria-hidden` and not a focusable/queryable control.
+  checkbox glyph is `aria-hidden`, not focusable or queryable.
 - **`escapeKeyBehavior="none"`** so Escape closes the dialog (Cancel).
-- **Tab model change (called out):** today every row checkbox is its own
-  Tab stop; the ListBox is a single Tab stop with arrow-key roving. Tab
-  order: search input → kind toggles → sort → header checkbox → (one Tab
-  into the listbox; arrows within) → footer "Clear filters" link →
-  Cancel/Apply. The header checkbox precedes the list and remains
-  reachable. Net improvement for most, but it is a behavior change for
-  Tab-only users; without a hint (deferred) it relies on the standard
-  listbox interaction model.
+- **Tab model change (called out).** Today every row checkbox is its own
+  Tab stop; the ListBox is a single Tab stop with arrow roving. Order:
+  search → kind toggles → sort → header checkbox → (one Tab into the
+  listbox; arrows within) → footer "Clear filters" → Cancel/Apply. The
+  header checkbox precedes the list and stays reachable. A net win for
+  most, but a behavior change for Tab-only users — the discoverability
+  decision in Non-goals/Risks is the mitigation.
 - **Empty state** uses ListBox's `renderEmptyState` to keep "No cards
-  match." (a bare `<li>` would be an invalid listbox child).
-- Preserved as-is: the header checkbox's `aria-checked="mixed"`
-  indeterminate state and stable action-verb name ("Select all shown
-  cards") with "X of Y shown" as adjacent status text via
-  `aria-describedby`; focus-on-open landing on the search input;
-  focus-return-on-close to the "Choose cards…" button; and the focused
-  option carrying the existing `--color-focus-ring` outline.
+  match." Note RAC wraps that content in a `role="option"` element, so
+  the empty modal contains *one* option — tests assert by text and must
+  not assert "zero options".
+- **Focus-visible** on the focused option binds `[data-focus-visible]`
+  (from `useOption`'s `isFocusVisible`) to the existing
+  `--color-focus-ring`; verify on the option element, not the now-
+  decorative glyph.
+- Preserved: header checkbox `aria-checked="mixed"` + stable name
+  ("Select all shown cards") + "X of Y shown" via `aria-describedby`;
+  focus-on-open to the search input; focus-return-on-close to "Choose
+  cards…". No animations exist, so no reduced-motion work.
 
 ## Components
 
-- **`PrintSelectionModal.tsx`** — the list rendering changes from
-  `<ul>` + per-row `Checkbox` to a RAC `ListBox` + `ListBoxItem`s with a
-  decorative checkbox glyph. The `draft` state, search/kind-filter/sort,
-  header checkbox, footer, and Apply/Cancel wiring are adapted but
-  functionally preserved. `selectedKeys` is `useMemo`'d; selection
-  changes call the new merge helper.
+- **`PrintSelectionModal.tsx`** — list rendering changes from `<ul>` +
+  per-row `Checkbox` to a RAC `ListBox` + `ListBoxItem`s with a
+  decorative selection glyph. `draft`, search/kind/sort, header checkbox,
+  footer, Apply/Cancel are adapted but functionally preserved.
+  `selectedKeys` is `useMemo`'d; selection changes call the merge helper.
 - **`printSelectionMerge.ts`** (new) + **`printSelectionMerge.test.ts`**
-  — the pure `mergeVisibleSelection` helper, colocated with the existing
-  `printSelectionLabel.ts`. This is the one genuinely new unit of logic
-  and owns selection correctness.
+  — the pure `mergeVisibleSelection`, colocated with `printSelectionLabel.ts`.
 - **`PrintSelectionModal.module.css`** — the row layout (name / kind /
-  time grid) moves onto listbox options; the focus ring and selected
-  styling carry over. Visual parity with today's rows is a requirement.
-  (This modal is screen UI, not print-sensitive, so styling changes here
-  are safe.)
+  time grid) moves onto listbox options; selected + focus styling carry
+  over. Note the existing glyph rule `.checkbox[data-selected] .box`
+  (`Checkbox.module.css`) must become an option-scoped rule (`data-
+  selected` lands on the option); the `[data-indeterminate]` rule is not
+  carried onto rows (only the header is ever indeterminate). Visual parity
+  with today's rows is a requirement.
 - **No changes** to `PrintView.tsx`, `deckListing.ts`,
-  `usePrintSelection.ts`, the sidebar, or any print-output code.
-
-**Implementation note:** the decorative checkbox is rendered off the
-`ListBoxItem` `isSelected` render prop (children-as-function or
-`data-selected`), `aria-hidden`, no `role`. Confirm the existing
-`.box` checkbox visual from `lib/ui/Checkbox.module.css` can be reused as
-pure presentation, or factor a small shared glyph.
+  `usePrintSelection.ts`, the sidebar, or print-output code.
 
 ## Tests
 
-Tests split into three layers so correctness doesn't hinge on whether
-jsdom can drive modifier gestures (see Risks):
+Three layers; drivability of layer (c) is spike-confirmed (see
+Validation), so none of it is "contingent".
 
-**(a) Pure unit tests — `printSelectionMerge.test.ts`** (no RAC, fast,
-deterministic; these own correctness):
-- hidden ∪ visible: a selected-but-hidden card survives a visible
-  selection change.
-- `"all"` sentinel resolves to all visible ids (and only those).
-- empty visible set (filtered to nothing) does not drop hidden-selected
-  cards.
-- idempotency: re-applying the current visible selection yields a
-  content-equal set.
+**(a) Pure unit — `printSelectionMerge.test.ts`** (no RAC, deterministic;
+owns correctness):
+- hidden ∪ visible: a selected-but-hidden card survives a visible change.
+- `"all"` sentinel → all visible ids (and only those).
+- a key present in `keys` but not in `visibleIds` is dropped (the
+  intersection invariant).
+- empty visible set does not drop hidden-selected cards.
+- idempotency: re-applying the current visible selection is content-equal.
 
-**(b) Component structure / smoke tests** (no modifier gestures):
-- The list is `role="listbox"` with `aria-multiselectable`; options
-  expose `aria-selected`.
-- `renderEmptyState` shows "No cards match." and hides the "Updated"
-  header (preserves `PrintSelectionModal.test.tsx:147`).
-- Escape closes the modal (Cancel), not just clears selection.
-- Bare ArrowDown/ArrowUp moves focus without changing selection.
+**(b) Component structure / smoke:**
+- The card list is `role="listbox"` (`aria-label` "Cards to print") with
+  `aria-multiselectable`; options expose `aria-selected`.
+- `renderEmptyState` shows "No cards match." (assert by text; do not
+  assert zero options) and hides the "Updated" header.
+- Escape closes the modal (Cancel).
+- Bare ArrowDown/Up moves focus without changing selection.
 - After Cmd/Ctrl+A the header checkbox reads checked (not mixed).
-- Migration of the existing behavior tests (search, kind filter, sort
-  recency+Name, header select-all, hidden-by-filters line, Apply count,
-  Cancel): assertions preserved, selectors migrated from
-  `getByRole("checkbox", { name })` / `toBeChecked()` to
-  `getByRole("option", { name })` + `aria-selected`.
 
-**(c) Interaction tests — contingent on the spike (see Risks):**
-- Click one card, Shift-click a card further down → the inclusive range
-  (recency order) is selected; cards outside are not.
-- Range *deselect* semantics, pinned to what RAC actually produces in
-  `toggle` behavior (do not assume).
+**(c) Interaction (jsdom-confirmed):**
+- Click a card, Shift-click one further down → the inclusive range is
+  selected (additive); cards outside are not.
 - Cmd/Ctrl-click toggles a single card without changing others.
 - Shift+↓ extends selection to the next row(s).
-- Range selection spans only visible rows: a card hidden by a filter
-  between the anchor and target is unaffected, and the Apply total +
-  hidden-by-filters line still reconcile.
+- Range spans only visible rows: a card hidden by a filter between anchor
+  and target is unaffected; the Apply total + hidden-by-filters line
+  reconcile.
 - Shift-click after a sort flip is sensible and non-destructive.
-- Touch/plain pointer tap toggles a single card (never replaces).
+- Plain tap/click toggles a single card (never replaces).
 
-If a gesture proves undrivable in jsdom, correctness is still covered by
-layer (a); the affected layer-(c) tests become a best-effort/`@react-aria
-/test-utils` or browser-mode follow-up (see Risks).
+**Migration is partly non-mechanical** — do not blanket-swap
+`checkbox`→`option`:
+- **Header** checkbox queries STAY `role="checkbox"` +
+  `toBeChecked()`/`toBePartiallyChecked()` (it's a real `Checkbox`
+  outside the listbox). Only **per-row** queries migrate to
+  `role="option"` + `aria-selected` (there is no `option` analog of
+  `toBeChecked()`).
+- The header-select-all family (`PrintSelectionModal.test.tsx:93,102,111,121`)
+  *mixes* a row toggle with header assertions — split by hand.
+- "Kind filter…unchecking" (`:156-166`) uses `toBeChecked()` on a row →
+  rewrite to `aria-selected`.
+- **Two listboxes:** the Sort `Select` is itself a RAC ListBox
+  (`role="option"` items). With its popover open there are two option
+  sets; the sort-by-name test (`:219-236`) already queries the dropdown's
+  option and will collide. Scope card-row queries with
+  `within(screen.getByRole("listbox", { name: /cards to print/i }))`, and
+  query the sort dropdown via its own listbox.
+
+## Validation
+
+A throwaway spike was run (and removed) in this worktree before
+finalizing: a 4-option `ListBox selectionMode="multiple"
+selectionBehavior="toggle"` exercised with `@testing-library/user-event`
+under the project's vitest/jsdom config. All three gestures updated
+`aria-selected` correctly — Shift-click additive range, Cmd/Ctrl-click
+single toggle, and `{Shift>}{ArrowDown}{/Shift}` keyboard extend (driven
+with modifier-held `user.keyboard` around `user.click`). This is the
+basis for the "no extra test dependency / no e2e harness" claim above.
 
 ## Risks
 
-- **jsdom may not reliably drive modifier/pointer gestures** (lead
-  risk). This repo has no precedent for `selectionMode="multiple"`,
-  Shift-click, Cmd-click, or Shift+Arrow in tests, and already had to
-  stub `ResizeObserver` + `clientWidth/Height` in `src/test/setup.ts` to
-  make RAC's Virtualizer survive jsdom. jsdom 29 *does* expose a real
-  `PointerEvent` carrying `shiftKey`, and RAC takes the pointer path, so
-  the gestures are *probably* drivable with modifier-held `user-event`
-  clicks — but it's unproven here. **Mitigation:** (1) the pure helper
-  owns correctness; (2) a **gating spike** as the plan's first task —
-  write one throwaway test driving Shift-click and Shift+↓ against a
-  3-option multi-select ListBox and confirm `aria-selected` updates in
-  this exact jsdom + RAC 1.17.0 + user-event stack. If it works, write
-  layer (c) normally. If not, the fallback is `@react-aria/test-utils`
-  (`ListBoxTester`) — **which requires a dependency add (needs
-  approval)** — or a browser/e2e follow-up; either way layer (a) + (b)
-  still ship.
-- **Exact Shift-range / deselect semantics.** RAC defines the resulting
-  state of a Shift-extension in `toggle` behavior; the headline "select
-  everything since last week" walkthrough depends on it. The spike must
-  determine it and the walkthrough/tests must match whichever model RAC
-  implements (extend-selects-range vs. mirror-anchor-toggle). Either way
-  the operation beats today's per-card path; the click count in the
-  walkthrough is finalized after the spike.
 - **Controlled selection over a filtered collection.** The
   `selectedKeys` ↔ `draft` merge is the subtle bit; get it wrong and
-  hidden-selected cards drop, or Cmd/Ctrl+A over-selects. Covered by the
-  layer-(a) tests and the hidden-range layer-(c) test.
-- **Escape regression.** Easy to miss `escapeKeyBehavior`; without it
-  Escape stops closing the modal. Covered by a test.
-- **Touch users get no range gesture** — accepted and documented; the
-  header select-all + recency sort is their fast path.
-- **Discoverability remains unaddressed** — deferred by decision; review
-  noted a one-line static hint as a near-zero-cost fast follow.
+  hidden-selected cards drop or Cmd/Ctrl+A over-selects. Covered by the
+  layer-(a) tests (incl. the intersection invariant) and the hidden-range
+  layer-(c) test.
+- **Escape regression.** Easy to miss `escapeKeyBehavior`; covered by a
+  test.
+- **Tab-model change / discoverability.** Decision pending (Non-goals):
+  the Tab change is a mild regression for keyboard users and a one-line
+  static hint mitigates both it and discoverability cheaply. The
+  worst-case without it is non-destructive (users fall back to today's
+  per-card path), so it is not a blocker — but it is the one open product
+  call.
+- **Touch gets no range gesture** — accepted and documented.
+- **(Resolved) jsdom drivability + Shift semantics** — previously the top
+  risk; settled by source-reading + the spike above. No longer open.
 
 ## Forward compatibility
 
-If a second multi-select list with range selection appears (e.g. bulk
-PDF export of decks), the `ListBox` + filter + header-select-all
-arrangement plus `mergeVisibleSelection` could extract into a
-`src/lib/ui/` primitive. If such a list ever needs genuinely interactive
-per-row controls, that's the point to revisit `GridList` for it
-specifically. One consumer isn't a pattern; revisit when there's a
-second.
+If a second multi-select list with range selection appears (e.g. bulk PDF
+export of decks), the `ListBox` + filter + header-select-all arrangement
+plus `mergeVisibleSelection` could extract into a `src/lib/ui/` primitive.
+If such a list ever needs genuinely interactive per-row controls, that's
+the point to revisit `GridList` for it specifically. One consumer isn't a
+pattern; revisit when there's a second.
