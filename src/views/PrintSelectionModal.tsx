@@ -145,7 +145,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
 
           <ListBox
             aria-label="Cards to print"
-            aria-describedby={hintId}
+            aria-describedby={visible.length > 0 ? hintId : undefined}
             className={styles.list}
             selectionMode="multiple"
             selectionBehavior="toggle"
@@ -203,7 +203,10 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
               <Button
                 variant="primary"
                 onPress={() => {
-                  onApply(draft);
+                  // Commit a plain Set: `draft` may be RAC's Selection subclass
+                  // (it carries a range anchor), but downstream consumers want a
+                  // bare Set<CardId>.
+                  onApply(new Set(draft));
                   onClose();
                 }}
               >
