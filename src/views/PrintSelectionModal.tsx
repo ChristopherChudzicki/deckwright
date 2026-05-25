@@ -142,9 +142,11 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
             )}
           </div>
 
-          <p className={styles.hint} id={hintId}>
-            Shift-click or Shift+↑/↓ to select a range.
-          </p>
+          {visible.length > 0 && (
+            <p className={styles.hint} id={hintId}>
+              Shift-click or Shift+↑/↓ to select a range.
+            </p>
+          )}
 
           <ListBox
             aria-label="Cards to print"
