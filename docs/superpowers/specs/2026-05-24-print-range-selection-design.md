@@ -45,14 +45,12 @@ below reflects this.
 
 ## Non-goals
 
-- **Discoverability affordance — pending one decision (see Risks).** The
-  default position is to rely on convention with no hint. Review raised a
-  stronger case than "undiscovered new feature": the Tab model changes
-  (see Accessibility), which is a mild *regression* for existing
-  keyboard users, and a single static line ("Use arrow keys to move,
-  Space to select, Shift to extend") would mitigate both the regression
-  and discoverability at near-zero cost. Flagged for the owner; built
-  only if chosen.
+- **No heavy discoverability affordance** — no coachmark, animated tour,
+  or dismissible callout. A *single static one-line hint* near the list
+  **is** in scope (see Components / Accessibility); it was decided in
+  favor after review flagged the Tab-model change (Accessibility) as a
+  mild regression for existing keyboard users that the hint also
+  mitigates.
 - **No recency/date *filter*.** ("Edited this week / since a date.") The
   existing recency *sort* already surfaces recent cards at the top and is
   preserved; a date filter is a possible future follow-up, out of scope.
@@ -283,13 +281,20 @@ run — versus today's *N* unchecks (8 for a 20→12 narrowing, 20 for a
   `getByRole("option", { name })` resolves cleanly. The decorative
   checkbox glyph is `aria-hidden`, not focusable or queryable.
 - **`escapeKeyBehavior="none"`** so Escape closes the dialog (Cancel).
+- **One-line hint.** A single static, muted helper line sits near the
+  list (in/under the bulk-select row) — candidate copy: *"Shift-click or
+  Shift + ↑/↓ to select a range."* It is plain visible text (not a
+  callout/coachmark) and is associated with the listbox via
+  `aria-describedby`, so SR users hear it on entering the list — which is
+  what makes it double as the Tab-model-change mitigation, not just mouse
+  discoverability. Final copy is for the plan; keep it to one short line.
 - **Tab model change (called out).** Today every row checkbox is its own
   Tab stop; the ListBox is a single Tab stop with arrow roving. Order:
   search → kind toggles → sort → header checkbox → (one Tab into the
   listbox; arrows within) → footer "Clear filters" → Cancel/Apply. The
   header checkbox precedes the list and stays reachable. A net win for
-  most, but a behavior change for Tab-only users — the discoverability
-  decision in Non-goals/Risks is the mitigation.
+  most, but a behavior change for Tab-only users — the one-line hint
+  above (announced via `aria-describedby` on entry) is the mitigation.
 - **Empty state** uses ListBox's `renderEmptyState` to keep "No cards
   match." Note RAC wraps that content in a `role="option"` element, so
   the empty modal contains *one* option — tests assert by text and must
@@ -394,12 +399,10 @@ basis for the "no extra test dependency / no e2e harness" claim above.
   layer-(c) test.
 - **Escape regression.** Easy to miss `escapeKeyBehavior`; covered by a
   test.
-- **Tab-model change / discoverability.** Decision pending (Non-goals):
-  the Tab change is a mild regression for keyboard users and a one-line
-  static hint mitigates both it and discoverability cheaply. The
-  worst-case without it is non-destructive (users fall back to today's
-  per-card path), so it is not a blocker — but it is the one open product
-  call.
+- **Tab-model change / discoverability.** Resolved: the one-line hint is
+  in scope (Components / Accessibility), associated with the listbox via
+  `aria-describedby`, mitigating both the Tab-model regression and
+  Shift-range discoverability.
 - **Touch gets no range gesture** — accepted and documented.
 - **(Resolved) jsdom drivability + Shift semantics** — previously the top
   risk; settled by source-reading + the spike above. No longer open.
