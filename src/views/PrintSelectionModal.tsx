@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import { TextField } from "react-aria-components";
+import { ListBox, ListBoxItem, TextField } from "react-aria-components";
 import type { CardId, RenderableCard } from "../cards/types";
 import { type DeckKindFilter, type DeckSort, deckListing } from "../decks/deckListing";
 import { pluralize } from "../lib/pluralize";
@@ -13,6 +13,7 @@ import { Select } from "../lib/ui/Select";
 import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import styles from "./PrintSelectionModal.module.css";
+import { mergeVisibleSelection } from "./printSelectionMerge";
 
 type Props = {
   cards: RenderableCard[];
@@ -44,23 +45,16 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   const allVisibleChecked = visible.length > 0 && visibleCheckedCount === visible.length;
   const headerIndeterminate = !allVisibleChecked && visibleCheckedCount > 0;
 
+  const selectedKeys = useMemo(
+    () => new Set(visibleIds.filter((id) => draft.has(id))),
+    [visibleIds, draft],
+  );
+
   // Intentionally ignores RAC's onChange boolean: RAC passes `true` when clicked
   // from the indeterminate state, but the rule is always "any visible checked → clear".
   const onHeaderToggle = () => {
-    const next = new Set(draft);
-    if (visibleCheckedCount > 0) {
-      for (const id of visibleIds) next.delete(id);
-    } else {
-      for (const id of visibleIds) next.add(id);
-    }
-    setDraft(next);
-  };
-
-  const toggle = (id: CardId) => {
-    const next = new Set(draft);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setDraft(next);
+    const next = visibleCheckedCount > 0 ? new Set<CardId>() : ("all" as const);
+    setDraft((prev) => mergeVisibleSelection(prev, visibleIds, next));
   };
 
   const hiddenSelectedCount = useMemo(() => {
@@ -75,6 +69,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
 
   const total = draft.size;
   const shownCountId = useId();
+  const hintId = useId();
 
   return (
     <DialogShell
@@ -147,26 +142,39 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
             )}
           </div>
 
-          <ul className={styles.list}>
-            {visible.length === 0 ? (
-              <li className={styles.emptyState}>No cards match.</li>
-            ) : (
-              visible.map((c) => (
-                <li key={c.id} className={styles.row}>
-                  <Checkbox isSelected={draft.has(c.id)} onChange={() => toggle(c.id)}>
-                    {c.name}
-                  </Checkbox>
-                  <span className={styles.rowKind} aria-hidden="true">
-                    {c.kind}
-                  </span>
-                  <time className={styles.rowTime} dateTime={c.updatedAt}>
-                    <span className={styles.srOnly}>{"Updated "}</span>
-                    {relativeTime(c.updatedAt)}
-                  </time>
-                </li>
-              ))
+          <p className={styles.hint} id={hintId}>
+            Shift-click or Shift+↑/↓ to select a range.
+          </p>
+
+          <ListBox
+            aria-label="Cards to print"
+            aria-describedby={hintId}
+            className={styles.list}
+            selectionMode="multiple"
+            selectionBehavior="toggle"
+            escapeKeyBehavior="none"
+            selectedKeys={selectedKeys}
+            onSelectionChange={(keys) =>
+              setDraft((prev) => mergeVisibleSelection(prev, visibleIds, keys))
+            }
+            items={visible}
+            renderEmptyState={() => <span className={styles.emptyState}>No cards match.</span>}
+          >
+            {(c) => (
+              <ListBoxItem id={c.id} textValue={c.name} className={styles.row}>
+                <span className={styles.rowMain}>
+                  <span className={styles.box} aria-hidden="true" />
+                  <span className={styles.rowName}>{c.name}</span>
+                </span>
+                <span className={styles.rowKind} aria-hidden="true">
+                  {c.kind}
+                </span>
+                <time className={styles.rowTime} dateTime={c.updatedAt} aria-hidden="true">
+                  {relativeTime(c.updatedAt)}
+                </time>
+              </ListBoxItem>
             )}
-          </ul>
+          </ListBox>
 
           <div className={styles.footer}>
             {hiddenSelectedCount > 0 && (

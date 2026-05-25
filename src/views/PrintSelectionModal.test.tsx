@@ -3,7 +3,7 @@ import { useState } from "react";
 import { describe, expect, test, vi } from "vitest";
 import { itemCardFactory, spellCardFactory } from "../cards/factories";
 import type { CardId, RenderableCard } from "../cards/types";
-import { render, screen } from "../test/render";
+import { render, screen, within } from "../test/render";
 import { PrintSelectionModal } from "./PrintSelectionModal";
 
 function open(cards: RenderableCard[], initial: Set<CardId>, onApply = vi.fn()) {
@@ -25,16 +25,22 @@ function open(cards: RenderableCard[], initial: Set<CardId>, onApply = vi.fn()) 
 
 const allIds = (cards: RenderableCard[]) => new Set(cards.map((c) => c.id));
 
+// The card list is one of two listboxes in the modal (the Sort control is the
+// other), so scope row queries to it by its accessible name.
+const cardList = () => screen.getByRole("listbox", { name: /cards to print/i });
+const cardOption = (name: string | RegExp) => within(cardList()).getByRole("option", { name });
+const cardOptions = (name: RegExp) => within(cardList()).getAllByRole("option", { name });
+
 describe("<PrintSelectionModal>", () => {
-  test("lists every renderable card with a checkbox, recency-sorted (newest first)", () => {
+  test("lists every renderable card as an option, recency-sorted (newest first)", () => {
     const older = itemCardFactory.build({ name: "Older", updatedAt: "2026-05-01T00:00:00Z" });
     const newer = itemCardFactory.build({ name: "Newer", updatedAt: "2026-05-20T00:00:00Z" });
     const cards = [older, newer];
     open(cards, allIds(cards));
-    const rowChecks = screen.getAllByRole("checkbox", { name: /Older|Newer/ });
-    expect(rowChecks).toHaveLength(2);
-    expect(rowChecks[0]).toHaveAccessibleName("Newer");
-    expect(rowChecks[1]).toHaveAccessibleName("Older");
+    const rows = cardOptions(/Older|Newer/);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveAccessibleName("Newer");
+    expect(rows[1]).toHaveAccessibleName("Older");
   });
 
   test("focus lands on the name search input on open", () => {
@@ -58,27 +64,26 @@ describe("<PrintSelectionModal>", () => {
     const { onApply } = open(cards, allIds(cards));
     const [first] = cards;
     if (!first) throw new Error("expected cards");
-    await userEvent.click(screen.getByRole("checkbox", { name: first.name }));
+    await userEvent.click(cardOption(first.name));
     await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(onApply).not.toHaveBeenCalled();
     expect(screen.getByText("closed")).toBeInTheDocument();
   });
 
-  test("toggling a row updates the Apply total", async () => {
+  test("toggling a card updates the Apply total", async () => {
     const cards = itemCardFactory.buildList(3);
     open(cards, allIds(cards));
     expect(screen.getByRole("button", { name: "Apply (3 cards)" })).toBeInTheDocument();
     const [first] = cards;
     if (!first) throw new Error("expected cards");
-    await userEvent.click(screen.getByRole("checkbox", { name: first.name }));
+    await userEvent.click(cardOption(first.name));
     expect(screen.getByRole("button", { name: "Apply (2 cards)" })).toBeInTheDocument();
   });
 
-  test("each timestamp is labelled 'Updated' for screen readers", () => {
+  test("kind and timestamp are decorative — the option's name is just the card name", () => {
     const card = itemCardFactory.build({ name: "Cloak", updatedAt: "2026-05-23T11:00:00Z" });
     open([card], allIds([card]));
-    const time = document.querySelector("time");
-    expect(time).toHaveTextContent(/^Updated /);
+    expect(cardOption("Cloak")).toHaveAccessibleName("Cloak");
   });
 
   test("a spell and an item both appear when present", () => {
@@ -86,8 +91,8 @@ describe("<PrintSelectionModal>", () => {
     const spell = spellCardFactory.build({ name: "Bless" });
     const cards = [item, spell];
     open(cards, allIds(cards));
-    expect(screen.getByRole("checkbox", { name: "Cloak" })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Bless" })).toBeInTheDocument();
+    expect(cardOption("Cloak")).toBeInTheDocument();
+    expect(cardOption("Bless")).toBeInTheDocument();
   });
 
   test("header checkbox clears all visible when all are checked", async () => {
@@ -108,12 +113,12 @@ describe("<PrintSelectionModal>", () => {
     expect(screen.getByRole("button", { name: "Apply (3 cards)" })).toBeInTheDocument();
   });
 
-  test("header checkbox is indeterminate (mixed) when some visible are checked", async () => {
+  test("header checkbox is indeterminate (mixed) when some visible are selected", async () => {
     const cards = itemCardFactory.buildList(3);
     open(cards, allIds(cards));
     const [first] = cards;
     if (!first) throw new Error("expected a card");
-    await userEvent.click(screen.getByRole("checkbox", { name: first.name }));
+    await userEvent.click(cardOption(first.name));
     const header = screen.getByRole("checkbox", { name: /select all shown cards/i });
     expect(header).toBePartiallyChecked();
   });
@@ -123,7 +128,7 @@ describe("<PrintSelectionModal>", () => {
     open(cards, allIds(cards));
     const [first] = cards;
     if (!first) throw new Error("expected a card");
-    await userEvent.click(screen.getByRole("checkbox", { name: first.name })); // now 2 of 3
+    await userEvent.click(cardOption(first.name)); // now 2 of 3
     const header = screen.getByRole("checkbox", { name: /select all shown cards/i });
     await userEvent.click(header);
     expect(screen.getByRole("button", { name: "Apply (0 cards)" })).toBeInTheDocument();
@@ -153,16 +158,16 @@ describe("<PrintSelectionModal>", () => {
     expect(screen.queryByText("Updated")).not.toBeInTheDocument();
   });
 
-  test("Kind filter hides the other kind without unchecking it", async () => {
+  test("Kind filter hides the other kind without deselecting it", async () => {
     const item = itemCardFactory.build({ name: "Cloak" });
     const spell = spellCardFactory.build({ name: "Bless" });
     const cards = [item, spell];
     open(cards, allIds(cards));
     await userEvent.click(screen.getByRole("radio", { name: /items/i }));
-    expect(screen.queryByRole("checkbox", { name: "Bless" })).not.toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Cloak" })).toBeInTheDocument();
+    expect(within(cardList()).queryByRole("option", { name: "Bless" })).not.toBeInTheDocument();
+    expect(cardOption("Cloak")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("radio", { name: /all/i }));
-    expect(screen.getByRole("checkbox", { name: "Bless" })).toBeChecked();
+    expect(cardOption("Bless")).toHaveAttribute("aria-selected", "true");
   });
 
   test("name search narrows the list case-insensitively", async () => {
@@ -170,8 +175,8 @@ describe("<PrintSelectionModal>", () => {
     const b = itemCardFactory.build({ name: "Bless" });
     open([a, b], allIds([a, b]));
     await userEvent.type(screen.getByRole("searchbox", { name: /search cards/i }), "acid");
-    expect(screen.getByRole("checkbox", { name: "Acid Arrow" })).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Bless" })).not.toBeInTheDocument();
+    expect(cardOption("Acid Arrow")).toBeInTheDocument();
+    expect(within(cardList()).queryByRole("option", { name: "Bless" })).not.toBeInTheDocument();
   });
 
   test("hidden-checked line appears when a filter hides a selected card", async () => {
@@ -192,7 +197,7 @@ describe("<PrintSelectionModal>", () => {
     open(cards, allIds(cards));
     await userEvent.click(screen.getByRole("radio", { name: /items/i }));
     await userEvent.click(screen.getByRole("button", { name: /clear filters/i }));
-    expect(screen.getByRole("checkbox", { name: "Bless" })).toBeInTheDocument();
+    expect(cardOption("Bless")).toBeInTheDocument();
     expect(screen.queryByText(/hidden by filters/i)).not.toBeInTheDocument();
   });
 
@@ -209,10 +214,10 @@ describe("<PrintSelectionModal>", () => {
     const cards = [cloak, bless];
     open(cards, allIds(cards));
     await userEvent.type(screen.getByRole("searchbox", { name: /search cards/i }), "cloak");
-    expect(screen.queryByRole("checkbox", { name: "Bless" })).not.toBeInTheDocument();
+    expect(within(cardList()).queryByRole("option", { name: "Bless" })).not.toBeInTheDocument();
     expect(screen.getByText(/1 selected card is hidden by filters/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /clear filters/i }));
-    expect(screen.getByRole("checkbox", { name: "Bless" })).toBeInTheDocument();
+    expect(cardOption("Bless")).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: /search cards/i })).toHaveValue("");
   });
 
@@ -222,15 +227,15 @@ describe("<PrintSelectionModal>", () => {
     const alpha = itemCardFactory.build({ name: "Alpha", updatedAt: "2026-05-01T00:00:00Z" });
     const cards = [bravo, alpha];
     open(cards, allIds(cards));
-    // Default recency: Bravo first.
-    let rows = screen.getAllByRole("checkbox", { name: /Alpha|Bravo/ });
+    let rows = cardOptions(/Alpha|Bravo/);
     expect(rows[0]).toHaveAccessibleName("Bravo");
     expect(rows[1]).toHaveAccessibleName("Alpha");
     const sortTrigger = screen.getByRole("button", { name: /sort/i });
     expect(sortTrigger).toHaveTextContent(/recently edited/i);
     await userEvent.click(sortTrigger);
-    await userEvent.click(screen.getByRole("option", { name: /name/i }));
-    rows = screen.getAllByRole("checkbox", { name: /Alpha|Bravo/ });
+    // The Sort dropdown is a separate listbox; its "Name" option is unambiguous here.
+    await userEvent.click(screen.getByRole("option", { name: "Name" }));
+    rows = cardOptions(/Alpha|Bravo/);
     expect(rows[0]).toHaveAccessibleName("Alpha");
     expect(rows[1]).toHaveAccessibleName("Bravo");
   });
