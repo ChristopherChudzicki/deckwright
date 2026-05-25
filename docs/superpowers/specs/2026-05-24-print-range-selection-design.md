@@ -18,9 +18,10 @@ operation regardless of run length.
 
 ## Goals
 
-- **Range select in a constant number of gestures.** Click the first
-  card, Shift-click the last → the whole inclusive range is selected, no
-  matter how long. The Drive / Gmail / file-manager convention.
+- **Gmail-style range select.** Click a card, then Shift-click another →
+  the whole range takes the *first* card's state: Shift-click after
+  selecting **fills** the range (including gaps); Shift-click after
+  deselecting **clears** it. Constant gesture regardless of run length.
 - **Keyboard parity, not a lesser path.** Keyboard-only users get the
   *same* power: arrow to a card (moves focus only), Space to toggle,
   **Shift+↑/↓ to extend a range** (Cmd/Ctrl+Shift+Home/End to extend to
@@ -36,12 +37,9 @@ operation regardless of run length.
 - **No regression to print output.** The pipeline downstream of the
   modal still receives the same `Set<CardId>`.
 
-Note on what range-select does *not* do: RAC's Shift-extend is
-**additive only** — it selects the anchor→target range, it never
-*deselects* a range (verified in source, see Approach). So from the
-default all-selected state, "drop the oldest tail" is done by
-clear-then-select, not by Shift-deselecting the tail. The walkthrough
-below reflects this.
+Note: RAC's native Shift-extend is additive-only (it can't deselect a
+range), so the anchor-mirror rule is layered on top with a custom override.
+See "Selection semantics" in Approach for how and why.
 
 ## Non-goals
 
@@ -75,37 +73,59 @@ untouched; the modal's list is genuinely rewritten.
 
 Replace the hand-rolled `<ul>` of name-labelled `lib/ui/Checkbox` rows
 with a `react-aria-components` **`ListBox`** in `selectionMode="multiple"`,
-`selectionBehavior="toggle"`. RAC's selection manager then provides the
-entire Drive-style model — pointer and keyboard — conforming to the
-WAI-ARIA listbox pattern, with roving focus, the selection anchor, and
-`aria-selected` handled by the library:
+`selectionBehavior="toggle"`. RAC handles the WAI-ARIA listbox pattern,
+roving focus, `aria-selected`, type-ahead, and the keyboard model for free;
+the Gmail-style Shift-**click** rule is layered on top (see "Selection
+semantics"):
 
-- **Pointer:** click toggles a card; Shift-click selects the additive
-  range from the anchor to the clicked card; Cmd/Ctrl-click toggles a
-  single card.
+- **Pointer:** click toggles a card; Shift-click sets the anchor→clicked
+  range to the *anchor's* state (fill or clear); Cmd/Ctrl-click toggles one.
 - **Keyboard:** ↑/↓ move focus *without* changing selection
   (`selectOnFocus` is `false` under `toggle`); Space toggles; Shift+↑/↓
-  extend the additive range; Cmd/Ctrl+A selects all shown; type-ahead
-  jumps by name.
+  extend the selection (additive — RAC-native); Cmd/Ctrl+A selects all
+  shown; type-ahead jumps by name.
 
-### Selection semantics are additive (verified)
+### Selection semantics: Gmail-style range (anchor-mirror)
 
-`react-stately`'s `SelectionManager.extendSelection`
-(`SelectionManager.mjs:127-148`) trims the *previous* extension range
-then `.add()`s the anchor→target range; it never toggles-off based on
-state. Both Shift-click and Shift+Arrow route through it
-(`useSelectableItem.mjs`). The anchor moves only on a toggle-*on*
-(`toggleSelection` sets `anchorKey` when adding, not when removing). So
-Shift always *selects* a range. This is determined fact, not a spike
-question.
+A Shift-click sets the whole range from the **anchor** (the last
+plain-clicked card, after its own toggle) to the clicked card to the
+**anchor's** current state — anchor selected → the range *fills* (including
+unselected cards in between); anchor deselected → the range *clears*. Plain
+and Cmd/Ctrl click toggle one card.
 
-**Drivability is proven.** A throwaway spike (a 4-option multi-select
-`toggle` ListBox in this exact jsdom + `react-aria-components@1.17.0` +
-`@testing-library/user-event` stack) confirmed that Shift-click range,
-Cmd/Ctrl-click toggle, and Shift+ArrowDown keyboard extend all update
-`aria-selected` as expected — driven with modifier-held `user.keyboard`
-around `user.click`. So the interaction tests below are writable
-directly in jsdom: **no `@react-aria/test-utils` dependency and no
+RAC's `ListBox` does **not** provide this rule, so it's layered on with care.
+Three RAC behaviors (verified against the installed 1.17.0 source) shaped
+the implementation:
+
+1. **Shift-extend is additive-only.** `SelectionManager.extendSelection`
+   always `.add()`s the anchor→target range; it never deselects. So we
+   can't lean on RAC for the clear/fill rule — on a Shift-click we recompute
+   the range from the pre-click selection and overwrite RAC's result.
+2. **No anchor is recorded on a *deselecting* click** (`toggleSelection`
+   sets `anchorKey` only when adding). So "click a card to start,
+   Shift-click another to clear the run" has no RAC anchor. We track our
+   **own** anchor: a `data-card-id` on each `ListBoxItem`, read in
+   `onPointerDownCapture` on every plain (non-Shift) click.
+3. **`onSelectionChange` is suppressed when the result is unchanged**
+   (an `!equalSets` guard) — exactly the deselect-an-already-selected-range
+   case, so a change-handler override would never fire. We enable
+   react-stately's **`allowDuplicateSelectionEvents`** (a real option RAC
+   doesn't surface on `ListBox`'s prop types — passed via a small typed
+   cast, `SelectionListBox`).
+
+`onPointerDownCapture` also records whether the change came from a
+Shift+*pointer* (the event carries `shiftKey`), so the anchor-mirror
+override applies only to Shift-**click**. **Keyboard Shift+Arrow stays
+additive** (RAC-native): the anchor-mirror rule fights RAC's incremental
+grow/shrink, and additive extension is the natural keyboard behavior. The
+override mutates RAC's `Selection` object in place (clear + rebuild) so its
+anchor/current keys — needed for keyboard Shift+Arrow — survive.
+
+**Drivability is proven.** A throwaway spike confirmed that Shift-click,
+Cmd/Ctrl-click, Shift+Arrow, and `onPointerDownCapture`'s `shiftKey` all
+work in this exact jsdom + `react-aria-components@1.17.0` +
+`@testing-library/user-event` stack, so the interaction tests are writable
+directly in jsdom — **no `@react-aria/test-utils` dependency and no
 browser/e2e harness are required.** (See Validation.)
 
 ### Why `ListBox`, not `GridList`
@@ -160,12 +180,18 @@ Gets its own test.
   controlled `selectedKeys` against the collection, and `toggleSelection`
   / `extendSelection` copy the whole set before mutating, so hidden keys
   ride through).
-- `onSelectionChange(keys)` stores RAC's result **as-is** for ordinary
-  toggles and range changes (`setDraft(keys as Set<CardId>)`), and routes
-  only the `"all"` (Cmd/Ctrl+A) sentinel through the pure helper:
+- `onSelectionChange(keys)` handles three cases:
+  - **`"all"`** (Cmd/Ctrl+A) → expand the sentinel via the pure helper
+    `mergeVisibleSelection(draft, visibleIds, "all")` = `hidden ∪ visibleIds`.
+  - **Shift-click range** → recompute the range to the anchor's state and
+    overwrite RAC's result (see "Selection semantics").
+  - **any other change** (plain/Cmd toggle, keyboard Shift+Arrow) → store
+    RAC's `Selection` **as-is** (`setDraft(keys as Set<CardId>)`).
 
   ```ts
-  // printSelectionMerge.ts — colocated with printSelectionLabel.ts
+  // printSelectionMerge.ts — colocated with printSelectionLabel.ts. Used by the
+  // header toggle and the "all" sentinel (the bulk paths); the Shift-click path
+  // recomputes inline. Pure + unit-tested, independent of RAC/jsdom.
   mergeVisibleSelection(
     draft: Set<CardId>,
     visibleIds: CardId[],
@@ -173,26 +199,18 @@ Gets its own test.
   ): Set<CardId>
   ```
 
-  - `hidden` = `draft` minus `visibleIds`; for `"all"`,
-    `next = hidden ∪ visibleIds`.
+  - `hidden` = `draft` minus `visibleIds`; for `"all"`, `next = hidden ∪ visibleIds`.
   - otherwise it intersects: `next = hidden ∪ visibleIds.filter(id => keys.has(id))`
     — narrowing `Key` to `CardId` and guaranteeing `next ⊆ (hidden ∪ visibleIds)`.
 
-  **Why the normal path stores the Selection as-is** instead of rebuilding
-  a plain `Set` each render: RAC keeps the range *anchor* on the
-  `Selection` object it hands back, and `convertSelection` only preserves
-  it when the controlled value is itself a `Selection`. Rebuilding a plain
-  `Set` nulls the anchor and collapses Shift / Shift+Arrow ranges to a
-  single item — a real bug, caught by the range tests. So the per-row path
-  must pass RAC's object back untouched. The helper therefore guards only
-  the two **bulk** paths that emit sentinels — the header toggle
-  (select-all / clear-visible) and Cmd/Ctrl+A (`"all"`) — where a fresh
-  `Set` (and an anchor reset) is fine. At Apply, `draft` is normalized to a
-  plain `Set` for downstream consumers.
-
-The helper is pure and unit-tested (hidden∪visible, the `"all"` sentinel,
-the intersection invariant, empty-visible, idempotency), independent of
-RAC/jsdom.
+  **Store the `Selection` object, never a rebuilt plain `Set`:** RAC keeps the
+  range anchor on the `Selection` it returns, and `convertSelection` preserves
+  it only when the controlled value is itself a `Selection`. A fresh `Set` nulls
+  the anchor and collapses keyboard Shift+Arrow to a single item (a real bug,
+  caught by the range tests). The bulk/`"all"` paths (where an anchor reset is
+  fine) may produce a plain `Set` via the helper; the Shift-click override clears
+  and rebuilds the *same* `Selection` object rather than replacing it. At Apply,
+  `draft` is normalized to a plain `Set` for downstream consumers.
 
 This preserves today's contract exactly: filters/search change only
 which rows are *shown*, never the selection; selected-but-hidden cards
@@ -230,16 +248,15 @@ disabled-Print + "Select at least 1 card" state handles empty, unchanged.
 
 ### Anchor across view changes
 
-The range anchor is RAC-internal, keyed by item. The modal mutates the
-visible collection constantly (search, filter, sort), so the anchor can
-move or vanish: if the anchor card is filtered out, a later Shift-click
-extends from RAC's focus fallback; if sort flips, the anchor's visual
-position changes so a Shift-click spans a different run. This is
-accepted: the anchor may reset/relocate, as long as the result is
-sensible and **never destructive**. The merge guarantees the worst case
-is mis-selecting some *visible* rows (fully recoverable), never dropping a
-hidden-selected card. A test pins that Shift-click after a sort flip is
-sane and non-destructive.
+We track our own anchor (the last plain-clicked card's id). The modal
+mutates the visible collection constantly (search, filter, sort), so the
+anchor can scroll away or be filtered out: if its id isn't in the current
+`visibleIds`, the Shift-click override is skipped and RAC's additive extend
+stands (non-destructive). If sort flips, the anchor's visual position
+changes so a Shift-click spans a different run — accepted. The override only
+ever sets *visible* rows, so the worst case is recoverable and never drops a
+hidden-selected card. A test pins that range selection still works after a
+sort change.
 
 ### Touch and pointers without modifiers
 
@@ -252,20 +269,21 @@ path" claim: tapping select-all then tapping off a few only helps when
 keeping a majority.) A test confirms a plain tap toggles rather than
 replaces.
 
-## Walkthrough — "keep everything since last week"
+## Walkthrough — "drop everything older than last week"
 
 The list opens all-selected (default = whole deck), recency-sorted
-(newest first). Goal: keep the newest run, drop the older tail.
+(newest first). Goal: drop the older tail, keep the newest run.
 
-1. Click the header "select all shown" → clears all (**1**).
-2. Click the newest card → toggles it on; it becomes the anchor (**1**).
-3. Shift-click the cutoff card → the anchor→cutoff range is selected
-   (**1**).
+1. Click the first (newest) card of the tail → toggles it off; it becomes
+   the deselected anchor (**1**).
+2. Shift-click the last (oldest) card → the range follows the anchor's
+   deselected state and **clears the whole tail** (**1**).
 
-**3 gestures, constant** regardless of how many cards are in the kept
-run — versus today's *N* unchecks (8 for a 20→12 narrowing, 20 for a
-50→30 one). Keyboard equivalent: header checkbox (Space) → Tab into list
-→ arrow to newest, Space → Shift+↓ to the cutoff.
+**2 gestures, constant** regardless of tail length — versus today's *N*
+unchecks (8 for a 20→12 narrowing, 20 for a 50→30 one). Filling a run works
+symmetrically (select a card, Shift-click another → the range fills). The
+header "select all shown" + recency sort/filters remain the keyboard-only
+path; Shift+↑/↓ extends additively.
 
 ## Accessibility
 
@@ -290,13 +308,13 @@ run — versus today's *N* unchecks (8 for a 20→12 narrowing, 20 for a
   `getByRole("option", { name })` resolves cleanly. The decorative
   checkbox glyph is `aria-hidden`, not focusable or queryable.
 - **`escapeKeyBehavior="none"`** so Escape closes the dialog (Cancel).
-- **One-line hint.** A single static, muted helper line sits near the
-  list (in/under the bulk-select row) — candidate copy: *"Shift-click or
-  Shift + ↑/↓ to select a range."* It is plain visible text (not a
-  callout/coachmark) and is associated with the listbox via
-  `aria-describedby`, so SR users hear it on entering the list — which is
-  what makes it double as the Tab-model-change mitigation, not just mouse
-  discoverability. Final copy is for the plan; keep it to one short line.
+- **One-line hint.** A single static, muted helper line sits on the
+  footer's action row, left of Cancel/Apply (so the footer stays one line):
+  *"Shift-click or Shift+↑/↓ to select a range."* It is plain visible text
+  (not a callout/coachmark), rendered only when the list is non-empty, and
+  associated with the listbox via `aria-describedby` so SR users hear it on
+  entering the list — doubling as the Tab-model-change mitigation, not just
+  mouse discoverability.
 - **Tab model change (called out).** Today every row checkbox is its own
   Tab stop; the ListBox is a single Tab stop with arrow roving. Order:
   search → kind toggles → sort → header checkbox → (one Tab into the
@@ -320,10 +338,13 @@ run — versus today's *N* unchecks (8 for a 20→12 narrowing, 20 for a
 ## Components
 
 - **`PrintSelectionModal.tsx`** — list rendering changes from `<ul>` +
-  per-row `Checkbox` to a RAC `ListBox` + `ListBoxItem`s with a
-  decorative selection glyph. `draft`, search/kind/sort, header checkbox,
-  footer, Apply/Cancel are adapted but functionally preserved.
-  `selectedKeys` is `useMemo`'d; selection changes call the merge helper.
+  per-row `Checkbox` to a RAC `ListBox` + `ListBoxItem`s (each with a
+  decorative selection glyph and a `data-card-id`). `selectedKeys={draft}`
+  (controlled by the whole draft); a `SelectionListBox` typed-cast wrapper
+  passes `allowDuplicateSelectionEvents`; `onPointerDownCapture` tracks the
+  anchor + Shift-click flag; `onSelectionChange` applies the anchor-mirror
+  override or the merge helper. `draft`, search/kind/sort, header checkbox,
+  footer (now carrying the hint), Apply/Cancel are functionally preserved.
 - **`printSelectionMerge.ts`** (new) + **`printSelectionMerge.test.ts`**
   — the pure `mergeVisibleSelection`, colocated with `printSelectionLabel.ts`.
 - **`PrintSelectionModal.module.css`** — the row layout (name / kind /
@@ -360,14 +381,15 @@ owns correctness):
 - After Cmd/Ctrl+A the header checkbox reads checked (not mixed).
 
 **(c) Interaction (jsdom-confirmed):**
-- Click a card, Shift-click one further down → the inclusive range is
-  selected (additive); cards outside are not.
+- Shift-click from a **selected** anchor fills the range, including
+  unselected cards in between.
+- Shift-click from a **deselected** anchor clears the range.
 - Cmd/Ctrl-click toggles a single card without changing others.
-- Shift+↓ extends selection to the next row(s).
+- Shift+↓ extends the selection by keyboard (additive).
 - Range spans only visible rows: a card hidden by a filter between anchor
   and target is unaffected; the Apply total + hidden-by-filters line
   reconcile.
-- Shift-click after a sort flip is sensible and non-destructive.
+- Range selection still works after a sort change.
 - Plain tap/click toggles a single card (never replaces).
 
 **Migration is partly non-mechanical** — do not blanket-swap
