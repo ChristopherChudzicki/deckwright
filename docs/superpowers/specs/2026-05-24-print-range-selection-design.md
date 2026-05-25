@@ -153,39 +153,46 @@ Gets its own test.
 `ListBox` is a *controlled selection view over only the visible
 (post-filter, post-search) cards*:
 
-- `selectedKeys` = the visible cards in `draft`, `useMemo`'d over
-  `[draft, visibleIds]`.
-- `onSelectionChange(keys)` merges back via a **pure, unit-tested
-  helper** rather than inline logic:
+- `selectedKeys` = the whole `draft`, passed to the `ListBox` directly.
+  `draft` may include cards hidden by the current filter/search; RAC
+  renders only the visible collection and leaves the rest of the set
+  untouched (verified against the 1.17.0 source: RAC does **not** prune a
+  controlled `selectedKeys` against the collection, and `toggleSelection`
+  / `extendSelection` copy the whole set before mutating, so hidden keys
+  ride through).
+- `onSelectionChange(keys)` stores RAC's result **as-is** for ordinary
+  toggles and range changes (`setDraft(keys as Set<CardId>)`), and routes
+  only the `"all"` (Cmd/Ctrl+A) sentinel through the pure helper:
 
   ```ts
   // printSelectionMerge.ts — colocated with printSelectionLabel.ts
   mergeVisibleSelection(
     draft: Set<CardId>,
     visibleIds: CardId[],
-    keys: Selection,        // RAC: "all" | Set<Key>  (Key = string | number)
+    keys: "all" | ReadonlySet<Key>,   // Key from react-aria-components
   ): Set<CardId>
   ```
 
-  - `hidden` = `draft` minus `visibleIds`.
-  - `keys === "all"` (the Cmd/Ctrl+A sentinel) resolves to all
-    `visibleIds` — and only those, because the ListBox collection is fed
-    only the visible cards.
-  - otherwise `resolvedVisible = visibleIds.filter(id => keys.has(id))`
-    — an **intersection**, not a cast. This narrows RAC's `Key`
-    (`string | number`) to `CardId` and guarantees
-    `result ⊆ (hidden ∪ visibleIds)` regardless of what `keys` contains.
-  - `next = hidden ∪ resolvedVisible`.
+  - `hidden` = `draft` minus `visibleIds`; for `"all"`,
+    `next = hidden ∪ visibleIds`.
+  - otherwise it intersects: `next = hidden ∪ visibleIds.filter(id => keys.has(id))`
+    — narrowing `Key` to `CardId` and guaranteeing `next ⊆ (hidden ∪ visibleIds)`.
 
-  The helper always returns a concrete `Set` (never re-emits `"all"`) and
-  is **idempotent**: re-applying the current visible selection yields a
-  content-equal `draft` (matters under React `StrictMode` double-invoke,
-  since `onSelectionChange` calls `setDraft`).
+  **Why the normal path stores the Selection as-is** instead of rebuilding
+  a plain `Set` each render: RAC keeps the range *anchor* on the
+  `Selection` object it hands back, and `convertSelection` only preserves
+  it when the controlled value is itself a `Selection`. Rebuilding a plain
+  `Set` nulls the anchor and collapses Shift / Shift+Arrow ranges to a
+  single item — a real bug, caught by the range tests. So the per-row path
+  must pass RAC's object back untouched. The helper therefore guards only
+  the two **bulk** paths that emit sentinels — the header toggle
+  (select-all / clear-visible) and Cmd/Ctrl+A (`"all"`) — where a fresh
+  `Set` (and an anchor reset) is fine. At Apply, `draft` is normalized to a
+  plain `Set` for downstream consumers.
 
-Extracting the helper is deliberate: it puts the merge's *correctness*
-(hidden∪visible, the `"all"` sentinel, the intersection invariant, empty
-visible) under fast deterministic unit tests independent of any RAC/jsdom
-interaction.
+The helper is pure and unit-tested (hidden∪visible, the `"all"` sentinel,
+the intersection invariant, empty-visible, idempotency), independent of
+RAC/jsdom.
 
 This preserves today's contract exactly: filters/search change only
 which rows are *shown*, never the selection; selected-but-hidden cards
@@ -206,18 +213,20 @@ with the `mixed` indeterminate state.
 Keyboard users also get Cmd/Ctrl+A inside the list. These two paths are
 **not equivalent** and the spec does not claim they are: from a
 *partially* selected state, the header follows "any visible checked →
-clear", while Cmd/Ctrl+A follows the standard listbox "select all (then a
-second press deselects all)". Different outcomes from the same mixed
-start. Both route through `mergeVisibleSelection` and neither can drop a
-hidden-selected card, so the divergence is accepted and documented rather
-than reconciled (reconciling would change shipped #84 behavior + tests).
-A test asserts the header reads checked, not mixed, after Cmd/Ctrl+A.
+clear", while Cmd/Ctrl+A just selects all shown. (RAC's select-all
+shortcut is **not** a toggle — it calls `selectAll()`, which is a no-op
+once everything shown is selected; a second press does nothing.) Different
+outcomes from the same mixed start. Both route through
+`mergeVisibleSelection` and neither can drop a hidden-selected card, so
+the divergence is accepted and documented rather than reconciled
+(reconciling would change shipped #84 behavior + tests). A test asserts
+the header reads checked, not mixed, after Cmd/Ctrl+A.
 
 The sidebar count, Select-all link, Apply/Cancel, Print-button disable,
-and empty-selection messaging are untouched. Empty selection is reachable
-via header-clear or a second Cmd/Ctrl+A (Shift can't reach it — it's
-additive); the existing disabled-Print + "Select at least 1 card" state
-handles it, unchanged.
+and empty-selection messaging are untouched. The keyboard route to an
+empty selection is the header checkbox (Space) — Cmd/Ctrl+A only ever
+selects, and Shift is additive, so neither clears; the existing
+disabled-Print + "Select at least 1 card" state handles empty, unchanged.
 
 ### Anchor across view changes
 
