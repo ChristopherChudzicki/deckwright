@@ -337,6 +337,25 @@ describe("<PrintSelectionModal> range + keyboard selection", () => {
     expect(cardOption("A")).toHaveAttribute("aria-selected", "true");
   });
 
+  test("shrinking a Shift-range drops the clicked row too (Gmail-style)", async () => {
+    const user = userEvent.setup();
+    const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18"), mk("D", "17"), mk("E", "16")];
+    open(cards, new Set()); // none selected
+    await user.click(cardOption("A")); // select A, anchor A
+    await user.keyboard("{Shift>}");
+    await user.click(cardOption("E")); // extend: fill A..E
+    expect(cardOption("E")).toHaveAttribute("aria-selected", "true");
+    await user.click(cardOption("C")); // still holding Shift: shrink back to C
+    await user.keyboard("{/Shift}");
+    // Gmail: shrinking deselects the clicked row (C) and everything out to the old
+    // extent (D, E), leaving only A..B.
+    expect(cardOption("A")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("B")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("C")).toHaveAttribute("aria-selected", "false");
+    expect(cardOption("D")).toHaveAttribute("aria-selected", "false");
+    expect(cardOption("E")).toHaveAttribute("aria-selected", "false");
+  });
+
   test("Cmd/Ctrl-click toggles a single card without disturbing others", async () => {
     const user = userEvent.setup();
     const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18")];

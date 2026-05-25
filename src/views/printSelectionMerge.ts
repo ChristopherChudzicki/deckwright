@@ -2,9 +2,10 @@ import type { Key } from "react-aria-components";
 import type { CardId } from "../cards/types";
 
 /**
- * Merge the ListBox's visible selection back into the full print draft,
- * preserving cards that are selected but currently hidden by a filter/search.
- * RAC's `onSelectionChange` emits "all" (Cmd/Ctrl+A) or a Set of the visible keys.
+ * Merge a visible selection into the full print draft, preserving cards selected
+ * but hidden by a filter/search. Used by the header "select all shown" toggle and
+ * the Cmd/Ctrl+A ("all") path; the per-row Shift-click range recomputes inline in
+ * the modal. `keys` is either "all" or a Set of the keys to keep among the visible.
  */
 export function mergeVisibleSelection(
   draft: ReadonlySet<CardId>,

@@ -93,6 +93,13 @@ plain-clicked card, after its own toggle) to the clicked card to the
 unselected cards in between); anchor deselected → the range *clears*. Plain
 and Cmd/Ctrl click toggle one card.
 
+There's no formal standard for the *edge* behaviors (Finder, Gmail, etc. all
+differ), so we match **Gmail**, since it's a checkbox list like ours:
+*extending* the range includes the clicked card, but *shrinking* it back
+inward (Shift-clicking nearer the anchor) excludes the clicked card and drops
+everything out to the previous extent — e.g. click 1 → Shift-5 → Shift-3
+leaves {1, 2}, not {1, 2, 3}. (Finder keeps the clicked card; we don't.)
+
 RAC's `ListBox` does **not** provide this rule, so it's layered on with care.
 Three RAC behaviors (verified against the installed 1.17.0 source) shaped
 the implementation:
@@ -100,12 +107,17 @@ the implementation:
 1. **Shift-extend is additive-only.** `SelectionManager.extendSelection`
    always `.add()`s the anchor→target range; it never deselects. So we
    can't lean on RAC for the clear/fill rule — on a Shift-click we recompute
-   the range from the pre-click selection and overwrite RAC's result.
+   the range and overwrite RAC's result. We rebuild from a **base snapshot**
+   taken when the anchor was set (not the live draft), so a second
+   Shift-click from the same anchor *re-bases* the range rather than stacking
+   on the prior range, and we track the range's moving end (`extentRef`) to
+   tell an extend (include the clicked card) from a shrink (exclude it).
 2. **No anchor is recorded on a *deselecting* click** (`toggleSelection`
    sets `anchorKey` only when adding). So "click a card to start,
    Shift-click another to clear the run" has no RAC anchor. We track our
    **own** anchor: a `data-card-id` on each `ListBoxItem`, read in
-   `onPointerDownCapture` on every plain (non-Shift) click.
+   `onPointerDownCapture` on every plain (non-Shift) click that lands on an
+   option (a stray Shift+pointerdown on chrome can't set the flag).
 3. **`onSelectionChange` is suppressed when the result is unchanged**
    (an `!equalSets` guard) — exactly the deselect-an-already-selected-range
    case, so a change-handler override would never fire. We enable

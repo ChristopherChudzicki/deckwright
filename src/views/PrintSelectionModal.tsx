@@ -33,6 +33,8 @@ type Props = {
 // onSelectionChange even when the result is unchanged — needed so a Shift-click
 // that *deselects* an already-selected range still reaches our handler) but
 // doesn't surface it on ListBox's prop types. Widen the type so we can pass it.
+// It reaches react-stately only via RAC's `{...props}` spread, so a RAC upgrade
+// could silently drop it; the "clears the range" test guards that behavior.
 const SelectionListBox = ListBox as unknown as (
   props: ListBoxProps<Card> & { allowDuplicateSelectionEvents?: boolean },
 ) => ReactElement;
@@ -63,56 +65,87 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   // Intentionally ignores RAC's onChange boolean: RAC passes `true` when clicked
   // from the indeterminate state, but the rule is always "any visible checked → clear".
   const onHeaderToggle = () => {
+    anchorRef.current = null; // bulk action — a later Shift-click starts a fresh range
+    extentRef.current = null;
     const next = visibleCheckedCount > 0 ? new Set<CardId>() : ("all" as const);
     setDraft((prev) => mergeVisibleSelection(prev, visibleIds, next));
   };
 
   // The ListBox is controlled by `draft`. RAC records no anchor when a click
-  // *deselects* an item, and its Shift-extend is additive-only, so we track our
-  // own anchor (the last plain-clicked card, captured on pointerdown below) and
-  // recompute Shift-click ranges ourselves. `shiftClickRef` flags that the change
-  // came from a Shift+pointer (vs. Shift+Arrow, which stays additive via RAC).
+  // *deselects* an item, and its Shift-extend is additive-only, so we manage
+  // Shift-click ranges ourselves, Gmail-style:
+  //   • anchorRef  — the last plain-clicked card (the fixed end of the range).
+  //   • extentRef  — the last Shift-clicked card (the moving end); lets us tell an
+  //                  extend from a shrink.
+  //   • baseDraftRef — the selection snapshot when the anchor was set, so every
+  //                  Shift-click re-bases off it instead of stacking.
+  //   • shiftClickRef — set on a Shift+pointerdown that lands on a row (vs.
+  //                  Shift+Arrow, which RAC handles as an additive extend).
   const anchorRef = useRef<CardId | null>(null);
+  const extentRef = useRef<CardId | null>(null);
+  const baseDraftRef = useRef<Set<CardId>>(new Set(initialSelection));
   const shiftClickRef = useRef(false);
 
   const onSelectionChange = (keys: Selection) => {
     const fromShiftClick = shiftClickRef.current;
     shiftClickRef.current = false;
 
-    // Cmd/Ctrl+A: expand the "all" sentinel to every visible id (∪ hidden).
+    // Cmd/Ctrl+A: expand the "all" sentinel to every visible id (∪ hidden). Bulk
+    // select-all resets the range anchor.
     if (keys === "all") {
-      setDraft((prev) => mergeVisibleSelection(prev, visibleIds, "all"));
+      anchorRef.current = null;
+      extentRef.current = null;
+      const next = mergeVisibleSelection(draft, visibleIds, "all");
+      baseDraftRef.current = new Set(next);
+      setDraft(next);
       return;
     }
 
     // We store RAC's Selection object: it carries the range anchor (so rebuilding
     // a plain Set each render would break keyboard Shift+Arrow) and the
     // filter-hidden selected keys it rides through, keeping draft whole.
-    const sel = keys as Set<CardId> & { anchorKey?: Key | null; currentKey?: Key | null };
-
-    // Gmail-style range on a Shift+CLICK: the whole range from the anchor (the last
-    // plain-clicked card, post-toggle) to the clicked card takes the ANCHOR's
-    // current state — anchor selected → the range fills (incl. unselected cards in
-    // between); anchor unselected → the range clears. RAC's native extend is
-    // additive-only, so we recompute from the pre-click selection and overwrite its
-    // result, keeping sel's anchor/current keys so keyboard Shift+Arrow still works.
+    const sel = keys as Set<CardId> & { currentKey?: Key | null };
     const anchor = anchorRef.current;
     const target = sel.currentKey as CardId | null | undefined; // the Shift-clicked card
+
+    // Gmail-style range on a Shift+CLICK: the range from the anchor takes the
+    // ANCHOR's state (selected → fill, incl. cards in between; deselected → clear),
+    // rebuilt from `baseDraftRef` so consecutive Shift-clicks re-base. Extending the
+    // range includes the clicked card; shrinking it back inward excludes the clicked
+    // card and drops everything out to the previous extent. RAC's extend is
+    // additive-only, so we overwrite its result, keeping the Selection object so
+    // keyboard Shift+Arrow still works.
     if (fromShiftClick && anchor != null && target != null && anchor !== target) {
-      const from = visibleIds.indexOf(anchor);
-      const to = visibleIds.indexOf(target);
-      if (from !== -1 && to !== -1) {
-        const range = visibleIds.slice(Math.min(from, to), Math.max(from, to) + 1);
-        const select = draft.has(anchor);
-        sel.clear(); // drop RAC's additive result; keeps anchorKey/currentKey
-        for (const id of draft) sel.add(id); // restore the pre-click selection (incl. hidden)
-        for (const id of range) {
+      const aIdx = visibleIds.indexOf(anchor);
+      const tIdx = visibleIds.indexOf(target);
+      if (aIdx !== -1 && tIdx !== -1) {
+        const base = baseDraftRef.current;
+        const select = base.has(anchor);
+        const eIdx = extentRef.current != null ? visibleIds.indexOf(extentRef.current) : -1;
+        const dirT = Math.sign(tIdx - aIdx);
+        const shrinking =
+          eIdx !== -1 &&
+          dirT === Math.sign(eIdx - aIdx) &&
+          Math.abs(tIdx - aIdx) < Math.abs(eIdx - aIdx);
+        const boundaryIdx = shrinking ? tIdx - dirT : tIdx; // shrink steps one back toward the anchor
+        const lo = Math.min(aIdx, boundaryIdx);
+        const hi = Math.max(aIdx, boundaryIdx);
+        const region = visibleIds.slice(lo, hi + 1);
+        sel.clear();
+        for (const id of base) sel.add(id);
+        for (const id of region) {
           if (select) sel.add(id);
           else sel.delete(id);
         }
+        extentRef.current = target; // the clicked card becomes the new moving end
+        setDraft(sel);
+        return;
       }
     }
 
+    // Plain/Cmd toggle or keyboard change: store RAC's result as-is, and snapshot
+    // it as the base for any subsequent Shift-click range.
+    if (!fromShiftClick) baseDraftRef.current = new Set(sel);
     setDraft(sel);
   };
 
@@ -211,11 +244,20 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
             allowDuplicateSelectionEvents
             selectedKeys={draft}
             onPointerDownCapture={(e) => {
-              shiftClickRef.current = e.shiftKey;
-              if (!e.shiftKey) {
-                const el = (e.target as HTMLElement).closest("[data-card-id]");
-                const id = el?.getAttribute("data-card-id");
-                if (id) anchorRef.current = id as CardId;
+              // Only treat this as a Shift-click range when an actual option is
+              // hit, so a stray Shift+pointerdown on list chrome can't leave the
+              // flag set for a later (e.g. keyboard) change.
+              const id = (e.target as HTMLElement)
+                .closest("[data-card-id]")
+                ?.getAttribute("data-card-id");
+              if (e.shiftKey) {
+                shiftClickRef.current = id != null;
+              } else {
+                shiftClickRef.current = false;
+                if (id) {
+                  anchorRef.current = id as CardId;
+                  extentRef.current = id as CardId; // a plain click resets the range to itself
+                }
               }
             }}
             onSelectionChange={onSelectionChange}
@@ -255,7 +297,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
             <div className={styles.footerActions}>
               {visible.length > 0 && (
                 <p className={styles.hint} id={hintId}>
-                  Shift-click or Shift+↑/↓ to select a range.
+                  Shift-click to fill or clear a range; Shift+↑/↓ to extend.
                 </p>
               )}
               <Button variant="secondary" onPress={onClose}>
