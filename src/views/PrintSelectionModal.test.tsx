@@ -240,3 +240,142 @@ describe("<PrintSelectionModal>", () => {
     expect(rows[1]).toHaveAccessibleName("Bravo");
   });
 });
+
+// Newest-first: pass higher day numbers first so recency order == call order.
+const mk = (name: string, day: string) =>
+  itemCardFactory.build({ name, updatedAt: `2026-05-${day}T00:00:00Z` });
+
+describe("<PrintSelectionModal> range + keyboard selection", () => {
+  test("the card list is a multi-selectable listbox; options expose aria-selected", () => {
+    const cards = itemCardFactory.buildList(2);
+    open(cards, allIds(cards));
+    expect(cardList()).toHaveAttribute("aria-multiselectable", "true");
+    const [first] = cards;
+    if (!first) throw new Error("expected a card");
+    expect(cardOption(first.name)).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("the listbox is described by the range hint", () => {
+    const cards = itemCardFactory.buildList(2);
+    open(cards, allIds(cards));
+    expect(cardList()).toHaveAccessibleDescription(/shift-click/i);
+  });
+
+  test("Escape closes the modal rather than only clearing selection", async () => {
+    const cards = itemCardFactory.buildList(3);
+    const { onApply } = open(cards, allIds(cards));
+    const [first] = cards;
+    if (!first) throw new Error("expected a card");
+    await userEvent.click(cardOption(first.name)); // moves focus into the listbox
+    await userEvent.keyboard("{Escape}");
+    expect(onApply).not.toHaveBeenCalled();
+    expect(screen.getByText("closed")).toBeInTheDocument();
+  });
+
+  test("bare ArrowDown moves focus without changing selection", async () => {
+    const cards = [mk("First", "20"), mk("Second", "19"), mk("Third", "18")];
+    open(cards, new Set()); // none selected
+    cardOption("First").focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(cardOption("Second")).toHaveFocus();
+    expect(cardOption("First")).toHaveAttribute("aria-selected", "false");
+    expect(cardOption("Second")).toHaveAttribute("aria-selected", "false");
+  });
+
+  test("a plain click toggles a single card and never replaces the selection", async () => {
+    const user = userEvent.setup();
+    const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18")];
+    open(cards, allIds(cards)); // all selected
+    await user.click(cardOption("A")); // toggle A off; B and C stay
+    expect(cardOption("A")).toHaveAttribute("aria-selected", "false");
+    expect(cardOption("B")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("C")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("Shift-click selects the inclusive range (additive)", async () => {
+    const user = userEvent.setup();
+    const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18"), mk("D", "17")];
+    open(cards, new Set());
+    await user.click(cardOption("A"));
+    await user.keyboard("{Shift>}");
+    await user.click(cardOption("C"));
+    await user.keyboard("{/Shift}");
+    expect(cardOption("A")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("B")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("C")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("D")).toHaveAttribute("aria-selected", "false");
+  });
+
+  test("Cmd/Ctrl-click toggles a single card without disturbing others", async () => {
+    const user = userEvent.setup();
+    const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18")];
+    open(cards, new Set());
+    await user.click(cardOption("A"));
+    await user.keyboard("{Meta>}");
+    await user.click(cardOption("C"));
+    await user.keyboard("{/Meta}");
+    expect(cardOption("A")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("B")).toHaveAttribute("aria-selected", "false");
+    expect(cardOption("C")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("Shift+ArrowDown extends the selection by keyboard", async () => {
+    const user = userEvent.setup();
+    const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18")];
+    open(cards, new Set());
+    await user.click(cardOption("A")); // select + anchor + focus A
+    await user.keyboard("{Shift>}{ArrowDown}{/Shift}");
+    expect(cardOption("A")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("B")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("C")).toHaveAttribute("aria-selected", "false");
+  });
+
+  test("range selection spans only visible rows; a filtered-out selected card is preserved", async () => {
+    const user = userEvent.setup();
+    const a = itemCardFactory.build({ name: "A", updatedAt: "2026-05-20T00:00:00Z" });
+    const b = spellCardFactory.build({ name: "B", updatedAt: "2026-05-19T00:00:00Z" });
+    const c = itemCardFactory.build({ name: "C", updatedAt: "2026-05-18T00:00:00Z" });
+    const cards = [a, b, c];
+    open(cards, new Set([b.id])); // only the spell B is selected
+    await user.click(screen.getByRole("radio", { name: /items/i })); // hides B; A, C visible
+    expect(screen.getByText(/1 selected card is hidden by filters/i)).toBeInTheDocument();
+    await user.click(cardOption("A"));
+    await user.keyboard("{Shift>}");
+    await user.click(cardOption("C"));
+    await user.keyboard("{/Shift}");
+    expect(cardOption("A")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("C")).toHaveAttribute("aria-selected", "true");
+    // A + C (visible) + B (hidden, preserved) = 3
+    expect(screen.getByRole("button", { name: "Apply (3 cards)" })).toBeInTheDocument();
+  });
+
+  test("range selection works after changing the sort order", async () => {
+    const user = userEvent.setup();
+    const bravo = itemCardFactory.build({ name: "Bravo", updatedAt: "2026-05-20T00:00:00Z" });
+    const alpha = itemCardFactory.build({ name: "Alpha", updatedAt: "2026-05-18T00:00:00Z" });
+    const cards = [bravo, alpha];
+    open(cards, new Set());
+    await user.click(screen.getByRole("button", { name: /sort/i }));
+    await user.click(screen.getByRole("option", { name: "Name" })); // order -> Alpha, Bravo
+    await user.click(cardOption("Alpha"));
+    await user.keyboard("{Shift>}");
+    await user.click(cardOption("Bravo"));
+    await user.keyboard("{/Shift}");
+    expect(cardOption("Alpha")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("Bravo")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("Cmd/Ctrl+A selects all shown and the header reads checked", async () => {
+    const user = userEvent.setup();
+    const cards = itemCardFactory.buildList(3);
+    open(cards, new Set()); // none
+    const [first] = cards;
+    if (!first) throw new Error("expected a card");
+    cardOption(first.name).focus();
+    // jsdom is treated as non-Mac, so Ctrl+A is select-all. If this env resolves as
+    // Mac, switch to "{Meta>}a{/Meta}".
+    await user.keyboard("{Control>}a{/Control}");
+    expect(screen.getByRole("button", { name: "Apply (3 cards)" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /select all shown cards/i })).toBeChecked();
+  });
+});

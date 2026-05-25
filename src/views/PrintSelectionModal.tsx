@@ -45,11 +45,6 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   const allVisibleChecked = visible.length > 0 && visibleCheckedCount === visible.length;
   const headerIndeterminate = !allVisibleChecked && visibleCheckedCount > 0;
 
-  const selectedKeys = useMemo(
-    () => new Set(visibleIds.filter((id) => draft.has(id))),
-    [visibleIds, draft],
-  );
-
   // Intentionally ignores RAC's onChange boolean: RAC passes `true` when clicked
   // from the indeterminate state, but the rule is always "any visible checked → clear".
   const onHeaderToggle = () => {
@@ -155,9 +150,18 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
             selectionMode="multiple"
             selectionBehavior="toggle"
             escapeKeyBehavior="none"
-            selectedKeys={selectedKeys}
+            selectedKeys={draft}
+            // Store RAC's Selection as-is: the range anchor lives on that object, so
+            // rebuilding a plain Set each render would reset it and break Shift /
+            // Shift+Arrow range extension. RAC also carries the filter-hidden selected
+            // keys through toggles, so draft stays whole. Only the "all" (Cmd/Ctrl+A)
+            // sentinel must be expanded to the visible ids.
             onSelectionChange={(keys) =>
-              setDraft((prev) => mergeVisibleSelection(prev, visibleIds, keys))
+              setDraft((prev) =>
+                keys === "all"
+                  ? mergeVisibleSelection(prev, visibleIds, "all")
+                  : (keys as Set<CardId>),
+              )
             }
             items={visible}
             renderEmptyState={() => <span className={styles.emptyState}>No cards match.</span>}
