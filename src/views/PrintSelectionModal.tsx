@@ -1,6 +1,13 @@
-import { useId, useMemo, useState } from "react";
-import { TextField } from "react-aria-components";
-import type { CardId, RenderableCard } from "../cards/types";
+import { type ReactElement, useId, useMemo, useRef, useState } from "react";
+import {
+  type Key,
+  ListBox,
+  ListBoxItem,
+  type ListBoxProps,
+  type Selection,
+  TextField,
+} from "react-aria-components";
+import type { Card, CardId, RenderableCard } from "../cards/types";
 import { type DeckKindFilter, type DeckSort, deckListing } from "../decks/deckListing";
 import { pluralize } from "../lib/pluralize";
 import { relativeTime } from "../lib/relativeTime";
@@ -13,6 +20,7 @@ import { Select } from "../lib/ui/Select";
 import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
 import styles from "./PrintSelectionModal.module.css";
+import { mergeVisibleSelection } from "./printSelectionMerge";
 
 type Props = {
   cards: RenderableCard[];
@@ -20,6 +28,16 @@ type Props = {
   onApply: (next: Set<CardId>) => void;
   onClose: () => void;
 };
+
+// RAC's ListBox honors react-stately's `allowDuplicateSelectionEvents` (fire
+// onSelectionChange even when the result is unchanged — needed so a Shift-click
+// that *deselects* an already-selected range still reaches our handler) but
+// doesn't surface it on ListBox's prop types. Widen the type so we can pass it.
+// It reaches react-stately only via RAC's `{...props}` spread, so a RAC upgrade
+// could silently drop it; the "clears the range" test guards that behavior.
+const SelectionListBox = ListBox as unknown as (
+  props: ListBoxProps<Card> & { allowDuplicateSelectionEvents?: boolean },
+) => ReactElement;
 
 export function PrintSelectionModal({ cards, initialSelection, onApply, onClose }: Props) {
   const [draft, setDraft] = useState<Set<CardId>>(() => new Set(initialSelection));
@@ -47,20 +65,94 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
   // Intentionally ignores RAC's onChange boolean: RAC passes `true` when clicked
   // from the indeterminate state, but the rule is always "any visible checked → clear".
   const onHeaderToggle = () => {
-    const next = new Set(draft);
-    if (visibleCheckedCount > 0) {
-      for (const id of visibleIds) next.delete(id);
-    } else {
-      for (const id of visibleIds) next.add(id);
-    }
-    setDraft(next);
+    anchorRef.current = null; // bulk action — a later Shift-click starts a fresh range
+    extentRef.current = null;
+    const next = visibleCheckedCount > 0 ? new Set<CardId>() : ("all" as const);
+    setDraft((prev) => mergeVisibleSelection(prev, visibleIds, next));
   };
 
-  const toggle = (id: CardId) => {
-    const next = new Set(draft);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setDraft(next);
+  // The ListBox is controlled by `draft`. RAC records no anchor when a click
+  // *deselects* an item, and its Shift-extend is additive-only, so we manage
+  // Shift-click ranges ourselves, Gmail-style:
+  //   • anchorRef  — the last plain-clicked card (the fixed end of the range).
+  //   • extentRef  — the last Shift-clicked card (the moving end); lets us tell an
+  //                  extend from a shrink.
+  //   • baseDraftRef — the selection snapshot when the anchor was set, so every
+  //                  Shift-click re-bases off it instead of stacking.
+  //   • shiftClickRef — set on a Shift+pointerdown that lands on a row (vs.
+  //                  Shift+Arrow, which RAC handles as an additive extend).
+  const anchorRef = useRef<CardId | null>(null);
+  const extentRef = useRef<CardId | null>(null);
+  const baseDraftRef = useRef<Set<CardId>>(new Set(initialSelection));
+  const shiftClickRef = useRef(false);
+
+  const onSelectionChange = (keys: Selection) => {
+    const fromShiftClick = shiftClickRef.current;
+    shiftClickRef.current = false;
+
+    // Cmd/Ctrl+A: expand the "all" sentinel to every visible id (∪ hidden). Bulk
+    // select-all resets the range anchor.
+    if (keys === "all") {
+      anchorRef.current = null;
+      extentRef.current = null;
+      const next = mergeVisibleSelection(draft, visibleIds, "all");
+      baseDraftRef.current = new Set(next);
+      setDraft(next);
+      return;
+    }
+
+    // `sel` is RAC's Selection — we keep the object (it carries the range anchor,
+    // so rebuilding a plain Set would break keyboard Shift+Arrow).
+    const sel = keys as Set<CardId> & { currentKey?: Key | null };
+    const anchor = anchorRef.current;
+    const target = sel.currentKey as CardId | null | undefined; // the Shift-clicked card
+
+    // Gmail-style range on a Shift+CLICK: the range from the anchor takes the
+    // ANCHOR's state (selected → fill, incl. cards in between; deselected → clear),
+    // rebuilt from `baseDraftRef` so consecutive Shift-clicks re-base. Extending the
+    // range includes the clicked card; shrinking it back inward excludes the clicked
+    // card and drops everything out to the previous extent.
+    if (fromShiftClick && target != null) {
+      // Record the new moving end for the NEXT shrink/extend test, reading the
+      // previous extent first. Done even when the override below bails (e.g. a
+      // Shift-click on the anchor itself) so a stale extent can't misread the next
+      // Shift-click as a shrink.
+      const prevExtentId = extentRef.current;
+      extentRef.current = target;
+
+      const aIdx = anchor != null ? visibleIds.indexOf(anchor) : -1;
+      const tIdx = visibleIds.indexOf(target);
+      if (anchor != null && anchor !== target && aIdx !== -1 && tIdx !== -1) {
+        const base = baseDraftRef.current;
+        const select = base.has(anchor);
+        const eIdx = prevExtentId != null ? visibleIds.indexOf(prevExtentId) : -1;
+        const dirT = Math.sign(tIdx - aIdx);
+        const shrinking =
+          eIdx !== -1 &&
+          dirT === Math.sign(eIdx - aIdx) &&
+          Math.abs(tIdx - aIdx) < Math.abs(eIdx - aIdx);
+        const boundaryIdx = shrinking ? tIdx - dirT : tIdx; // shrink steps one back toward the anchor
+        const region = new Set(
+          visibleIds.slice(Math.min(aIdx, boundaryIdx), Math.max(aIdx, boundaryIdx) + 1),
+        );
+        const visibleIdSet = new Set(visibleIds);
+        sel.clear();
+        // Preserve currently-hidden selected cards (filters never drop selections) —
+        // including ones a previous Shift-range selected, which aren't in `base`.
+        for (const id of draft) if (!visibleIdSet.has(id)) sel.add(id);
+        // Re-base the visible rows from the snapshot; the region takes the anchor's state.
+        for (const id of visibleIds) {
+          if (region.has(id) ? select : base.has(id)) sel.add(id);
+        }
+        setDraft(sel);
+        return;
+      }
+    }
+
+    // Plain/Cmd toggle or keyboard change: store RAC's result as-is, and snapshot
+    // it as the base for any subsequent Shift-click range.
+    if (!fromShiftClick) baseDraftRef.current = new Set(sel);
+    setDraft(sel);
   };
 
   const hiddenSelectedCount = useMemo(() => {
@@ -75,6 +167,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
 
   const total = draft.size;
   const shownCountId = useId();
+  const hintId = useId();
 
   return (
     <DialogShell
@@ -147,26 +240,51 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
             )}
           </div>
 
-          <ul className={styles.list}>
-            {visible.length === 0 ? (
-              <li className={styles.emptyState}>No cards match.</li>
-            ) : (
-              visible.map((c) => (
-                <li key={c.id} className={styles.row}>
-                  <Checkbox isSelected={draft.has(c.id)} onChange={() => toggle(c.id)}>
-                    {c.name}
-                  </Checkbox>
-                  <span className={styles.rowKind} aria-hidden="true">
-                    {c.kind}
-                  </span>
-                  <time className={styles.rowTime} dateTime={c.updatedAt}>
-                    <span className={styles.srOnly}>{"Updated "}</span>
-                    {relativeTime(c.updatedAt)}
-                  </time>
-                </li>
-              ))
+          <SelectionListBox
+            aria-label="Cards to print"
+            aria-describedby={visible.length > 0 ? hintId : undefined}
+            className={styles.list}
+            selectionMode="multiple"
+            selectionBehavior="toggle"
+            escapeKeyBehavior="none"
+            allowDuplicateSelectionEvents
+            selectedKeys={draft}
+            onPointerDownCapture={(e) => {
+              // Only treat this as a Shift-click range when an actual option is
+              // hit, so a stray Shift+pointerdown on list chrome can't leave the
+              // flag set for a later (e.g. keyboard) change.
+              const id = (e.target as HTMLElement)
+                .closest("[data-card-id]")
+                ?.getAttribute("data-card-id");
+              if (e.shiftKey) {
+                shiftClickRef.current = id != null;
+              } else {
+                shiftClickRef.current = false;
+                if (id) {
+                  anchorRef.current = id as CardId;
+                  extentRef.current = id as CardId; // a plain click resets the range to itself
+                }
+              }
+            }}
+            onSelectionChange={onSelectionChange}
+            items={visible}
+            renderEmptyState={() => <span className={styles.emptyState}>No cards match.</span>}
+          >
+            {(c) => (
+              <ListBoxItem id={c.id} textValue={c.name} className={styles.row} data-card-id={c.id}>
+                <span className={styles.rowMain}>
+                  <span className={styles.box} aria-hidden="true" />
+                  <span className={styles.rowName}>{c.name}</span>
+                </span>
+                <span className={styles.rowKind} aria-hidden="true">
+                  {c.kind}
+                </span>
+                <time className={styles.rowTime} dateTime={c.updatedAt} aria-hidden="true">
+                  {relativeTime(c.updatedAt)}
+                </time>
+              </ListBoxItem>
             )}
-          </ul>
+          </SelectionListBox>
 
           <div className={styles.footer}>
             {hiddenSelectedCount > 0 && (
@@ -183,13 +301,21 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
               {`${pluralize(total, "card")} selected`}
             </span>
             <div className={styles.footerActions}>
+              {visible.length > 0 && (
+                <p className={styles.hint} id={hintId}>
+                  Shift-click to fill or clear a range; Shift+↑/↓ to extend.
+                </p>
+              )}
               <Button variant="secondary" onPress={onClose}>
                 Cancel
               </Button>
               <Button
                 variant="primary"
                 onPress={() => {
-                  onApply(draft);
+                  // Commit a plain Set: `draft` may be RAC's Selection subclass
+                  // (it carries a range anchor), but downstream consumers want a
+                  // bare Set<CardId>.
+                  onApply(new Set(draft));
                   onClose();
                 }}
               >

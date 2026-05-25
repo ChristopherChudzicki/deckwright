@@ -7,7 +7,7 @@ import * as layoutPaginatorModule from "../cards/layoutPaginator";
 import { invariant } from "../lib/invariant";
 import { makeAbilityPayload, makeCardRow, makeItemPayload } from "../test/factories";
 import { SB_URL as SB, server } from "../test/msw";
-import { render, screen, waitFor } from "../test/render";
+import { render, screen, waitFor, within } from "../test/render";
 import { PrintView } from "./PrintView";
 import styles from "./PrintView.module.css";
 
@@ -17,6 +17,9 @@ function wrap(ui: ReactNode) {
 }
 
 describe("<PrintView>", () => {
+  const cardOption = (name: string) =>
+    within(screen.getByRole("listbox", { name: /cards to print/i })).getByRole("option", { name });
+
   test("renders one page at 4-up for up to 4 cards", async () => {
     const cards = makeCardRow.buildList(3);
     server.use(
@@ -328,7 +331,7 @@ describe("<PrintView>", () => {
     await waitFor(() => expect(screen.getByText("All 2 cards")).toBeInTheDocument());
 
     await userEvent.click(screen.getByRole("button", { name: /choose cards/i }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Drop" }));
+    await userEvent.click(cardOption("Drop"));
     await userEvent.click(screen.getByRole("button", { name: /apply/i }));
 
     expect(screen.getByText("1 of 2 cards")).toBeInTheDocument();
@@ -381,7 +384,7 @@ describe("<PrintView>", () => {
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getByText("All 2 cards")).toBeInTheDocument());
     await userEvent.click(screen.getByRole("button", { name: /choose cards/i }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Beta" }));
+    await userEvent.click(cardOption("Beta"));
     await userEvent.click(screen.getByRole("button", { name: /apply/i }));
     expect(screen.getByText("1 of 2 cards")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /select all/i }));
@@ -399,8 +402,12 @@ describe("<PrintView>", () => {
     render(wrap(<PrintView deckId="d1" />));
     await waitFor(() => expect(screen.getByText("All 1 card")).toBeInTheDocument());
     await userEvent.click(screen.getByRole("button", { name: /choose cards/i }));
-    expect(screen.getByRole("checkbox", { name: "Cloak" })).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Rage" })).not.toBeInTheDocument();
+    expect(cardOption("Cloak")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("listbox", { name: /cards to print/i })).queryByRole("option", {
+        name: "Rage",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   test("'Continue content on back' selected state persists across disable/re-enable", async () => {
