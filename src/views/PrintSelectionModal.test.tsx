@@ -356,6 +356,47 @@ describe("<PrintSelectionModal> range + keyboard selection", () => {
     expect(cardOption("E")).toHaveAttribute("aria-selected", "false");
   });
 
+  test("Shift-clicking the anchor then extending still includes the clicked row", async () => {
+    const user = userEvent.setup();
+    const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18"), mk("D", "17"), mk("E", "16")];
+    open(cards, new Set());
+    await user.click(cardOption("A")); // anchor A
+    await user.keyboard("{Shift>}");
+    await user.click(cardOption("E")); // fill A..E (extent now E)
+    await user.click(cardOption("A")); // Shift-click the anchor — collapses, must reset the extent
+    await user.click(cardOption("D")); // extend A..D — D must be included, not read as a shrink
+    await user.keyboard("{/Shift}");
+    expect(cardOption("A")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("B")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("C")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("D")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("E")).toHaveAttribute("aria-selected", "false");
+  });
+
+  test("a card selected via a Shift-range survives being filtered out (stays in Apply)", async () => {
+    const user = userEvent.setup();
+    // recency order: Aaa, Sss(spell), Bbb, Ddd
+    const aaa = itemCardFactory.build({ name: "Aaa", updatedAt: "2026-05-20T00:00:00Z" });
+    const sss = spellCardFactory.build({ name: "Sss", updatedAt: "2026-05-19T00:00:00Z" });
+    const bbb = itemCardFactory.build({ name: "Bbb", updatedAt: "2026-05-18T00:00:00Z" });
+    const ddd = itemCardFactory.build({ name: "Ddd", updatedAt: "2026-05-17T00:00:00Z" });
+    open([aaa, sss, bbb, ddd], new Set());
+    await user.click(cardOption("Aaa")); // anchor
+    await user.keyboard("{Shift>}");
+    await user.click(cardOption("Ddd")); // fill Aaa..Ddd, incl. the spell Sss
+    await user.keyboard("{/Shift}");
+    expect(screen.getByRole("button", { name: "Apply (4 cards)" })).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: /items/i })); // hides Sss (still selected)
+    expect(screen.getByText(/1 selected card is hidden by filters/i)).toBeInTheDocument();
+    await user.keyboard("{Shift>}");
+    await user.click(cardOption("Bbb")); // shrink within the visible items
+    await user.keyboard("{/Shift}");
+    // The shrink drops the visible run, but the hidden spell must NOT be lost:
+    // Aaa (visible) + Sss (hidden) = 2.
+    expect(screen.getByText(/1 selected card is hidden by filters/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply (2 cards)" })).toBeInTheDocument();
+  });
+
   test("Cmd/Ctrl-click toggles a single card without disturbing others", async () => {
     const user = userEvent.setup();
     const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18")];

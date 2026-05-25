@@ -101,9 +101,8 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
       return;
     }
 
-    // We store RAC's Selection object: it carries the range anchor (so rebuilding
-    // a plain Set each render would break keyboard Shift+Arrow) and the
-    // filter-hidden selected keys it rides through, keeping draft whole.
+    // `sel` is RAC's Selection — we keep the object (it carries the range anchor,
+    // so rebuilding a plain Set would break keyboard Shift+Arrow).
     const sel = keys as Set<CardId> & { currentKey?: Key | null };
     const anchor = anchorRef.current;
     const target = sel.currentKey as CardId | null | undefined; // the Shift-clicked card
@@ -112,32 +111,39 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
     // ANCHOR's state (selected → fill, incl. cards in between; deselected → clear),
     // rebuilt from `baseDraftRef` so consecutive Shift-clicks re-base. Extending the
     // range includes the clicked card; shrinking it back inward excludes the clicked
-    // card and drops everything out to the previous extent. RAC's extend is
-    // additive-only, so we overwrite its result, keeping the Selection object so
-    // keyboard Shift+Arrow still works.
-    if (fromShiftClick && anchor != null && target != null && anchor !== target) {
-      const aIdx = visibleIds.indexOf(anchor);
+    // card and drops everything out to the previous extent.
+    if (fromShiftClick && target != null) {
+      // Record the new moving end for the NEXT shrink/extend test, reading the
+      // previous extent first. Done even when the override below bails (e.g. a
+      // Shift-click on the anchor itself) so a stale extent can't misread the next
+      // Shift-click as a shrink.
+      const prevExtentId = extentRef.current;
+      extentRef.current = target;
+
+      const aIdx = anchor != null ? visibleIds.indexOf(anchor) : -1;
       const tIdx = visibleIds.indexOf(target);
-      if (aIdx !== -1 && tIdx !== -1) {
+      if (anchor != null && anchor !== target && aIdx !== -1 && tIdx !== -1) {
         const base = baseDraftRef.current;
         const select = base.has(anchor);
-        const eIdx = extentRef.current != null ? visibleIds.indexOf(extentRef.current) : -1;
+        const eIdx = prevExtentId != null ? visibleIds.indexOf(prevExtentId) : -1;
         const dirT = Math.sign(tIdx - aIdx);
         const shrinking =
           eIdx !== -1 &&
           dirT === Math.sign(eIdx - aIdx) &&
           Math.abs(tIdx - aIdx) < Math.abs(eIdx - aIdx);
         const boundaryIdx = shrinking ? tIdx - dirT : tIdx; // shrink steps one back toward the anchor
-        const lo = Math.min(aIdx, boundaryIdx);
-        const hi = Math.max(aIdx, boundaryIdx);
-        const region = visibleIds.slice(lo, hi + 1);
+        const region = new Set(
+          visibleIds.slice(Math.min(aIdx, boundaryIdx), Math.max(aIdx, boundaryIdx) + 1),
+        );
+        const visibleIdSet = new Set(visibleIds);
         sel.clear();
-        for (const id of base) sel.add(id);
-        for (const id of region) {
-          if (select) sel.add(id);
-          else sel.delete(id);
+        // Preserve currently-hidden selected cards (filters never drop selections) —
+        // including ones a previous Shift-range selected, which aren't in `base`.
+        for (const id of draft) if (!visibleIdSet.has(id)) sel.add(id);
+        // Re-base the visible rows from the snapshot; the region takes the anchor's state.
+        for (const id of visibleIds) {
+          if (region.has(id) ? select : base.has(id)) sel.add(id);
         }
-        extentRef.current = target; // the clicked card becomes the new moving end
         setDraft(sel);
         return;
       }

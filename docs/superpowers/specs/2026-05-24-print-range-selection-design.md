@@ -107,11 +107,14 @@ the implementation:
 1. **Shift-extend is additive-only.** `SelectionManager.extendSelection`
    always `.add()`s the anchor→target range; it never deselects. So we
    can't lean on RAC for the clear/fill rule — on a Shift-click we recompute
-   the range and overwrite RAC's result. We rebuild from a **base snapshot**
-   taken when the anchor was set (not the live draft), so a second
-   Shift-click from the same anchor *re-bases* the range rather than stacking
-   on the prior range, and we track the range's moving end (`extentRef`) to
-   tell an extend (include the clicked card) from a shrink (exclude it).
+   the range and overwrite RAC's result. We rebuild the *visible* rows from a
+   **base snapshot** taken when the anchor was set (not the live draft), so a
+   second Shift-click from the same anchor *re-bases* the range rather than
+   stacking, and we track the range's moving end (`extentRef`) to tell an
+   extend (include the clicked card) from a shrink (exclude it).
+   Filter-**hidden** selected cards are preserved from the *live draft* (not
+   the snapshot), so a card an earlier Shift-range selected isn't dropped if
+   it's later hidden.
 2. **No anchor is recorded on a *deselecting* click** (`toggleSelection`
    sets `anchorKey` only when adding). So "click a card to start,
    Shift-click another to clear the run" has no RAC anchor. We track our
