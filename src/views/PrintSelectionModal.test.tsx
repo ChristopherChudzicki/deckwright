@@ -306,6 +306,37 @@ describe("<PrintSelectionModal> range + keyboard selection", () => {
     expect(cardOption("D")).toHaveAttribute("aria-selected", "false");
   });
 
+  test("Shift-click from a deselected anchor clears the range (Gmail-style)", async () => {
+    const user = userEvent.setup();
+    const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18"), mk("D", "17")];
+    open(cards, allIds(cards)); // all selected
+    await user.click(cardOption("A")); // A becomes the deselected anchor
+    await user.keyboard("{Shift>}");
+    await user.click(cardOption("C")); // range follows anchor A's (deselected) state -> A..C clear
+    await user.keyboard("{/Shift}");
+    expect(cardOption("A")).toHaveAttribute("aria-selected", "false");
+    expect(cardOption("B")).toHaveAttribute("aria-selected", "false");
+    expect(cardOption("C")).toHaveAttribute("aria-selected", "false");
+    expect(cardOption("D")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("Shift-click from a selected anchor fills the range, incl. cards between (Gmail-style)", async () => {
+    const user = userEvent.setup();
+    const a = mk("A", "20");
+    const b = mk("B", "19");
+    const c = mk("C", "18");
+    const d = mk("D", "17");
+    open([a, b, c, d], new Set([a.id, d.id])); // A & D selected; B, C not
+    await user.click(cardOption("B")); // B becomes the selected anchor
+    await user.keyboard("{Shift>}");
+    await user.click(cardOption("D")); // range follows anchor B's (selected) state -> B..D fill
+    await user.keyboard("{/Shift}");
+    expect(cardOption("B")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("C")).toHaveAttribute("aria-selected", "true"); // was unselected, now filled
+    expect(cardOption("D")).toHaveAttribute("aria-selected", "true");
+    expect(cardOption("A")).toHaveAttribute("aria-selected", "true");
+  });
+
   test("Cmd/Ctrl-click toggles a single card without disturbing others", async () => {
     const user = userEvent.setup();
     const cards = [mk("A", "20"), mk("B", "19"), mk("C", "18")];
