@@ -89,3 +89,7 @@
   pointer-events: none;
   z-index: 1100;
 }
+
+.grid:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
+}

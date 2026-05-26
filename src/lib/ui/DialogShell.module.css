@@ -13,7 +13,6 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
-  outline: none;
 }
 
 .modal[data-size="md"] {
@@ -32,7 +31,6 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  outline: none;
   padding: var(--space-4);
   gap: var(--space-3);
 }
@@ -40,4 +38,12 @@
 .dialog[data-bleed] {
   padding: 0;
   gap: 0;
+}
+
+.modal:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
+}
+
+.dialog:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
 }

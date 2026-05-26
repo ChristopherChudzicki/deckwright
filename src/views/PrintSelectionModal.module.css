@@ -188,3 +188,7 @@
   white-space: nowrap;
   border: 0;
 }
+
+.list:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
+}

@@ -58,7 +58,6 @@
 }
 
 .menu {
-  outline: none;
   padding: var(--space-1) 0;
 }
 
@@ -73,4 +72,12 @@
 .menuItem[data-focused],
 .menuItem[data-hovered] {
   background: var(--color-surface-2);
+}
+
+.menu:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
+}
+
+.popover:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
 }
