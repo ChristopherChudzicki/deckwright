@@ -25,11 +25,6 @@
   background: var(--color-surface-2);
 }
 
-.link:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
 @media print {
   .footer {
     display: none;

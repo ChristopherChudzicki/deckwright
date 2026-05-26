@@ -14,8 +14,3 @@
   color: var(--color-accent-fg);
   border-color: var(--color-accent);
 }
-
-.btn[data-focus-visible] {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}

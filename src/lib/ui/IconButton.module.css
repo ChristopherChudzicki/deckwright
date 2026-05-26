@@ -32,8 +32,3 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-
-.iconBtn[data-focus-visible] {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}

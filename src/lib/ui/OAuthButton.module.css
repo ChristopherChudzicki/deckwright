@@ -27,11 +27,6 @@
   cursor: not-allowed;
 }
 
-.oauthBtn[data-focus-visible] {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
 .oauthBtn[data-provider="dev"] {
   border-style: dashed;
   opacity: 0.85;

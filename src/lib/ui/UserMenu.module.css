@@ -9,11 +9,6 @@
   background: var(--color-surface-2);
 }
 
-.signInLink:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
 .trigger {
   width: 2rem;
   height: 2rem;
@@ -32,11 +27,6 @@
 
 .trigger[data-hovered] {
   filter: brightness(0.92);
-}
-
-.trigger[data-focus-visible] {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
 }
 
 .popover {

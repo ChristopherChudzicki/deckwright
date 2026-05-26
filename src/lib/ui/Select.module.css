@@ -19,11 +19,6 @@
   background: var(--color-border);
 }
 
-.trigger[data-focus-visible] {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
 .caret {
   display: inline-flex;
   margin-left: var(--space-1);
