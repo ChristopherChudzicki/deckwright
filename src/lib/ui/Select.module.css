@@ -54,7 +54,7 @@
   background: var(--color-surface-2);
 }
 
-.option[data-focus-visible] {
+.option:is(:focus-visible, [data-focus-visible]) {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: -2px;
 }
