@@ -40,11 +40,6 @@
   cursor: pointer;
 }
 
-.select:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
 .switchBlock {
   display: flex;
   flex-direction: column;
@@ -96,11 +91,6 @@
   color: var(--color-accent);
   text-decoration: underline;
   cursor: pointer;
-}
-
-.selectAllLink:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
 }
 
 .divider {

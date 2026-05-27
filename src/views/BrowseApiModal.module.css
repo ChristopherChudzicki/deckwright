@@ -27,7 +27,6 @@
   gap: var(--space-1);
   border-right: 1px solid var(--color-border);
   background: var(--color-surface-2);
-  outline: none;
 }
 
 .tab {
@@ -37,7 +36,6 @@
   font-family: var(--font-body);
   color: var(--color-text);
   cursor: pointer;
-  outline: none;
 }
 
 .tab[data-hovered]:not([data-selected]) {
@@ -50,18 +48,12 @@
   font-weight: 600;
 }
 
-.tab[data-focus-visible] {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
 .tabPanel {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  outline: none;
 }
 
 .searchRow {
@@ -167,4 +159,16 @@
   .typeMenuTrigger {
     display: inline-block;
   }
+}
+
+.tabs:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
+}
+
+.tabList:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
+}
+
+.tabPanel:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
 }

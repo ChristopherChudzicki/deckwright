@@ -19,11 +19,6 @@
   background: var(--color-border);
 }
 
-.trigger[data-focus-visible] {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
 .caret {
   display: inline-flex;
   margin-left: var(--space-1);
@@ -35,12 +30,10 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
-  outline: none;
 }
 
 .listbox {
   padding: var(--space-1);
-  outline: none;
 }
 
 .option {
@@ -61,7 +54,7 @@
   background: var(--color-surface-2);
 }
 
-.option[data-focus-visible] {
+.option:is(:focus-visible, [data-focus-visible]) {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: -2px;
 }
@@ -77,4 +70,16 @@
 
 .option[data-selected]::after {
   visibility: visible;
+}
+
+.select:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
+}
+
+.popover:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
+}
+
+.listbox:is(:focus-visible, [data-focus-visible]) {
+  outline: none;
 }

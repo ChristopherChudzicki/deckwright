@@ -35,6 +35,7 @@ export function Select({
 }: SelectProps) {
   return (
     <RACSelect
+      className={styles.select}
       aria-label={label}
       selectedKey={selectedKey}
       onSelectionChange={(key) => onSelectionChange(String(key))}
