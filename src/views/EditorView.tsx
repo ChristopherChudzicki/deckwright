@@ -11,7 +11,7 @@ import { invariant } from "../lib/invariant";
 import { nowIso } from "../lib/time";
 import { Button } from "../lib/ui/Button";
 import { LoadingState } from "../lib/ui/LoadingState";
-import { BrowseApiModal } from "./BrowseApiModal";
+import { BrowseApiModal, type OpenPointerType } from "./BrowseApiModal";
 import styles from "./EditorView.module.css";
 
 const isPristineNewCard = (card: ItemCard): boolean =>
@@ -86,6 +86,7 @@ export function EditorView({ deckId, cardId }: Props) {
 
   const [previewPage, setPreviewPage] = useState(0);
   const [browseOpen, setBrowseOpen] = useState(false);
+  const [browseModality, setBrowseModality] = useState<OpenPointerType | null>(null);
   const totalPages4 = Math.max(chunks4Up.length, 1);
   const clampedPage = Math.min(previewPage, totalPages4 - 1);
   const visibleChunk = chunks4Up[clampedPage];
@@ -122,7 +123,13 @@ export function EditorView({ deckId, cardId }: Props) {
         {showImportHint && (
           <div className={styles.importHint} data-testid="import-hint">
             <span>Browse the catalog instead.</span>
-            <Button variant="secondary" onPress={() => setBrowseOpen(true)}>
+            <Button
+              variant="secondary"
+              onPress={(e) => {
+                setBrowseModality(e.pointerType);
+                setBrowseOpen(true);
+              }}
+            >
               Browse Catalog
             </Button>
           </div>
@@ -183,6 +190,7 @@ export function EditorView({ deckId, cardId }: Props) {
       {browseOpen && (
         <BrowseApiModal
           deckId={deckId}
+          openPointerType={browseModality}
           onClose={() => setBrowseOpen(false)}
           onSelected={(importedCardId) => {
             setBrowseOpen(false);

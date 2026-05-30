@@ -313,7 +313,7 @@ export function TagInput({
           return slotChildren;
         })}
       </ul>
-      <span id={hintId} className={styles.srOnly}>
+      <span id={hintId} className="sr-only">
         Use the left arrow key to insert tags between existing tags.
       </span>
       <input

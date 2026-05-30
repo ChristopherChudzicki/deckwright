@@ -16,7 +16,7 @@ type TaggedEntry =
 export const allContentType: ContentType = {
   id: "all",
   label: "All",
-  searchPlaceholder: "Search SRD…",
+  searchPlaceholder: "Search all…",
   emptyMessage: "No results match your search.",
   supportedSources: ["2024", "2014"],
   useResults: (source, query) => {

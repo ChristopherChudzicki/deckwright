@@ -297,7 +297,7 @@ export function PrintSelectionModal({ cards, initialSelection, onApply, onClose 
                 </button>
               </p>
             )}
-            <span className={styles.srOnly} aria-live="polite">
+            <span className="sr-only" aria-live="polite">
               {`${pluralize(total, "card")} selected`}
             </span>
             <div className={styles.footerActions}>
