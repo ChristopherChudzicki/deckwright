@@ -48,22 +48,25 @@ const openSourceMenu = async () => {
 };
 
 describe("<BrowseApiModal>", () => {
-  test("renders the registered types as a vertical tablist in registry order", async () => {
+  test("renders the registered types as a radio group in registry order", async () => {
     const client = makeClient();
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["All", "Items", "Spells"]);
+    const options = screen.getAllByRole("radio");
+    expect(options).toHaveLength(3);
+    expect(options[0]).toHaveAccessibleName("All");
+    expect(options[1]).toHaveAccessibleName("Items");
+    expect(options[2]).toHaveAccessibleName("Spells");
   });
 
-  test("All tab is selected by default", async () => {
+  test("All is selected by default", async () => {
     const client = makeClient();
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("radio", { name: "All" })).toBeChecked();
   });
 
-  test("All tab merges items and spells alphabetically", async () => {
+  test("All merges items and spells alphabetically", async () => {
     const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const spell = spellIndexEntryFactory.build({ name: "Fireball" });
     const client = makeClient({
@@ -83,7 +86,7 @@ describe("<BrowseApiModal>", () => {
     expect(bagIdx).toBeLessThan(fireIdx);
   });
 
-  test("All tab prefixes item rows with 'Item · '", async () => {
+  test("All prefixes item rows with 'Item · '", async () => {
     const item = magicItemIndexEntryFactory.build({
       name: "Bag of Holding",
       rarity: { name: "Uncommon" },
@@ -96,7 +99,7 @@ describe("<BrowseApiModal>", () => {
     expect(row).toHaveTextContent("Item · Uncommon");
   });
 
-  test("All tab prefixes spell rows with 'Spell · '", async () => {
+  test("All prefixes spell rows with 'Spell · '", async () => {
     const spell = spellIndexEntryFactory.build({
       name: "Fireball",
       level: 3,
@@ -110,7 +113,7 @@ describe("<BrowseApiModal>", () => {
     expect(row).toHaveTextContent("Spell · 3rd-level evocation");
   });
 
-  test("Items tab does not prefix rows with 'Item · '", async () => {
+  test("Items does not prefix rows with 'Item · '", async () => {
     const item = magicItemIndexEntryFactory.build({
       name: "Bag of Holding",
       rarity: { name: "Uncommon" },
@@ -119,13 +122,13 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Items" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Items" }));
     const row = await screen.findByRole("button", { name: /Bag of Holding/ });
     expect(row).toHaveTextContent("Uncommon");
     expect(row).not.toHaveTextContent("Item · ");
   });
 
-  test("Spells tab does not prefix rows with 'Spell · '", async () => {
+  test("Spells does not prefix rows with 'Spell · '", async () => {
     const spell = spellIndexEntryFactory.build({
       name: "Fireball",
       level: 3,
@@ -135,13 +138,13 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
     const row = await screen.findByRole("button", { name: /Fireball/ });
     expect(row).toHaveTextContent("3rd-level evocation");
     expect(row).not.toHaveTextContent("Spell · ");
   });
 
-  test("All tab empty state reads 'No results match your search.'", async () => {
+  test("All empty state reads 'No results match your search.'", async () => {
     const client = makeClient();
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
@@ -184,7 +187,7 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
     await screen.findByRole("button", { name: /^Fire Bolt/ });
     await userEvent.type(screen.getByRole("searchbox"), "firebolt");
 
@@ -230,7 +233,7 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /Ring A/ })).not.toBeInTheDocument();
   });
 
-  test("switching source on the Items tab updates mundane rows", async () => {
+  test("switching source on the Items type updates mundane rows", async () => {
     const v2024 = mundaneItemIndexEntryFactory.build({ name: "Hempen Rope" });
     const v2014 = mundaneItemIndexEntryFactory.build({ name: "Silken Rope" });
     const client = makeClient({
@@ -252,7 +255,7 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /Hempen Rope/ })).not.toBeInTheDocument();
   });
 
-  test("Items tab merges magic and mundane sources alphabetically", async () => {
+  test("Items merges magic and mundane sources alphabetically", async () => {
     const magicItem = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const mundaneItem = mundaneItemIndexEntryFactory.build({ name: "Battleaxe" });
     const client = makeClient({
@@ -262,7 +265,7 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Items" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Items" }));
     await screen.findByRole("button", { name: /Bag of Holding/ });
     const matched = screen.getAllByRole("button", { name: /Bag of Holding|Battleaxe/ });
     const names = matched.map((b) => b.textContent ?? "");
@@ -273,7 +276,7 @@ describe("<BrowseApiModal>", () => {
     expect(bagIdx).toBeLessThan(battleaxeIdx);
   });
 
-  test("switching to the Spells tab swaps the list source", async () => {
+  test("switching to the Spells type swaps the list source", async () => {
     const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const spell = spellIndexEntryFactory.build({ name: "Fireball" });
     const client = makeClient({
@@ -284,7 +287,7 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     await screen.findByRole("button", { name: /Bag of Holding/ });
-    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Fireball/ })).toBeInTheDocument(),
@@ -292,7 +295,7 @@ describe("<BrowseApiModal>", () => {
     expect(screen.queryByRole("button", { name: /Bag of Holding/ })).not.toBeInTheDocument();
   });
 
-  test("switching tabs clears the search query", async () => {
+  test("switching type clears the search query", async () => {
     const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const spell = spellIndexEntryFactory.build({ name: "Fireball" });
     const client = makeClient({
@@ -305,18 +308,18 @@ describe("<BrowseApiModal>", () => {
     await screen.findByRole("button", { name: /Bag of Holding/ });
     await userEvent.type(screen.getByRole("searchbox"), "bag");
 
-    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
 
     const spellsSearch = await screen.findByRole("searchbox");
     expect(spellsSearch).toHaveValue("");
     expect(spellsSearch).toHaveAttribute("placeholder", "Search spells…");
   });
 
-  test("All tab search placeholder reads 'Search SRD…'", async () => {
+  test("All search placeholder reads 'Search all…'", async () => {
     const client = makeClient();
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    expect(screen.getByRole("searchbox")).toHaveAttribute("placeholder", "Search SRD…");
+    expect(screen.getByRole("searchbox")).toHaveAttribute("placeholder", "Search all…");
   });
 
   test("clicking an item POSTs a card with kind:item", async () => {
@@ -354,7 +357,7 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={onSelected} />, client);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
     await userEvent.click(await screen.findByRole("button", { name: /Fireball/ }));
 
     await waitFor(() => expect(onPost).toHaveBeenCalled());
@@ -362,7 +365,7 @@ describe("<BrowseApiModal>", () => {
     expect(onSelected).toHaveBeenCalledWith(expect.any(String));
   });
 
-  test("clicking a mundane item from the Items tab POSTs a card with kind:item", async () => {
+  test("clicking a mundane item from the Items type POSTs a card with kind:item", async () => {
     const entry = mundaneItemIndexEntryFactory.build({
       name: "Battleaxe",
       category: { name: "Weapon" },
@@ -478,7 +481,7 @@ describe("<BrowseApiModal>", () => {
 
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
     const cantripRow = await screen.findByRole("button", { name: /Light/ });
     expect(cantripRow).toHaveTextContent("Evocation cantrip");
     const leveledRow = screen.getByRole("button", { name: /Fireball/ });
@@ -504,7 +507,7 @@ describe("<BrowseApiModal>", () => {
     expect(items.map((el) => el.textContent)).toEqual(["2024", "2014"]);
   });
 
-  test("pick error clears when switching tabs", async () => {
+  test("pick error clears when switching type", async () => {
     const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const spell = spellIndexEntryFactory.build({ name: "Fireball" });
     const client = makeClient({
@@ -518,7 +521,7 @@ describe("<BrowseApiModal>", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Bag of Holding/ }));
     await screen.findByRole("alert");
 
-    await userEvent.click(screen.getByRole("tab", { name: "Spells" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
 
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
@@ -545,5 +548,74 @@ describe("<BrowseApiModal>", () => {
     wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
 
     expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  test("autofocuses the search box when opened via pointer", async () => {
+    const client = makeClient();
+    wrap(
+      <BrowseApiModal
+        deckId="d1"
+        openPointerType="mouse"
+        onClose={() => {}}
+        onSelected={() => {}}
+      />,
+      client,
+    );
+
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+  });
+
+  test.each([
+    "keyboard",
+    "virtual",
+  ] as const)("does not autofocus the search box when opened via %s", async (openPointerType) => {
+    const client = makeClient();
+    wrap(
+      <BrowseApiModal
+        deckId="d1"
+        openPointerType={openPointerType}
+        onClose={() => {}}
+        onSelected={() => {}}
+      />,
+      client,
+    );
+
+    expect(screen.getByRole("searchbox")).not.toHaveFocus();
+  });
+
+  test("arrowing through the type control does not pull focus into the search box", async () => {
+    // Regression guard: search used to live inside each tab panel, so switching
+    // type remounted an autofocused input that stole focus mid-arrow. The search
+    // is now hoisted and stable, so keyboard navigation of the type stays put.
+    const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const spell = spellIndexEntryFactory.build({ name: "Fireball" });
+    const client = makeClient({
+      items: { "2024": { count: 1, results: [item] } },
+      spells: { "2024": { count: 1, results: [spell] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    screen.getByRole("radio", { name: "All" }).focus();
+    await userEvent.keyboard("{ArrowDown}");
+
+    expect(screen.getByRole("radio", { name: "Items" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Items" })).toHaveFocus();
+    expect(screen.getByRole("searchbox")).not.toHaveFocus();
+  });
+
+  test("announces the result count in a polite live region, updating as the list filters", async () => {
+    const bag = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const cloak = magicItemIndexEntryFactory.build({ name: "Cloak of Protection" });
+    const client = makeClient({ items: { "2024": { count: 2, results: [bag, cloak] } } });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    const region = await screen.findByText("2 results");
+    expect(region).toHaveAttribute("aria-live", "polite");
+
+    await userEvent.type(screen.getByRole("searchbox"), "bag");
+
+    expect(await screen.findByText("1 result")).toBeInTheDocument();
   });
 });

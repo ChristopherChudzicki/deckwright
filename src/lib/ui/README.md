@@ -17,6 +17,7 @@ Thin wrappers around `react-aria-components` (and a couple of native elements) t
 | `Checkbox` | A checkbox. Supports `isIndeterminate` for tri-state (renders `aria-checked="mixed"`). Children are the label; omit them and pass `aria-label` for a label-less control. |
 | `ToggleButton` | A toggleable button (alone or inside a `ToggleButtonGroup`). |
 | `ToggleButtonGroup` | A segmented selector — wraps `ToggleButton` children. |
+| `RadioGroup` / `Radio` | A single-select control with true `radiogroup`/`radio` semantics. Use for a mutually-exclusive filter/choice where "exactly one selected" should be announced. Styled as a segmented control (no native circles). String `value`/`onChange`. |
 | `DialogShell` | The outer scaffolding (overlay + modal + dialog) for any modal. |
 | `DialogHeader` | The standard header strip for any dialog: title, optional middle slot, close X. |
 | `LoadingState` | A centered "Loading…" indicator (`role="status"`). Use whenever a view is waiting on a query. |
@@ -54,6 +55,10 @@ Two scopes for tokens:
 
 - **Screen tokens** (`--color-*`, `--space-*`, `--radius-*`, `--shadow-*`, `--fs-*`, etc.) — used by everything in `src/lib/ui/` and most of `src/views/`.
 - **Print tokens** (`--print-*`) — used only by `src/cards/Card.tsx` and `src/views/PrintView.tsx` (sheet preview half). Never reference these in screen UI.
+
+## Global utilities
+
+Styling is otherwise CSS-module-scoped, but one global utility lives in `src/index.css`: **`.sr-only`** — visually hides an element while keeping it available to assistive tech (live regions, field hints). Use `className="sr-only"` rather than re-rolling the clip recipe per module.
 
 ## Testing
 

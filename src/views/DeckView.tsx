@@ -13,7 +13,7 @@ import { LoadingState } from "../lib/ui/LoadingState";
 import { Select } from "../lib/ui/Select";
 import { ToggleButton } from "../lib/ui/ToggleButton";
 import { ToggleButtonGroup } from "../lib/ui/ToggleButtonGroup";
-import { BrowseApiModal } from "./BrowseApiModal";
+import { BrowseApiModal, type OpenPointerType } from "./BrowseApiModal";
 import styles from "./DeckView.module.css";
 
 type Props = { deckId: string };
@@ -28,6 +28,7 @@ export function DeckView({ deckId }: Props) {
   const updateSearch = (patch: Partial<DeckSearch>) =>
     navigate({ from: "/deck/$deckId", search: (prev) => ({ ...prev, ...patch }) });
   const [browseOpen, setBrowseOpen] = useState(false);
+  const [browseModality, setBrowseModality] = useState<OpenPointerType | null>(null);
 
   if (deckQuery.isLoading || cardsQuery.isLoading) return <LoadingState />;
   if (!deckQuery.data) return <p>This deck no longer exists.</p>;
@@ -56,7 +57,13 @@ export function DeckView({ deckId }: Props) {
           </Link>
           {isOwner && (
             <>
-              <Button variant="secondary" onPress={() => setBrowseOpen(true)}>
+              <Button
+                variant="secondary"
+                onPress={(e) => {
+                  setBrowseModality(e.pointerType);
+                  setBrowseOpen(true);
+                }}
+              >
                 Browse Catalog
               </Button>
               <Link
@@ -147,6 +154,7 @@ export function DeckView({ deckId }: Props) {
       {browseOpen && (
         <BrowseApiModal
           deckId={deckId}
+          openPointerType={browseModality}
           onClose={() => setBrowseOpen(false)}
           onSelected={() => setBrowseOpen(false)}
         />

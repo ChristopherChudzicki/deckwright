@@ -106,7 +106,7 @@ describe("EditorView", () => {
     render(wrap(<EditorView deckId="d1" cardId="new" />));
     const hint = await screen.findByTestId("import-hint");
     await userEvent.click(within(hint).getByRole("button", { name: /browse catalog/i }));
-    expect(await screen.findByRole("dialog", { name: /browse srd/i })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: /browse content/i })).toBeInTheDocument();
   });
 
   it("navigates to the imported card's editor after picking from the modal", async () => {

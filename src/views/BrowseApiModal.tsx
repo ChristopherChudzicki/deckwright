@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Tab, TabList, TabPanel, Tabs, TextField } from "react-aria-components";
+import { type PressEvent, TextField } from "react-aria-components";
 import { CONTENT_TYPES, type ContentType } from "../api/content-types";
 import type { Ruleset } from "../api/endpoints/magicItems";
 import type { Card } from "../cards/types";
@@ -10,16 +10,21 @@ import { DialogShell } from "../lib/ui/DialogShell";
 import { Input } from "../lib/ui/Input";
 import { Link } from "../lib/ui/Link";
 import { LoadingState } from "../lib/ui/LoadingState";
+import { Radio, RadioGroup } from "../lib/ui/RadioGroup";
 import { Select } from "../lib/ui/Select";
 import styles from "./BrowseApiModal.module.css";
+
+/** The trigger's `PressEvent.pointerType` — how the dialog was opened. */
+export type OpenPointerType = PressEvent["pointerType"];
 
 type Props = {
   deckId: string;
   onClose: () => void;
   onSelected: (cardId: string) => void;
+  openPointerType?: OpenPointerType | null;
 };
 
-export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
+export function BrowseApiModal({ deckId, onClose, onSelected, openPointerType }: Props) {
   const [typeId, setTypeId] = useState<string>(CONTENT_TYPES[0].id);
   const activeType = CONTENT_TYPES.find((t) => t.id === typeId) ?? CONTENT_TYPES[0];
 
@@ -33,8 +38,14 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
   const [query, setQuery] = useState("");
   const [pickingKey, setPickingKey] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
+  const [resultCount, setResultCount] = useState<number | null>(null);
 
-  const handleTabChange = (next: string) => {
+  // Pointer opens autofocus the search for immediate typing. Keyboard and
+  // assistive-tech opens skip it, leaving focus at the top of the dialog so the
+  // source scope and type filter are encountered before the search box.
+  const autoFocusSearch = openPointerType !== "keyboard" && openPointerType !== "virtual";
+
+  const handleTypeChange = (next: string) => {
     if (next === typeId) return;
     setTypeId(next);
     setQuery("");
@@ -58,56 +69,77 @@ export function BrowseApiModal({ deckId, onClose, onSelected }: Props) {
     }
   };
 
+  const countMessage =
+    resultCount === null ? "" : `${resultCount} ${resultCount === 1 ? "result" : "results"}`;
+
   return (
     <DialogShell
       isOpen
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      aria-label="Browse SRD"
+      aria-label="Browse content"
       size="lg"
       height={{ fixed: "min(70vh, 640px)" }}
       bleed
     >
       {() => (
         <div className={styles.modalContainer}>
-          <DialogHeader title="Browse SRD" onClose={onClose}>
-            <TypeMenu activeId={typeId} onChange={handleTabChange} />
-            <SourceMenu
-              source={source}
-              options={activeType.supportedSources}
-              onChange={setSource}
-            />
-          </DialogHeader>
+          <DialogHeader title="Browse content" onClose={onClose} />
 
-          <div className={styles.layout}>
-            <Tabs
-              orientation="vertical"
-              selectedKey={typeId}
-              onSelectionChange={(k) => handleTabChange(String(k))}
-              className={styles.tabs}
-            >
-              <TabList aria-label="Content types" className={styles.tabList}>
+          <div className={styles.body}>
+            <div className={styles.rail}>
+              <div className={styles.scope}>
+                <SourceMenu
+                  source={source}
+                  options={activeType.supportedSources}
+                  onChange={setSource}
+                />
+              </div>
+              <RadioGroup
+                aria-label="Content type"
+                className={styles.typeFilter}
+                value={typeId}
+                onChange={handleTypeChange}
+              >
                 {CONTENT_TYPES.map((t) => (
-                  <Tab key={t.id} id={t.id} className={styles.tab}>
+                  <Radio key={t.id} value={t.id}>
                     {t.label}
-                  </Tab>
+                  </Radio>
                 ))}
-              </TabList>
-              {CONTENT_TYPES.map((t) => (
-                <TabPanel key={t.id} id={t.id} className={styles.tabPanel}>
-                  <TypePanel
-                    type={t}
-                    source={source}
-                    query={query}
-                    onQueryChange={setQuery}
-                    pickingKey={pickingKey}
-                    pickError={pickError}
-                    onPick={handlePick}
+              </RadioGroup>
+            </div>
+
+            <div className={styles.main}>
+              <div className={styles.searchRow}>
+                <TextField aria-label="Search" className={styles.searchField}>
+                  <Input
+                    type="search"
+                    placeholder={activeType.searchPlaceholder}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    autoFocus={autoFocusSearch}
                   />
-                </TabPanel>
-              ))}
-            </Tabs>
+                </TextField>
+              </div>
+              {/* Keyed by type so the component remounts on type change: each
+                  ContentType.useResults calls a different number of hooks, so a
+                  single instance switching types would violate the rules of hooks. */}
+              <Results
+                key={activeType.id}
+                type={activeType}
+                source={source}
+                query={query}
+                pickingKey={pickingKey}
+                pickError={pickError}
+                onPick={handlePick}
+                onCount={setResultCount}
+              />
+            </div>
+          </div>
+
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {countMessage}
           </div>
 
           <p className={styles.footer}>
@@ -154,101 +186,71 @@ function SourceMenu({
   );
 }
 
-function TypeMenu({ activeId, onChange }: { activeId: string; onChange: (next: string) => void }) {
-  return (
-    <Select
-      label="Type"
-      selectedKey={activeId}
-      onSelectionChange={onChange}
-      triggerClassName={styles.typeMenuTrigger}
-      items={CONTENT_TYPES.map((t) => ({ id: t.id, label: t.label }))}
-    />
-  );
-}
-
-type TypePanelProps = {
+type ResultsProps = {
   type: ContentType;
   source: Ruleset;
   query: string;
-  onQueryChange: (q: string) => void;
   pickingKey: string | null;
   pickError: string | null;
   onPick: (rowKey: string, card: Card) => void;
+  onCount: (count: number | null) => void;
 };
 
-function TypePanel({
-  type,
-  source,
-  query,
-  onQueryChange,
-  pickingKey,
-  pickError,
-  onPick,
-}: TypePanelProps) {
+function Results({ type, source, query, pickingKey, pickError, onPick, onCount }: ResultsProps) {
   const results = type.useResults(source, query);
-  const emptyMessage = type.emptyMessage;
+  const { isLoading, isError, rows } = results;
+
+  useEffect(() => {
+    onCount(isLoading || isError ? null : rows.length);
+  }, [isLoading, isError, rows.length, onCount]);
 
   return (
-    <>
-      <div className={styles.searchRow}>
-        <TextField aria-label="Search" className={styles.searchField}>
-          <Input
-            type="search"
-            placeholder={type.searchPlaceholder}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            autoFocus
-          />
-        </TextField>
-      </div>
-
-      <div className={styles.results}>
-        {results.isLoading && (
-          <div className={styles.statePane}>
-            <LoadingState />
-          </div>
-        )}
-        {results.isError && (
-          <div className={styles.statePane}>
-            <div className={`${styles.state} ${styles.stateError}`} role="alert">
-              Couldn't load the list.
-              <div className={styles.errorActions}>
-                <Button variant="secondary" size="sm" onPress={() => results.refetch()}>
-                  Retry
-                </Button>
-              </div>
+    <div className={styles.results}>
+      {isLoading && (
+        <div className={styles.statePane}>
+          <LoadingState />
+        </div>
+      )}
+      {isError && (
+        <div className={styles.statePane}>
+          <div className={`${styles.state} ${styles.stateError}`} role="alert">
+            Couldn't load the list.
+            <div className={styles.errorActions}>
+              <Button variant="secondary" size="sm" onPress={() => results.refetch()}>
+                Retry
+              </Button>
             </div>
           </div>
-        )}
-        {!results.isLoading && !results.isError && results.rows.length === 0 && (
-          <div className={styles.statePane}>
-            <div className={styles.state}>{emptyMessage}</div>
-          </div>
-        )}
-        {pickError && (
-          <div className={`${styles.state} ${styles.stateError}`} role="alert">
-            {pickError}
-          </div>
-        )}
-        {results.rows.map((row) => (
-          <button
-            key={row.key}
-            type="button"
-            className={styles.row}
-            onClick={() => onPick(row.key, row.toCard())}
-            disabled={pickingKey !== null}
-          >
-            <span className={styles.rowName}>{row.name}</span>
-            <span className={styles.rowMeta}>
-              {pickingKey === row.key
-                ? "Loading…"
-                : type.id === "all" && row.kindLabel
-                  ? `${row.kindLabel} · ${row.meta}`
-                  : row.meta}
-            </span>
-          </button>
-        ))}
-      </div>
-    </>
+        </div>
+      )}
+      {!isLoading && !isError && rows.length === 0 && (
+        <div className={styles.statePane}>
+          <div className={styles.state}>{type.emptyMessage}</div>
+        </div>
+      )}
+      {pickError && (
+        <div className={`${styles.state} ${styles.stateError}`} role="alert">
+          {pickError}
+        </div>
+      )}
+      {rows.map((row) => (
+        <button
+          key={row.key}
+          type="button"
+          className={styles.row}
+          onClick={() => onPick(row.key, row.toCard())}
+          disabled={pickingKey !== null}
+        >
+          <span className={styles.rowName}>{row.name}</span>
+          <span className={styles.rowMeta}>
+            {pickingKey === row.key
+              ? "Loading…"
+              : type.id === "all" && row.kindLabel
+                ? `${row.kindLabel} · ${row.meta}`
+                : row.meta}
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }
