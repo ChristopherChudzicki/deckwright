@@ -10,7 +10,7 @@ import { Link } from "../lib/ui/Link";
 import { Radio, RadioGroup } from "../lib/ui/RadioGroup";
 import { Select } from "../lib/ui/Select";
 import styles from "./BrowseApiModal.module.css";
-import { CONTENT_TYPES } from "./browse";
+import { CONTENT_TYPES } from "./browse/contentTypes";
 
 /** The trigger's `PressEvent.pointerType` — how the dialog was opened. */
 export type OpenPointerType = PressEvent["pointerType"];
