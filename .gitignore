@@ -9,6 +9,12 @@ dist-ssr
 .vite
 coverage
 *.tsbuildinfo
+/generated/
+
+# Claude Code: machine-local scratch
+.claude/settings.local.json
+.claude/worktrees/
+.claude/handoffs/
 
 # Supabase
 supabase/.env

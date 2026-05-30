@@ -20,6 +20,12 @@ See README's "Design system" section for the full picture. Short version:
 - The card preview shown in the editor renders the same `<Card>` component as `PrintView`, so screen preview matches print output exactly.
 - Card bodies render as Markdown via `src/cards/renderBody.ts` (`marked` → DOMPurify with a strict allowlist). Both `<Card>` and the offscreen `measurer.ts` call this helper. Don't bypass it or expand the allowlist without thinking through pagination + XSS.
 
+## CSS module typing
+
+- `*.module.css` class names are **type-checked**. `@css-modules-kit/codegen` (`cmk`) emits per-file `.d.ts` into the gitignored `generated/` dir (overlaid via `rootDirs` in `tsconfig.app.json`), so `styles.typo` is a real `tsc` error, not `string`.
+- `npm run gen:css` regenerates them; `build` and `typecheck` run it first, and a `PostToolUse` hook in `.claude/settings.json` reruns it whenever you edit a `*.module.css`. So after adding a class you can use `styles.newClass` immediately — no manual step.
+- The regen hook fires only on `*.module.css` edits, not `.tsx`. So when a class is flagged "does not exist on type": if it's already in the `.module.css`, the dts is just stale → run `npm run gen:css`. If it isn't in the `.module.css` yet (or the name is a typo), the error is **real** → add the class or fix the name. Don't reflexively revert the usage.
+
 ## Tests
 
 - Prefer `getByRole(...)` over text/class selectors. React Aria primitives expose accurate ARIA roles.

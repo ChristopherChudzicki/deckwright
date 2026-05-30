@@ -46,7 +46,7 @@ UI styling is driven by CSS custom-property tokens defined in [`src/index.css`](
 **Stack**
 
 - [`react-aria-components`](https://react-spectrum.adobe.com/react-aria/) for accessible interactive primitives (Dialog, Menu, ToggleButtonGroup, etc.).
-- CSS modules. No styled-components, emotion, MUI, Tailwind, or shadcn.
+- CSS modules. No styled-components, emotion, MUI, Tailwind, or shadcn. Class names are type-checked in `build`/`typecheck` (and via `npm run gen:css`): `@css-modules-kit/codegen` generates per-module `.d.ts`, so `styles.typo` becomes a compile error.
 - Self-hosted Inter (body) and Cinzel (display headings) via fontsource.
 
 **Token scopes** — `src/index.css` defines two namespaces: screen tokens (`--color-*`, `--space-*`, `--radius-*`, `--shadow-*`, `--fs-*`, etc.) used by all screen UI, and print tokens (`--print-*`) used only by `Card` and `PrintView`. Never reference `--print-*` in screen UI.

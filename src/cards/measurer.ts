@@ -91,7 +91,7 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     el.replaceChildren();
     for (const tag of headerTags) {
       const t = document.createElement("span");
-      t.className = cardStyles.headerTag ?? "";
+      t.className = cardStyles.headerTag;
       t.textContent = tag;
       el.appendChild(t);
     }
@@ -101,10 +101,10 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     el.replaceChildren();
     if (footerTags.length > 0) {
       const left = document.createElement("span");
-      left.className = cardStyles.footerTags ?? "";
+      left.className = cardStyles.footerTags;
       for (const tag of footerTags) {
         const t = document.createElement("span");
-        t.className = cardStyles.footerTag ?? "";
+        t.className = cardStyles.footerTag;
         t.textContent = tag;
         left.appendChild(t);
       }
@@ -112,7 +112,7 @@ function build(cardsPerPage: CardsPerPage): CardMeasurer {
     }
     const right = document.createElement("span");
     right.textContent = pagination;
-    right.className = cardStyles.footerRight ?? "";
+    right.className = cardStyles.footerRight;
     el.appendChild(right);
   };
 
