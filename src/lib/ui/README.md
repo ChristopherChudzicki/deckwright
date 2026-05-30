@@ -56,6 +56,10 @@ Two scopes for tokens:
 - **Screen tokens** (`--color-*`, `--space-*`, `--radius-*`, `--shadow-*`, `--fs-*`, etc.) — used by everything in `src/lib/ui/` and most of `src/views/`.
 - **Print tokens** (`--print-*`) — used only by `src/cards/Card.tsx` and `src/views/PrintView.tsx` (sheet preview half). Never reference these in screen UI.
 
+## Global utilities
+
+Styling is otherwise CSS-module-scoped, but one global utility lives in `src/index.css`: **`.sr-only`** — visually hides an element while keeping it available to assistive tech (live regions, field hints). Use `className="sr-only"` rather than re-rolling the clip recipe per module.
+
 ## Testing
 
 Tests live next to the primitive (`Foo.tsx` + `Foo.test.tsx`). Conventions:

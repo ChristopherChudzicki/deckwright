@@ -103,7 +103,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected, openPointerType }:
                 onChange={handleTypeChange}
               >
                 {CONTENT_TYPES.map((t) => (
-                  <Radio key={t.id} value={t.id} className={styles.typeOption}>
+                  <Radio key={t.id} value={t.id}>
                     {t.label}
                   </Radio>
                 ))}

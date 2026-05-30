@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import {
   Radio as RACRadio,
   RadioGroup as RACRadioGroup,
@@ -16,15 +15,10 @@ export function RadioGroup({ className, ...rest }: RadioGroupProps) {
   return <RACRadioGroup {...rest} className={cx(styles.group, className)} />;
 }
 
-export type RadioProps = Omit<RACRadioProps, "className" | "children"> & {
+export type RadioProps = Omit<RACRadioProps, "className"> & {
   className?: string;
-  children?: ReactNode;
 };
 
-export function Radio({ className, children, ...rest }: RadioProps) {
-  return (
-    <RACRadio {...rest} className={cx(styles.radio, className)}>
-      {children}
-    </RACRadio>
-  );
+export function Radio({ className, ...rest }: RadioProps) {
+  return <RACRadio {...rest} className={cx(styles.radio, className)} />;
 }
