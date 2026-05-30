@@ -153,6 +153,26 @@ describe("<BrowseApiModal>", () => {
     expect(await screen.findByText("No results match your search.")).toBeInTheDocument();
   });
 
+  test("Items empty state reads 'No items match your search.'", async () => {
+    const client = makeClient();
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("radio", { name: "Items" }));
+    await userEvent.type(screen.getByRole("searchbox"), "xyzzy");
+
+    expect(await screen.findByText("No items match your search.")).toBeInTheDocument();
+  });
+
+  test("Spells empty state reads 'No spells match your search.'", async () => {
+    const client = makeClient();
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
+    await userEvent.type(screen.getByRole("searchbox"), "xyzzy");
+
+    expect(await screen.findByText("No spells match your search.")).toBeInTheDocument();
+  });
+
   test("shows index entries once the items list loads", async () => {
     const entryA = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
     const entryB = magicItemIndexEntryFactory.build({ name: "Cloak of Protection" });
@@ -293,6 +313,31 @@ describe("<BrowseApiModal>", () => {
       expect(screen.getByRole("button", { name: /Fireball/ })).toBeInTheDocument(),
     );
     expect(screen.queryByRole("button", { name: /Bag of Holding/ })).not.toBeInTheDocument();
+  });
+
+  test("round-trips All → Spells → All without a hook-count error", async () => {
+    // Guards the invariant behind this design: each type renders a distinct
+    // component (all=3 hooks, spells=1), so React remounts on switch. Collapsing
+    // them back into one instance would throw "rendered fewer hooks" on the
+    // return to All — only a round-trip with data loaded catches that.
+    const item = magicItemIndexEntryFactory.build({ name: "Bag of Holding" });
+    const spell = spellIndexEntryFactory.build({ name: "Fireball" });
+    const client = makeClient({
+      items: { "2024": { count: 1, results: [item] } },
+      spells: { "2024": { count: 1, results: [spell] } },
+    });
+
+    wrap(<BrowseApiModal deckId="d1" onClose={() => {}} onSelected={() => {}} />, client);
+
+    await screen.findByRole("button", { name: /Bag of Holding/ });
+
+    await userEvent.click(screen.getByRole("radio", { name: "Spells" }));
+    await screen.findByRole("button", { name: /Fireball/ });
+    expect(screen.queryByRole("button", { name: /Bag of Holding/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("radio", { name: "All" }));
+    expect(await screen.findByRole("button", { name: /Bag of Holding/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Fireball/ })).toBeInTheDocument();
   });
 
   test("switching type clears the search query", async () => {

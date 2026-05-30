@@ -1,18 +1,16 @@
 import { useEffect, useState } from "react";
 import { type PressEvent, TextField } from "react-aria-components";
-import { CONTENT_TYPES, type ContentType } from "../api/content-types";
 import type { Ruleset } from "../api/endpoints/magicItems";
 import type { Card } from "../cards/types";
 import { useSaveCard } from "../decks/mutations";
-import { Button } from "../lib/ui/Button";
 import { DialogHeader } from "../lib/ui/DialogHeader";
 import { DialogShell } from "../lib/ui/DialogShell";
 import { Input } from "../lib/ui/Input";
 import { Link } from "../lib/ui/Link";
-import { LoadingState } from "../lib/ui/LoadingState";
 import { Radio, RadioGroup } from "../lib/ui/RadioGroup";
 import { Select } from "../lib/ui/Select";
 import styles from "./BrowseApiModal.module.css";
+import { CONTENT_TYPES } from "./browse/contentTypes";
 
 /** The trigger's `PressEvent.pointerType` — how the dialog was opened. */
 export type OpenPointerType = PressEvent["pointerType"];
@@ -122,12 +120,7 @@ export function BrowseApiModal({ deckId, onClose, onSelected, openPointerType }:
                   />
                 </TextField>
               </div>
-              {/* Keyed by type so the component remounts on type change: each
-                  ContentType.useResults calls a different number of hooks, so a
-                  single instance switching types would violate the rules of hooks. */}
-              <Results
-                key={activeType.id}
-                type={activeType}
+              <activeType.Results
                 source={source}
                 query={query}
                 pickingKey={pickingKey}
@@ -183,74 +176,5 @@ function SourceMenu({
       onSelectionChange={(key) => onChange(key as Ruleset)}
       items={options.map((opt) => ({ id: opt, label: opt }))}
     />
-  );
-}
-
-type ResultsProps = {
-  type: ContentType;
-  source: Ruleset;
-  query: string;
-  pickingKey: string | null;
-  pickError: string | null;
-  onPick: (rowKey: string, card: Card) => void;
-  onCount: (count: number | null) => void;
-};
-
-function Results({ type, source, query, pickingKey, pickError, onPick, onCount }: ResultsProps) {
-  const results = type.useResults(source, query);
-  const { isLoading, isError, rows } = results;
-
-  useEffect(() => {
-    onCount(isLoading || isError ? null : rows.length);
-  }, [isLoading, isError, rows.length, onCount]);
-
-  return (
-    <div className={styles.results}>
-      {isLoading && (
-        <div className={styles.statePane}>
-          <LoadingState />
-        </div>
-      )}
-      {isError && (
-        <div className={styles.statePane}>
-          <div className={`${styles.state} ${styles.stateError}`} role="alert">
-            Couldn't load the list.
-            <div className={styles.errorActions}>
-              <Button variant="secondary" size="sm" onPress={() => results.refetch()}>
-                Retry
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      {!isLoading && !isError && rows.length === 0 && (
-        <div className={styles.statePane}>
-          <div className={styles.state}>{type.emptyMessage}</div>
-        </div>
-      )}
-      {pickError && (
-        <div className={`${styles.state} ${styles.stateError}`} role="alert">
-          {pickError}
-        </div>
-      )}
-      {rows.map((row) => (
-        <button
-          key={row.key}
-          type="button"
-          className={styles.row}
-          onClick={() => onPick(row.key, row.toCard())}
-          disabled={pickingKey !== null}
-        >
-          <span className={styles.rowName}>{row.name}</span>
-          <span className={styles.rowMeta}>
-            {pickingKey === row.key
-              ? "Loading…"
-              : type.id === "all" && row.kindLabel
-                ? `${row.kindLabel} · ${row.meta}`
-                : row.meta}
-          </span>
-        </button>
-      ))}
-    </div>
   );
 }
