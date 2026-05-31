@@ -18,7 +18,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    "rootDirs": [".", "generated"]
+  },
+  "cmkOptions": {
+    "enabled": true
   },
   "include": ["src"]
 }

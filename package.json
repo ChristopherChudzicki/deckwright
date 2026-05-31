@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run gen:css && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "biome check src scripts e2e",
     "lint:fix": "biome check --write src scripts e2e",
@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "typecheck": "tsc -b --noEmit",
+    "typecheck": "npm run gen:css && tsc -b --noEmit",
+    "gen:css": "cmk --clean -p tsconfig.app.json",
     "gen:schema": "tsx scripts/gen-card-schema.ts",
     "check:schema": "tsx scripts/gen-card-schema.ts --check",
     "gen:db-types": "supabase gen types typescript --local --schema public > src/api/database.types.ts",
@@ -45,6 +46,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.12",
+    "@css-modules-kit/codegen": "^1.2.0",
     "@faker-js/faker": "^10.4.0",
     "@playwright/test": "^1.59.1",
     "@tanstack/router-devtools": "^1.166.13",
