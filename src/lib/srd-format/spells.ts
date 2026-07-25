@@ -13,8 +13,9 @@ export const levelLabel = (level: number, schoolName: string): string => {
   return `${ordinal(level)}-level ${schoolName.toLowerCase()}`;
 };
 
-// 2014 SRD packs the count into casting_time (e.g. "10minutes"); 2024 strips it
-// (e.g. just "minute"). Parse out a quantity if present, otherwise default to 1.
+// Open5e packs the count into casting_time without a space (e.g. "10minutes"),
+// and has previously served the bare unit ("minute") instead. Parse out a
+// quantity if present, otherwise default to 1.
 const CONCATENATED_CASTING = /^(\d+)(minute|hour|day|round|turn)s?$/i;
 
 export const castingTimeLabel = (castingTime: string, ritual: boolean): string => {
@@ -34,7 +35,8 @@ export const castingTimeLabel = (castingTime: string, ritual: boolean): string =
   return ritual ? `${base} (ritual)` : base;
 };
 
-// 2024 returns singular units (e.g. "10 minute"); 2014 returns plural ("10 minutes").
+// Open5e has served both singular ("10 minute") and plural ("10 minutes") units
+// for the same duration; normalize on the quantity rather than trusting either.
 const QUANTIFIED_DURATION = /^(\d+)\s+(minute|hour|day|round|turn)s?$/i;
 
 const formatDuration = (duration: string): string => {

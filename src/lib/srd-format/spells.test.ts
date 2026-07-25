@@ -32,7 +32,7 @@ describe("castingTimeLabel", () => {
     ["reaction", "1 reaction"],
     ["minute", "1 minute"],
     ["hour", "1 hour"],
-  ] as const)("2024 form %s → %s", (input, expected) => {
+  ] as const)("bare unit %s → %s", (input, expected) => {
     expect(castingTimeLabel(input, false)).toBe(expected);
   });
   test.each([
@@ -40,7 +40,7 @@ describe("castingTimeLabel", () => {
     ["10minutes", "10 minutes"],
     ["1hour", "1 hour"],
     ["8hours", "8 hours"],
-  ] as const)("2014 concatenated %s → %s", (input, expected) => {
+  ] as const)("concatenated %s → %s", (input, expected) => {
     expect(castingTimeLabel(input, false)).toBe(expected);
   });
   test("ritual=true appends ' (ritual)'", () => {
@@ -53,10 +53,10 @@ describe("durationLabel", () => {
   test("'instantaneous' is capitalized", () => {
     expect(durationLabel("instantaneous", false)).toBe("Instantaneous");
   });
-  test("'10 minute' (2024 singular) → '10 minutes'", () => {
+  test("'10 minute' (singular unit) → '10 minutes'", () => {
     expect(durationLabel("10 minute", false)).toBe("10 minutes");
   });
-  test("'10 minutes' (2014 plural) stays '10 minutes'", () => {
+  test("'10 minutes' (plural unit) stays '10 minutes'", () => {
     expect(durationLabel("10 minutes", false)).toBe("10 minutes");
   });
   test("'1 minute' stays singular", () => {
