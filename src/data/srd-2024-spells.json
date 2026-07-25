@@ -60,7 +60,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "30 feet",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -93,10 +93,10 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "30 feet",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -110,7 +110,7 @@
         "name": "Wizard"
       }
     ],
-    "desc": "You set an alarm against intrusion. Choose a door, a window, or an area within range that is no larger than a 20-foot Cube. Until the spell ends, an alarm alerts you whenever a creature touches or enters the warded area. When you cast the spell, you can designate creatures that won't set off the alarm. You also choose whether the alarm is audible or mental:",
+    "desc": "You set an alarm against intrusion. Choose a door, a window, or an area within range that is no larger than a 20-foot Cube. Until the spell ends, an alarm alerts you whenever a creature touches or enters the warded area. When you cast the spell, you can designate creatures that won't set off the alarm. You also choose whether the alarm is audible or mental:\n\n**Audible Alarm.** The alarm produces the sound of a handbell for 10 seconds within 60 feet of the warded area.\n\n**Mental Alarm.** You are alerted by a mental ping if you are within 1 mile of the warded area. This ping awakens you if you're asleep.",
     "higher_level": ""
   },
   {
@@ -150,7 +150,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "30 feet",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -180,7 +180,7 @@
     "casting_time": "action",
     "ritual": true,
     "range_text": "30 feet",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -210,7 +210,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "30 feet",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -231,7 +231,7 @@
     "school": {
       "name": "Necromancy"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "10 feet",
     "duration": "instantaneous",
@@ -339,10 +339,10 @@
     "school": {
       "name": "Enchantment"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 day",
+    "duration": "10 days",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -410,7 +410,7 @@
         "name": "Wizard"
       }
     ],
-    "desc": "You create a Large hand of shimmering magical energy in an unoccupied space that you can see within range. The hand lasts for the duration, and it moves at your command, mimicking the movements of your own hand. The hand is an object that has AC 20 and Hit Points equal to your Hit Point maximum. If it drops to 0 Hit Points, the spell ends. The hand doesn't occupy its space. When you cast the spell and as a Bonus Action on your later turns, you can move the hand up to 60 feet and then cause one of the following effects:",
+    "desc": "You create a Large hand of shimmering magical energy in an unoccupied space that you can see within range. The hand lasts for the duration, and it moves at your command, mimicking the movements of your own hand. The hand is an object that has AC 20 and Hit Points equal to your Hit Point maximum. If it drops to 0 Hit Points, the spell ends. The hand doesn't occupy its space. When you cast the spell and as a Bonus Action on your later turns, you can move the hand up to 60 feet and then cause one of the following effects:\n\n**Clenched Fist.** The hand strikes a target within 5 feet of it. Make a melee spell attack. On a hit, the target takes 5d8 Force damage.\n\n**Forceful Hand.** The hand attempts to push a Huge or smaller creature within 5 feet of it. The target must succeed on a Strength saving throw, or the hand pushes the target up to 5 feet plus a number of feet equal to five times your spellcasting ability modifier. The hand moves with the target, remaining within 5 feet of it.\n\n**Grasping Hand.** The hand attempts to grapple a Huge or smaller creature within 5 feet of it. The target must succeed on a Dexterity saving throw, or the target has the Grappled condition, with an escape DC equal to your spell save DC. While the hand grapples the target, you can take a Bonus Action to cause the hand to crush it, dealing Bludgeoning damage to the target equal to 4d6 plus your spellcasting ability modifier.\n\n**Interposing Hand.** The hand grants you Half Cover against attacks and other effects that originate from its space or that pass through it. In addition, its space counts as Difficult Terrain for your enemies.",
     "higher_level": "The damage of the Clenched Fist increases by 2d8 and the damage of the Grasping Hand increases by 2d6 for each spell slot level above 5."
   },
   {
@@ -474,7 +474,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -485,7 +485,7 @@
         "name": "Wizard"
       }
     ],
-    "desc": "With a touch, you place an illusion on a willing creature or an object that isn't being worn or carried. A creature gains the Mask effect below, and an object gains the False Aura effect below. The effect lasts for the duration. If you cast the spell on the same target every day for 30 days, the illusion lasts until dispelled.",
+    "desc": "With a touch, you place an illusion on a willing creature or an object that isn't being worn or carried. A creature gains the Mask effect below, and an object gains the False Aura effect below. The effect lasts for the duration. If you cast the spell on the same target every day for 30 days, the illusion lasts until dispelled.\n\n**Mask (Creature).** Choose a creature type other than the target's actual type. Spells and other magical effects treat the target as if it were a creature of the chosen type.\n\n**False Aura (Object).** You change the way the target appears to spells and magical effects that detect magical auras, such as Detect Magic. You can make a nonmagical object appear magical, make a magic item appear nonmagical, or change the object's aura so that it appears to belong to a school of magic you choose.",
     "higher_level": ""
   },
   {
@@ -495,7 +495,7 @@
     "school": {
       "name": "Necromancy"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "10 feet",
     "duration": "until dispelled",
@@ -525,7 +525,7 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "Self",
     "duration": "instantaneous",
@@ -558,7 +558,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": false,
@@ -582,7 +582,7 @@
     "school": {
       "name": "Transmutation"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
     "duration": "instantaneous",
@@ -816,7 +816,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "90 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1014,7 +1014,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "120 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1248,10 +1248,10 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "1 mile",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1281,7 +1281,7 @@
     "school": {
       "name": "Necromancy"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
     "duration": "instantaneous",
@@ -1308,7 +1308,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "120 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1392,7 +1392,7 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "Self",
     "duration": "1 minute",
@@ -1416,7 +1416,7 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "Self",
     "duration": "instantaneous",
@@ -1566,7 +1566,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1593,7 +1593,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "90 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1617,7 +1617,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1644,7 +1644,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1668,7 +1668,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1695,7 +1695,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1719,7 +1719,7 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "Self",
     "duration": "1 minute",
@@ -1749,10 +1749,10 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "7 day",
+    "duration": "7 days",
     "concentration": false,
-    "verbal": false,
-    "somatic": false,
+    "verbal": true,
+    "somatic": true,
     "material": false,
     "material_specified": "",
     "classes": [
@@ -1773,10 +1773,10 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 day",
+    "duration": "10 days",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -1830,7 +1830,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "300 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1847,7 +1847,7 @@
         "name": "Wizard"
       }
     ],
-    "desc": "Until the spell ends, you control any water inside an area you choose that is a Cube up to 100 feet on a side, using one of the following effects. As a Magic action on your later turns, you can repeat the same effect or choose a different one. The water level remains elevated until the spell ends or you choose a different effect. If this effect produced a wave, the wave repeats on the start of your next turn while the flood effect lasts.",
+    "desc": "Until the spell ends, you control any water inside an area you choose that is a Cube up to 100 feet on a side, using one of the following effects. As a Magic action on your later turns, you can repeat the same effect or choose a different one.\n\n**Flood.** You cause the water level of all standing water in the area to rise by as much as 20 feet. If you choose an area in a large body of water, you instead create a 20-foot tall wave that travels from one side of the area to the other and then crashes. Any Huge or smaller vehicles in the wave's path are carried with it to the other side. Any Huge or smaller vehicles struck by the wave have a 25 percent chance of capsizing.\n\nThe water level remains elevated until the spell ends or you choose a different effect. If this effect produced a wave, the wave repeats on the start of your next turn while the flood effect lasts.\n\n**Part Water.** You part water in the area and create a trench. The trench extends across the spell's area, and the separated water forms a wall to either side. The trench remains until the spell ends or you choose a different effect. The water then slowly fills in the trench over the course of the next round until the normal water level is restored.\n\n**Redirect Flow.** You cause flowing water in the area to move in a direction you choose, even if the water has to flow over obstacles, up walls, or in other unlikely directions. The water in the area moves as you direct it, but once it moves beyond the spell's area, it resumes its flow based on the terrain. The water continues to move in the direction you chose until the spell ends or you choose a different effect.\n\n**Whirlpool.** You cause a whirlpool to form in the center of the area, which must be at least 50 feet square and 25 feet deep. The whirlpool lasts until you choose a different effect or the spell ends. The whirlpool is 5 feet wide at the base, up to 50 feet wide at the top, and 25 feet tall. Any creature in the water and within 25 feet of the whirlpool is pulled 10 feet toward it. When a creature enters the whirlpool for the first time on a turn or ends its turn there, it makes a Strength saving throw. On a failed save, the creature takes 2d8 Bludgeoning damage. On a successful save, the creature takes half as much damage. A creature can swim away from the whirlpool only if it first takes an action to pull away and succeeds on a Strength (Athletics) check against your spell save DC.",
     "higher_level": ""
   },
   {
@@ -1857,10 +1857,10 @@
     "school": {
       "name": "Transmutation"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Self",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -1961,7 +1961,7 @@
         "name": "Druid"
       }
     ],
-    "desc": "You do one of the following:",
+    "desc": "You do one of the following:\n\n**Create Water.** You create up to 10 gallons of clean water within range in an open container. Alternatively, the water falls as rain in a 30-foot Cube within range, extinguishing exposed flames there.\n\n**Destroy Water.** You destroy up to 10 gallons of water in an open container within range. Alternatively, you destroy fog in a 30-foot Cube within range.",
     "higher_level": "You create or destroy 10 additional gallons of water, or the size of the Cube increases by 5 feet, for each spell slot level above 1."
   },
   {
@@ -1971,7 +1971,7 @@
     "school": {
       "name": "Necromancy"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "10 feet",
     "duration": "instantaneous",
@@ -2001,7 +2001,7 @@
     "school": {
       "name": "Illusion"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "30 feet",
     "duration": "special",
@@ -2097,7 +2097,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": false,
@@ -2127,7 +2127,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -2196,7 +2196,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -2280,7 +2280,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -2307,7 +2307,7 @@
     "casting_time": "action",
     "ritual": true,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -2352,7 +2352,7 @@
     "casting_time": "action",
     "ritual": true,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -2657,7 +2657,7 @@
     "range_text": "Self",
     "duration": "instantaneous",
     "concentration": false,
-    "verbal": false,
+    "verbal": true,
     "somatic": false,
     "material": false,
     "material_specified": "",
@@ -2820,10 +2820,10 @@
     "school": {
       "name": "Illusion"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Special",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -3111,7 +3111,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -3147,7 +3147,7 @@
     "casting_time": "bonus-action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -3207,7 +3207,7 @@
     "school": {
       "name": "Transmutation"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "120 feet",
     "duration": "instantaneous",
@@ -3261,7 +3261,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "30 feet",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -3372,7 +3372,7 @@
     "school": {
       "name": "Conjuration"
     },
-    "casting_time": "action",
+    "casting_time": "1hour",
     "ritual": true,
     "range_text": "10 feet",
     "duration": "instantaneous",
@@ -3401,8 +3401,8 @@
     "range_text": "30 feet",
     "duration": "instantaneous",
     "concentration": false,
-    "verbal": false,
-    "somatic": false,
+    "verbal": true,
+    "somatic": true,
     "material": false,
     "material_specified": "",
     "classes": [
@@ -3420,7 +3420,7 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Self",
     "duration": "1 day",
@@ -3540,7 +3540,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -3627,7 +3627,7 @@
     "casting_time": "bonus-action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -3762,7 +3762,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -3779,7 +3779,7 @@
         "name": "Wizard"
       }
     ],
-    "desc": "",
+    "desc": "You touch a willing creature. For the duration, the target gains a Fly Speed of 60 feet and can hover. When the spell ends, the target falls if it is still aloft unless it can stop the fall.",
     "higher_level": "You can target one additional creature for each spell slot level above 3."
   },
   {
@@ -3822,7 +3822,7 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "action",
+    "casting_time": "10minutes",
     "ritual": true,
     "range_text": "Touch",
     "duration": "1 day",
@@ -3846,15 +3846,15 @@
     "school": {
       "name": "Evocation"
     },
-    "casting_time": "hour",
+    "casting_time": "action",
     "ritual": false,
-    "range_text": "",
-    "duration": "",
-    "concentration": false,
-    "verbal": false,
-    "somatic": false,
-    "material": false,
-    "material_specified": "",
+    "range_text": "100 feet",
+    "duration": "1 hour",
+    "concentration": true,
+    "verbal": true,
+    "somatic": true,
+    "material": true,
+    "material_specified": "ruby dust worth 1,500+ GP, which the spell consumes",
     "classes": [
       {
         "name": "Bard"
@@ -3866,7 +3866,7 @@
         "name": "Wizard"
       }
     ],
-    "desc": "",
+    "desc": "An immobile, Invisible, Cube-shaped prison composed of magical force springs into existence around an area you choose within range. The prison can be a cage or a solid box, as you choose.\n\nA prison in the shape of a cage can be up to 20 feet on a side and is made from 1/2-inch diameter bars spaced 1/2 inch apart. A prison in the shape of a box can be up to 10 feet on a side, creating a solid barrier that prevents any matter from passing through it and blocking any spells cast into or out from the area.\n\nWhen you cast the spell, any creature that is completely inside the cage's area is trapped. Creatures only partially within the area, or those too large to fit inside it, are pushed away from the center of the area until they are completely outside it.\n\nA creature inside the cage can't leave it by nonmagical means. If the creature tries to use teleportation or interplanar travel to leave, it must first make a Charisma saving throw. On a successful save, the creature can use that magic to exit the cage. On a failed save, the creature doesn't exit the cage and wastes the spell or effect. The cage also extends into the Ethereal Plane, blocking ethereal travel.\n\nThis spell can't be dispelled by Dispel Magic.",
     "higher_level": ""
   },
   {
@@ -3876,10 +3876,10 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -4032,10 +4032,10 @@
     "school": {
       "name": "Enchantment"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "30 day",
+    "duration": "30 days",
     "concentration": false,
     "verbal": true,
     "somatic": false,
@@ -4071,7 +4071,7 @@
     "casting_time": "action",
     "ritual": true,
     "range_text": "Touch",
-    "duration": "10 day",
+    "duration": "10 days",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -4101,7 +4101,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -4176,7 +4176,7 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
     "duration": "until dispelled or triggered",
@@ -4209,7 +4209,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -4329,7 +4329,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "30 feet",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": false,
@@ -4350,10 +4350,10 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -4461,7 +4461,7 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
     "duration": "until dispelled",
@@ -4485,10 +4485,10 @@
     "school": {
       "name": "Illusion"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "300 feet",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -4677,7 +4677,7 @@
     "school": {
       "name": "Conjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Self",
     "duration": "instantaneous",
@@ -5001,7 +5001,7 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "Touch",
     "duration": "instantaneous",
@@ -5028,10 +5028,10 @@
     "school": {
       "name": "Illusion"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "Touch",
-    "duration": "10 day",
+    "duration": "10 days",
     "concentration": false,
     "verbal": false,
     "somatic": true,
@@ -5058,7 +5058,7 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "30 feet",
     "duration": "until dispelled",
@@ -5142,7 +5142,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "300 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -5169,7 +5169,7 @@
     "school": {
       "name": "Conjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "Touch",
     "duration": "until dispelled",
@@ -5258,9 +5258,9 @@
     "range_text": "Touch",
     "duration": "1 minute",
     "concentration": false,
-    "verbal": false,
-    "somatic": false,
-    "material": false,
+    "verbal": true,
+    "somatic": true,
+    "material": true,
     "material_specified": "",
     "classes": [
       {
@@ -5316,7 +5316,7 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Self",
     "duration": "instantaneous",
@@ -5385,7 +5385,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -5541,7 +5541,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -5613,7 +5613,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -5670,7 +5670,7 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "10 feet",
     "duration": "1 hour",
@@ -5703,7 +5703,7 @@
     "school": {
       "name": "Necromancy"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Self",
     "duration": "until dispelled",
@@ -5754,7 +5754,7 @@
     "school": {
       "name": "Illusion"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "30 feet",
     "duration": "until dispelled",
@@ -5814,10 +5814,10 @@
     "school": {
       "name": "Conjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "300 feet",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -5844,7 +5844,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "120 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -5958,7 +5958,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": false,
@@ -5988,7 +5988,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -6012,7 +6012,7 @@
     "casting_time": "action",
     "ritual": true,
     "range_text": "Touch",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -6039,7 +6039,7 @@
     "school": {
       "name": "Transmutation"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Touch",
     "duration": "instantaneous",
@@ -6138,7 +6138,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -6225,10 +6225,10 @@
     "school": {
       "name": "Illusion"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Sight",
-    "duration": "10 day",
+    "duration": "10 days",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -6402,7 +6402,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "120 feet",
-    "duration": "2 hour",
+    "duration": "2 hours",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -6432,7 +6432,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -6567,7 +6567,7 @@
     "school": {
       "name": "Illusion"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "30 feet",
     "duration": "1 hour",
@@ -6591,7 +6591,7 @@
     "school": {
       "name": "Conjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "60 feet",
     "duration": "instantaneous",
@@ -6615,10 +6615,10 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -6687,7 +6687,7 @@
     "school": {
       "name": "Transmutation"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "150 feet",
     "duration": "instantaneous",
@@ -6788,7 +6788,7 @@
     "range_text": "60 feet",
     "duration": "instantaneous",
     "concentration": false,
-    "verbal": false,
+    "verbal": true,
     "somatic": false,
     "material": false,
     "material_specified": "",
@@ -6815,7 +6815,7 @@
     "range_text": "60 feet",
     "duration": "instantaneous",
     "concentration": false,
-    "verbal": false,
+    "verbal": true,
     "somatic": false,
     "material": false,
     "material_specified": "",
@@ -6876,7 +6876,7 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "30 feet",
     "duration": "instantaneous",
@@ -6969,7 +6969,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -6993,10 +6993,10 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "120 feet",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -7020,7 +7020,7 @@
     "casting_time": "bonus-action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -7134,7 +7134,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Touch",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -7230,7 +7230,7 @@
     "school": {
       "name": "Necromancy"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
     "duration": "instantaneous",
@@ -7341,7 +7341,7 @@
     "school": {
       "name": "Transmutation"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Touch",
     "duration": "1 hour",
@@ -7371,7 +7371,7 @@
     "school": {
       "name": "Necromancy"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
     "duration": "instantaneous",
@@ -7457,8 +7457,8 @@
     "range_text": "Touch",
     "duration": "1 minute",
     "concentration": true,
-    "verbal": false,
-    "somatic": false,
+    "verbal": true,
+    "somatic": true,
     "material": false,
     "material_specified": "",
     "classes": [
@@ -7479,7 +7479,7 @@
     "school": {
       "name": "Necromancy"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
     "duration": "instantaneous",
@@ -7668,10 +7668,10 @@
     "school": {
       "name": "Divination"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -7709,7 +7709,7 @@
     "range_text": "Self",
     "duration": "1 minute",
     "concentration": false,
-    "verbal": false,
+    "verbal": true,
     "somatic": false,
     "material": false,
     "material_specified": "",
@@ -7785,7 +7785,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "30 feet",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -7953,7 +7953,7 @@
     "casting_time": "bonus-action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -8006,7 +8006,7 @@
     "range_text": "Self",
     "duration": "1 minute",
     "concentration": true,
-    "verbal": false,
+    "verbal": true,
     "somatic": false,
     "material": false,
     "material_specified": "",
@@ -8055,7 +8055,7 @@
     "casting_time": "action",
     "ritual": true,
     "range_text": "120 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -8085,7 +8085,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -8112,7 +8112,7 @@
     "school": {
       "name": "Illusion"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
     "duration": "until dispelled",
@@ -8231,8 +8231,8 @@
     "range_text": "120 feet",
     "duration": "instantaneous",
     "concentration": false,
-    "verbal": false,
-    "somatic": false,
+    "verbal": true,
+    "somatic": true,
     "material": false,
     "material_specified": "",
     "classes": [
@@ -8280,7 +8280,7 @@
     "casting_time": "action",
     "ritual": true,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -8313,7 +8313,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "10 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -8343,7 +8343,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -8403,7 +8403,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "150 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -8430,7 +8430,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "Self",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -8622,7 +8622,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "30 feet",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": true,
     "verbal": true,
     "somatic": false,
@@ -8742,7 +8742,7 @@
     "school": {
       "name": "Abjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "Touch",
     "duration": "until dispelled or triggered",
@@ -8778,7 +8778,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -8849,7 +8849,7 @@
         "name": "Wizard"
       }
     ],
-    "desc": "This spell instantly transports you and up to eight willing creatures that you can see within range, or a single object that you can see within range, to a destination you select. If you target an object, it must be Large or smaller, and it can't be held or carried by an unwilling creature. The destination you choose must be known to you, and it must be on the same plane of existence as you. Your familiarity with the destination determines whether you arrive there successfully. The GM rolls 1d100 and consults the Teleportation Outcome table and the explanations after it.\n\n| Familiarity | Mishap | Similar Area | Off Target | On Target |\n|---|---|---|---|---|\n| Permanent circle | — | — | — | 01–00 |\n| Linked object | — | — | — | 01–00 |\n| Very familiar | 01–05 | 06–13 | 14–24 | 25–00 |\n| Seen casually | 01–33 | 34–43 | 44–53 | 54–00 |\n| Viewed once or described | 01–43 | 44–53 | 54–73 | 74–00 |\n| False destination | 01–50 | 51–00 | — | — |\n\n- \"Permanent circle\" means a permanent teleportation circle whose sigil sequence you know.\n- \"Linked object\" means you possess an object taken from the desired destination within the last six months, such as a book from a wizard's library.\n- \"Very familiar\" is a place you have visited often, a place you have carefully studied, or a place you can see when you cast the spell.\n- \"Seen casually\" is a place you have seen more than once but with which you aren't very familiar.\n- \"Viewed once or described\" is a place you have seen once, possibly using magic, or a place you know through someone else's description, perhaps from a map.\n- \"False destination\" is a place that doesn't exist. Perhaps you tried to scry an enemy's sanctum but instead viewed an illusion, or you are attempting to teleport to a location that no longer exists.",
+    "desc": "This spell instantly transports you and up to eight willing creatures that you can see within range, or a single object that you can see within range, to a destination you select. If you target an object, it must be Large or smaller, and it can't be held or carried by an unwilling creature. The destination you choose must be known to you, and it must be on the same plane of existence as you. Your familiarity with the destination determines whether you arrive there successfully. The GM rolls 1d100 and consults the Teleportation Outcome table and the explanations after it.\n\n| Familiarity | Mishap | Similar Area | Off Target | On Target |\n|---|---|---|---|---|\n| Permanent circle | — | — | — | 01–00 |\n| Linked object | — | — | — | 01–00 |\n| Very familiar | 01–05 | 06–13 | 14–24 | 25–00 |\n| Seen casually | 01–33 | 34–43 | 44–53 | 54–00 |\n| Viewed once or described | 01–43 | 44–53 | 54–73 | 74–00 |\n| False destination | 01–50 | 51–00 | — | — |\n\n- \"Permanent circle\" means a permanent teleportation circle whose sigil sequence you know.\n- \"Linked object\" means you possess an object taken from the desired destination within the last six months, such as a book from a wizard's library.\n- \"Very familiar\" is a place you have visited often, a place you have carefully studied, or a place you can see when you cast the spell.\n- \"Seen casually\" is a place you have seen more than once but with which you aren't very familiar.\n- \"Viewed once or described\" is a place you have seen once, possibly using magic, or a place you know through someone else's description, perhaps from a map.\n- \"False destination\" is a place that doesn't exist. Perhaps you tried to scry an enemy's sanctum but instead viewed an illusion, or you are attempting to teleport to a location that no longer exists.\n\n**Mishap.** The spell's unpredictable magic results in a difficult journey. Each teleporting creature (or the target object) takes 3d10 Force damage, and the GM rerolls on the table to see where you wind up (multiple mishaps can occur, dealing damage each time).\n\n**Similar Area.** You and your group (or the target object) appear in a different area that's visually or thematically similar to the target area. You appear in the closest similar place. If you are heading for your home laboratory, for example, you might appear in another person's laboratory in the same city.\n\n**Off Target.** You and your group (or the target object) appear 2d12 miles away from the destination in a random direction. Roll 1d8 for the direction: 1, east; 2, southeast; 3, south; 4, southwest; 5, west; 6, northwest; 7, north; or 8, northeast.\n\n**On Target.** You and your group (or the target object) appear where you intended.",
     "higher_level": ""
   },
   {
@@ -8859,7 +8859,7 @@
     "school": {
       "name": "Conjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "10 feet",
     "duration": "1 round",
@@ -8976,10 +8976,10 @@
     "school": {
       "name": "Evocation"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": true,
     "range_text": "Self",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -9120,7 +9120,7 @@
     "school": {
       "name": "Necromancy"
     },
-    "casting_time": "hour",
+    "casting_time": "1hour",
     "ritual": false,
     "range_text": "Touch",
     "duration": "instantaneous",
@@ -9216,10 +9216,10 @@
     "school": {
       "name": "Conjuration"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "1 mile",
-    "duration": "6 round",
+    "duration": "6 rounds",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -9384,7 +9384,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "120 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -9408,7 +9408,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "120 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -9432,7 +9432,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "120 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -9462,7 +9462,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "120 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": true,
     "verbal": true,
     "somatic": true,
@@ -9513,7 +9513,7 @@
     "casting_time": "action",
     "ritual": true,
     "range_text": "30 feet",
-    "duration": "24 hour",
+    "duration": "24 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -9630,10 +9630,10 @@
     "school": {
       "name": "Transmutation"
     },
-    "casting_time": "minute",
+    "casting_time": "1minute",
     "ritual": false,
     "range_text": "30 feet",
-    "duration": "8 hour",
+    "duration": "8 hours",
     "concentration": false,
     "verbal": true,
     "somatic": true,
@@ -9735,7 +9735,7 @@
     "casting_time": "action",
     "ritual": false,
     "range_text": "60 feet",
-    "duration": "10 minute",
+    "duration": "10 minutes",
     "concentration": false,
     "verbal": true,
     "somatic": true,

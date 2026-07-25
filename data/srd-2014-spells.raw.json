@@ -74,7 +74,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_acid-splash",
@@ -335,7 +338,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_aid",
@@ -402,7 +408,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_alarm",
@@ -483,7 +492,10 @@
       "duration": "8 hours",
       "shape_type": "cube",
       "shape_size": 20,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_alter-self",
@@ -554,7 +566,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_animal-friendship",
@@ -709,7 +724,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_animal-messenger",
@@ -864,7 +882,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_animal-shapes",
@@ -931,7 +952,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_animate-dead",
@@ -1002,7 +1026,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_animate-objects",
@@ -1077,7 +1104,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_antilife-shell",
@@ -1144,7 +1174,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_antimagic-field",
@@ -1215,7 +1248,10 @@
       "duration": "1 hour",
       "shape_type": "sphere",
       "shape_size": 10,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_antipathysympathy",
@@ -1286,7 +1322,10 @@
       "duration": "10 days",
       "shape_type": "cube",
       "shape_size": 200,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_arcane-eye",
@@ -1357,7 +1396,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_arcane-hand",
@@ -1426,7 +1468,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_arcane-lock",
@@ -1493,7 +1538,10 @@
       "duration": "until dispelled",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_arcane-sword",
@@ -1566,7 +1614,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_arcanists-magic-aura",
@@ -1633,7 +1684,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_astral-projection",
@@ -1708,7 +1762,10 @@
       "duration": "special",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_augury",
@@ -1785,7 +1842,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_awaken",
@@ -1856,7 +1916,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_bane",
@@ -2007,7 +2070,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_banishment",
@@ -2136,7 +2202,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_barkskin",
@@ -2211,7 +2280,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_beacon-of-hope",
@@ -2278,7 +2350,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_bestow-curse",
@@ -2413,7 +2488,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_black-tentacles",
@@ -2486,7 +2564,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_blade-barrier",
@@ -2555,7 +2636,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_bless",
@@ -2702,7 +2786,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_blight",
@@ -2833,7 +2920,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_blindnessdeafness",
@@ -2986,7 +3076,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_blink",
@@ -3065,7 +3158,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_blur",
@@ -3140,7 +3236,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_branding-smite",
@@ -3202,7 +3301,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_burning-hands",
@@ -3363,7 +3465,10 @@
       "duration": "instantaneous",
       "shape_type": "cone",
       "shape_size": 15,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_call-lightning",
@@ -3496,7 +3601,10 @@
       "duration": "10 minutes",
       "shape_type": "cylinder",
       "shape_size": 60,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_calm-emotions",
@@ -3571,7 +3679,10 @@
       "duration": "1 minute",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_chain-lightning",
@@ -3644,7 +3755,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_charm-person",
@@ -3811,7 +3925,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_chill-touch",
@@ -4048,7 +4165,10 @@
       "duration": "1 round",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_circle-of-death",
@@ -4155,7 +4275,10 @@
       "duration": "instantaneous",
       "shape_type": "sphere",
       "shape_size": 60,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_clairvoyance",
@@ -4238,7 +4361,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_clone",
@@ -4305,7 +4431,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_cloudkill",
@@ -4422,7 +4551,10 @@
       "duration": "10 minutes",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_color-spray",
@@ -4493,7 +4625,10 @@
       "duration": "1 round",
       "shape_type": "cone",
       "shape_size": 15,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_command",
@@ -4644,7 +4779,10 @@
       "duration": "1 round",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_commune",
@@ -4721,7 +4859,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_commune-with-nature",
@@ -4802,7 +4943,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_comprehend-languages",
@@ -4891,7 +5035,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_compulsion",
@@ -4958,7 +5105,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_cone-of-cold",
@@ -5075,7 +5225,10 @@
       "duration": "instantaneous",
       "shape_type": "cone",
       "shape_size": 60,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_confusion",
@@ -5158,7 +5311,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_conjure-animals",
@@ -5229,7 +5385,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_conjure-celestial",
@@ -5296,7 +5455,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_conjure-elemental",
@@ -5367,7 +5529,10 @@
       "duration": "1 hour",
       "shape_type": "cube",
       "shape_size": 10,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_conjure-fey",
@@ -5438,7 +5603,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_conjure-minor-elementals",
@@ -5509,7 +5677,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_conjure-woodland-beings",
@@ -5580,7 +5751,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_contact-other-plane",
@@ -5661,7 +5835,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_contagion",
@@ -5732,7 +5909,10 @@
       "duration": "7 days",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_contingency",
@@ -5799,7 +5979,10 @@
       "duration": "10 days",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_continual-flame",
@@ -5870,7 +6053,10 @@
       "duration": "until dispelled",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_control-water",
@@ -5947,7 +6133,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_control-weather",
@@ -6022,7 +6211,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_counterspell",
@@ -6097,7 +6289,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_create-food-and-water",
@@ -6168,7 +6363,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_create-or-destroy-water",
@@ -6239,7 +6437,10 @@
       "duration": "instantaneous",
       "shape_type": "cube",
       "shape_size": 30,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_create-undead",
@@ -6314,7 +6515,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_creation",
@@ -6385,7 +6589,10 @@
       "duration": "special",
       "shape_type": "cube",
       "shape_size": 5,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_cure-wounds",
@@ -6464,7 +6671,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_dancing-lights",
@@ -6539,7 +6749,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_darkness",
@@ -6618,7 +6831,10 @@
       "duration": "10 minutes",
       "shape_type": "sphere",
       "shape_size": 15,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_darkvision",
@@ -6697,7 +6913,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_daylight",
@@ -6776,7 +6995,10 @@
       "duration": "1 hour",
       "shape_type": "sphere",
       "shape_size": 60,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_death-ward",
@@ -6843,7 +7065,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_delayed-blast-fireball",
@@ -6914,7 +7139,10 @@
       "duration": "1 minute",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_demiplane",
@@ -6985,7 +7213,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_detect-evil-and-good",
@@ -7052,7 +7283,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_detect-magic",
@@ -7149,7 +7383,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_detect-poison-and-disease",
@@ -7234,7 +7471,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_detect-thoughts",
@@ -7313,7 +7553,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_dimension-door",
@@ -7396,7 +7639,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_disguise-self",
@@ -7475,7 +7721,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_disintegrate",
@@ -7578,7 +7827,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_dispel-evil-and-good",
@@ -7645,7 +7897,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_dispel-magic",
@@ -7732,7 +7987,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_divination",
@@ -7813,7 +8071,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_divine-favor",
@@ -7880,7 +8141,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_divine-word",
@@ -7947,7 +8211,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_dominate-beast",
@@ -8076,7 +8343,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_dominate-monster",
@@ -8165,7 +8435,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_dominate-person",
@@ -8288,7 +8561,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_dream",
@@ -8369,7 +8645,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_druidcraft",
@@ -8436,7 +8715,10 @@
       "duration": "instantaneous",
       "shape_type": "cube",
       "shape_size": 5,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_earthquake",
@@ -8513,7 +8795,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_eldritch-blast",
@@ -8582,7 +8867,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_enhance-ability",
@@ -8731,7 +9019,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_enlargereduce",
@@ -8802,7 +9093,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_entangle",
@@ -8869,7 +9163,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_enthrall",
@@ -8940,7 +9237,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_etherealness",
@@ -9023,7 +9323,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_expeditious-retreat",
@@ -9098,7 +9401,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_eyebite",
@@ -9177,7 +9483,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_fabricate",
@@ -9244,7 +9553,10 @@
       "duration": "instantaneous",
       "shape_type": "cube",
       "shape_size": 5,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_faerie-fire",
@@ -9323,7 +9635,10 @@
       "duration": "1 minute",
       "shape_type": "cube",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_faithful-hound",
@@ -9390,7 +9705,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_false-life",
@@ -9461,7 +9779,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_fear",
@@ -9540,7 +9861,10 @@
       "duration": "1 minute",
       "shape_type": "cone",
       "shape_size": 30,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_feather-fall",
@@ -9615,7 +9939,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_feeblemind",
@@ -9696,7 +10023,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_find-familiar",
@@ -9773,7 +10103,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_find-steed",
@@ -9835,7 +10168,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_find-the-path",
@@ -9910,7 +10246,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_find-traps",
@@ -9985,7 +10324,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_finger-of-death",
@@ -10062,7 +10404,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_fire-bolt",
@@ -10295,7 +10640,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_fire-shield",
@@ -10366,7 +10714,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_fire-storm",
@@ -10443,7 +10794,10 @@
       "duration": "instantaneous",
       "shape_type": "cube",
       "shape_size": 10,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_fireball",
@@ -10576,7 +10930,27 @@
       "duration": "instantaneous",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": [
+          {
+            "anchor": "Dexterity",
+            "url": "https://api.open5e.com/v2/rules/srd_abilities_dexterity/"
+          },
+          {
+            "anchor": "Objects",
+            "url": "https://api.open5e.com/v2/rulesets/srd_objects/"
+          },
+          {
+            "anchor": "Range",
+            "url": "https://api.open5e.com/v2/weaponproperties/srd-2014_range-wp/"
+          },
+          {
+            "anchor": "Range",
+            "url": "https://api.open5e.com/v2/rules/srd_attacking_range/"
+          }
+        ]
+      }
     },
     {
       "key": "srd_flame-blade",
@@ -10715,7 +11089,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_flame-strike",
@@ -10828,7 +11205,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_flaming-sphere",
@@ -10975,7 +11355,10 @@
       "duration": "1 minute",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_flesh-to-stone",
@@ -11046,7 +11429,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_floating-disk",
@@ -11123,7 +11509,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_fly",
@@ -11258,7 +11647,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_fog-cloud",
@@ -11341,7 +11733,10 @@
       "duration": "1 hour",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_forbiddance",
@@ -11421,7 +11816,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_forcecage",
@@ -11496,7 +11894,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_foresight",
@@ -11575,7 +11976,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_freedom-of-movement",
@@ -11654,7 +12058,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_freezing-sphere",
@@ -11753,7 +12160,10 @@
       "duration": "instantaneous",
       "shape_type": "sphere",
       "shape_size": 60,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_gaseous-form",
@@ -11832,7 +12242,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_gate",
@@ -11907,7 +12320,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_geas",
@@ -12018,7 +12434,10 @@
       "duration": "30 days",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_gentle-repose",
@@ -12099,7 +12518,10 @@
       "duration": "10 days",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_giant-insect",
@@ -12166,7 +12588,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_glibness",
@@ -12237,7 +12662,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_globe-of-invulnerability",
@@ -12308,7 +12736,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_glyph-of-warding",
@@ -12389,7 +12820,10 @@
       "duration": "until dispelled or triggered",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_goodberry",
@@ -12460,7 +12894,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_grease",
@@ -12527,7 +12964,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_greater-invisibility",
@@ -12610,7 +13050,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_greater-restoration",
@@ -12685,7 +13128,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_guardian-of-faith",
@@ -12754,7 +13200,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_guards-and-wards",
@@ -12825,7 +13274,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_guidance",
@@ -12896,7 +13348,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_guiding-bolt",
@@ -13045,7 +13500,10 @@
       "duration": "1 round",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_gust-of-wind",
@@ -13124,7 +13582,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_hallow",
@@ -13195,7 +13656,10 @@
       "duration": "until dispelled",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_hallucinatory-terrain",
@@ -13274,7 +13738,10 @@
       "duration": "24 hours",
       "shape_type": "cube",
       "shape_size": 150,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_harm",
@@ -13343,7 +13810,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_haste",
@@ -13418,7 +13888,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_heal",
@@ -13489,7 +13962,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_healing-word",
@@ -13564,7 +14040,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_heat-metal",
@@ -13707,7 +14186,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_hellish-rebuke",
@@ -13856,7 +14338,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_heroes-feast",
@@ -13927,7 +14412,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_heroism",
@@ -13994,7 +14482,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_hideous-laughter",
@@ -14069,7 +14560,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_hold-monster",
@@ -14152,7 +14646,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_hold-person",
@@ -14309,7 +14806,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_holy-aura",
@@ -14376,7 +14876,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_hunters-mark",
@@ -14443,7 +14946,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_hypnotic-pattern",
@@ -14522,7 +15028,10 @@
       "duration": "1 minute",
       "shape_type": "cube",
       "shape_size": 30,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_ice-storm",
@@ -14653,7 +15162,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_identify",
@@ -14738,7 +15250,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_illusory-script",
@@ -14823,7 +15338,10 @@
       "duration": "10 days",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_imprisonment",
@@ -14894,7 +15412,10 @@
       "duration": "until dispelled",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_incendiary-cloud",
@@ -14967,7 +15488,10 @@
       "duration": "1 minute",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_inflict-wounds",
@@ -15116,7 +15640,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_insect-plague",
@@ -15233,7 +15760,10 @@
       "duration": "10 minutes",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_instant-summons",
@@ -15310,7 +15840,10 @@
       "duration": "until dispelled",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_invisibility",
@@ -15463,7 +15996,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_irresistible-dance",
@@ -15534,7 +16070,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_jump",
@@ -15613,7 +16152,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_knock",
@@ -15688,7 +16230,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_legend-lore",
@@ -15763,7 +16308,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_lesser-restoration",
@@ -15842,7 +16390,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_levitate",
@@ -15913,7 +16464,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_light",
@@ -15992,7 +16546,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_lightning-bolt",
@@ -16129,7 +16686,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_locate-animals-or-plants",
@@ -16214,7 +16774,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_locate-creature",
@@ -16297,7 +16860,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_locate-object",
@@ -16380,7 +16946,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_longstrider",
@@ -16539,7 +17108,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mage-armor",
@@ -16610,7 +17182,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mage-hand",
@@ -16689,7 +17264,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_magic-circle",
@@ -16824,7 +17402,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_magic-jar",
@@ -16891,7 +17472,10 @@
       "duration": "until dispelled",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_magic-missile",
@@ -17042,7 +17626,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_magic-mouth",
@@ -17123,7 +17710,10 @@
       "duration": "until dispelled",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_magic-weapon",
@@ -17194,7 +17784,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_magnificent-mansion",
@@ -17265,7 +17858,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_major-image",
@@ -17344,7 +17940,10 @@
       "duration": "10 minutes",
       "shape_type": "cube",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mass-cure-wounds",
@@ -17419,7 +18018,10 @@
       "duration": "instantaneous",
       "shape_type": "sphere",
       "shape_size": 30,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mass-heal",
@@ -17486,7 +18088,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mass-healing-word",
@@ -17553,7 +18158,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mass-suggestion",
@@ -17662,7 +18270,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_maze",
@@ -17729,7 +18340,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_meld-into-stone",
@@ -17810,7 +18424,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mending",
@@ -17893,7 +18510,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_message",
@@ -17968,7 +18588,10 @@
       "duration": "1 round",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_meteor-swarm",
@@ -18041,7 +18664,10 @@
       "duration": "instantaneous",
       "shape_type": "sphere",
       "shape_size": 40,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mind-blank",
@@ -18112,7 +18738,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_minor-illusion",
@@ -18191,7 +18820,10 @@
       "duration": "1 minute",
       "shape_type": "cube",
       "shape_size": 5,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mirage-arcane",
@@ -18266,7 +18898,10 @@
       "duration": "10 days",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mirror-image",
@@ -18349,7 +18984,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_mislead",
@@ -18420,7 +19058,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_misty-step",
@@ -18499,7 +19140,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_modify-memory",
@@ -18574,7 +19218,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_moonbeam",
@@ -18713,7 +19360,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_move-earth",
@@ -18788,7 +19438,10 @@
       "duration": "2 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_nondetection",
@@ -18867,7 +19520,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_pass-without-trace",
@@ -18942,7 +19598,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_passwall",
@@ -19013,7 +19672,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_phantasmal-killer",
@@ -19080,7 +19742,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_phantom-steed",
@@ -19157,7 +19822,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_planar-ally",
@@ -19224,7 +19892,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_planar-binding",
@@ -19343,7 +20014,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_plane-shift",
@@ -19422,7 +20096,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_plant-growth",
@@ -19505,7 +20182,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_poison-spray",
@@ -19774,7 +20454,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_polymorph",
@@ -19857,7 +20540,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_power-word-kill",
@@ -19936,7 +20622,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_power-word-stun",
@@ -20015,7 +20704,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_prayer-of-healing",
@@ -20082,7 +20774,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_prestidigitation",
@@ -20161,7 +20856,31 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": [
+          {
+            "anchor": "Candle",
+            "url": "https://api.open5e.com/v2/items/srd_candle/"
+          },
+          {
+            "anchor": "Range",
+            "url": "https://api.open5e.com/v2/rules/srd_attacking_range/"
+          },
+          {
+            "anchor": "Symbol",
+            "url": "https://api.open5e.com/v2/spells/srd_symbol/"
+          },
+          {
+            "anchor": "Time",
+            "url": "https://api.open5e.com/v2/rulesets/srd_time/"
+          },
+          {
+            "anchor": "Torch",
+            "url": "https://api.open5e.com/v2/items/srd_torch/"
+          }
+        ]
+      }
     },
     {
       "key": "srd_prismatic-spray",
@@ -20234,7 +20953,10 @@
       "duration": "instantaneous",
       "shape_type": "cone",
       "shape_size": 60,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_prismatic-wall",
@@ -20303,7 +21025,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_private-sanctum",
@@ -20370,7 +21095,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_produce-flame",
@@ -20599,7 +21327,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_programmed-illusion",
@@ -20670,7 +21401,10 @@
       "duration": "until dispelled",
       "shape_type": "cube",
       "shape_size": 30,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_project-image",
@@ -20741,7 +21475,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_protection-from-energy",
@@ -20824,7 +21561,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_protection-from-evil-and-good",
@@ -20899,7 +21639,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_protection-from-poison",
@@ -20974,7 +21717,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_purify-food-and-drink",
@@ -21055,7 +21801,10 @@
       "duration": "instantaneous",
       "shape_type": "sphere",
       "shape_size": 5,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_raise-dead",
@@ -21126,7 +21875,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_ray-of-enfeeblement",
@@ -21197,7 +21949,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_ray-of-frost",
@@ -21430,7 +22185,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_regenerate",
@@ -21505,7 +22263,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_reincarnate",
@@ -21572,7 +22333,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_remove-curse",
@@ -21647,7 +22411,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_resilient-sphere",
@@ -21714,7 +22481,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_resistance",
@@ -21785,7 +22555,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_resurrection",
@@ -21856,7 +22629,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_reverse-gravity",
@@ -21931,7 +22707,10 @@
       "duration": "1 minute",
       "shape_type": "cylinder",
       "shape_size": 100,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_revivify",
@@ -21998,7 +22777,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_rope-trick",
@@ -22065,7 +22847,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_sacred-flame",
@@ -22292,7 +23077,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_sanctuary",
@@ -22359,7 +23147,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_scorching-ray",
@@ -22510,7 +23301,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_scrying",
@@ -22593,7 +23387,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_secret-chest",
@@ -22660,7 +23457,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_see-invisibility",
@@ -22735,7 +23535,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_seeming",
@@ -22814,7 +23617,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_sending",
@@ -22893,7 +23699,10 @@
       "duration": "1 round",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_sequester",
@@ -22960,7 +23769,10 @@
       "duration": "until dispelled",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_shapechange",
@@ -23031,7 +23843,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_shatter",
@@ -23186,7 +24001,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_shield",
@@ -23257,7 +24075,10 @@
       "duration": "1 round",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_shield-of-faith",
@@ -23324,7 +24145,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_shillelagh",
@@ -23391,7 +24215,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_shocking-grasp",
@@ -23624,7 +24451,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_silence",
@@ -23713,7 +24543,10 @@
       "duration": "10 minutes",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_silent-image",
@@ -23788,7 +24621,10 @@
       "duration": "10 minutes",
       "shape_type": "cube",
       "shape_size": 15,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_simulacrum",
@@ -23855,7 +24691,10 @@
       "duration": "until dispelled",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_sleep",
@@ -23934,7 +24773,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_sleet-storm",
@@ -24013,7 +24855,10 @@
       "duration": "1 minute",
       "shape_type": "cylinder",
       "shape_size": 40,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_slow",
@@ -24088,7 +24933,10 @@
       "duration": "1 minute",
       "shape_type": "cube",
       "shape_size": 40,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_spare-the-dying",
@@ -24155,7 +25003,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_speak-with-animals",
@@ -24244,7 +25095,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_speak-with-dead",
@@ -24315,7 +25169,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_speak-with-plants",
@@ -24390,7 +25247,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_spider-climb",
@@ -24469,7 +25329,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_spike-growth",
@@ -24546,7 +25409,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_spirit-guardians",
@@ -24675,7 +25541,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_spiritual-weapon",
@@ -24742,7 +25611,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_stinking-cloud",
@@ -24825,7 +25697,10 @@
       "duration": "1 minute",
       "shape_type": "sphere",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_stone-shape",
@@ -24900,7 +25775,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_stoneskin",
@@ -24983,7 +25861,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_storm-of-vengeance",
@@ -25052,7 +25933,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_suggestion",
@@ -25135,7 +26019,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_sunbeam",
@@ -25212,7 +26099,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_sunburst",
@@ -25289,7 +26179,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_symbol",
@@ -25364,7 +26257,10 @@
       "duration": "until dispelled or triggered",
       "shape_type": "sphere",
       "shape_size": 60,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_telekinesis",
@@ -25439,7 +26335,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_telepathic-bond",
@@ -25516,7 +26415,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_teleport",
@@ -25593,7 +26495,10 @@
       "duration": "instantaneous",
       "shape_type": "cube",
       "shape_size": 10,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_teleportation-circle",
@@ -25668,7 +26573,10 @@
       "duration": "1 round",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_thaumaturgy",
@@ -25735,7 +26643,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_thunderwave",
@@ -25900,7 +26811,10 @@
       "duration": "instantaneous",
       "shape_type": "cube",
       "shape_size": 15,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_time-stop",
@@ -25971,7 +26885,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_tiny-hut",
@@ -26052,7 +26969,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_tongues",
@@ -26135,7 +27055,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_transport-via-plants",
@@ -26202,7 +27125,10 @@
       "duration": "1 round",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_tree-stride",
@@ -26277,7 +27203,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_true-polymorph",
@@ -26352,7 +27281,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_true-resurrection",
@@ -26423,7 +27355,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_true-seeing",
@@ -26506,7 +27441,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_true-strike",
@@ -26585,7 +27523,10 @@
       "duration": "1 round",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_unseen-servant",
@@ -26670,7 +27611,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_vampiric-touch",
@@ -26803,7 +27747,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_vicious-mockery",
@@ -27040,7 +27987,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_wall-of-fire",
@@ -27125,7 +28075,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_wall-of-force",
@@ -27192,7 +28145,10 @@
       "duration": "10 minutes",
       "shape_type": "sphere",
       "shape_size": 10,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_wall-of-ice",
@@ -27261,7 +28217,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_wall-of-stone",
@@ -27336,7 +28295,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_wall-of-thorns",
@@ -27405,7 +28367,10 @@
       "duration": "10 minutes",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_warding-bond",
@@ -27472,7 +28437,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_water-breathing",
@@ -27561,7 +28529,10 @@
       "duration": "24 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_water-walk",
@@ -27650,7 +28621,10 @@
       "duration": "1 hour",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_web",
@@ -27725,7 +28699,10 @@
       "duration": "1 hour",
       "shape_type": "cube",
       "shape_size": 20,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_weird",
@@ -27792,7 +28769,10 @@
       "duration": "1 minute",
       "shape_type": "sphere",
       "shape_size": 30,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_wind-walk",
@@ -27859,7 +28839,10 @@
       "duration": "8 hours",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_wind-wall",
@@ -27936,7 +28919,10 @@
       "duration": "1 minute",
       "shape_type": null,
       "shape_size": null,
-      "concentration": true
+      "concentration": true,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_wish",
@@ -28007,7 +28993,43 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": [
+          {
+            "anchor": "Attack",
+            "url": "https://api.open5e.com/v2/rules/srd_actions-in-combat_attack/"
+          },
+          {
+            "anchor": "Cast a Spell",
+            "url": "https://api.open5e.com/v2/rules/srd_actions-in-combat_cast-a-spell/"
+          },
+          {
+            "anchor": "Components",
+            "url": "https://api.open5e.com/v2/rules/srd_spellcasting_components/"
+          },
+          {
+            "anchor": "Greater Restoration",
+            "url": "https://api.open5e.com/v2/spells/srd_greater-restoration/"
+          },
+          {
+            "anchor": "Hit Points",
+            "url": "https://api.open5e.com/v2/rules/srd_damage-and-healing_hit-points/"
+          },
+          {
+            "anchor": "Strength",
+            "url": "https://api.open5e.com/v2/rules/srd_abilities_strength/"
+          },
+          {
+            "anchor": "Time",
+            "url": "https://api.open5e.com/v2/rulesets/srd_time/"
+          },
+          {
+            "anchor": "Type",
+            "url": "https://api.open5e.com/v2/rules/srd_monsters_type/"
+          }
+        ]
+      }
     },
     {
       "key": "srd_word-of-recall",
@@ -28074,7 +29096,10 @@
       "duration": "instantaneous",
       "shape_type": null,
       "shape_size": null,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     },
     {
       "key": "srd_zone-of-truth",
@@ -28145,7 +29170,10 @@
       "duration": "10 minutes",
       "shape_type": "sphere",
       "shape_size": 15,
-      "concentration": false
+      "concentration": false,
+      "crossreferences": {
+        "to": []
+      }
     }
   ]
 }
