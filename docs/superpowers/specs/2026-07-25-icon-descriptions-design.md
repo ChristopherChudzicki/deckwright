@@ -32,15 +32,20 @@ depicts. Descriptions add an orthogonal channel that can.
 - A re-runnable, resumable generator that survives rate limits and can be
   re-scoped to a subset of icons.
 
-## Non-goals
+## Out of scope for this change
 
-These are downstream consumers of this artifact, each its own piece of work:
+This spec covers **producing the description file and nothing else**. The
+consumers below are wanted — search especially — but each is its own piece of
+work, and the generator is the risky part that deserves review on its own.
 
+- **Fuzzy search over descriptions** in `IconPickerDialog` — **a goal of the
+  wider effort, sequenced next**, not a rejected idea. It no longer waits on
+  curation; see "What descriptions can and cannot support". Its first version
+  needs no new data: index name + description with `fuzzysort`, already a
+  dependency at `^3.1.0`, replacing the plain `.includes()` at
+  `IconPickerDialog.tsx:123`.
 - **Curating a shortlist** from the descriptions, and constraining the
   auto-picker to it.
-- **Fuzzy search over descriptions** in `IconPickerDialog`. With the
-  domain-aware prompt this no longer has to wait for curation — see "What
-  descriptions can and cannot support" below.
 - **A generated synonym or "search text" field.** Deliberately not part of this
   artifact; the reasoning is in "What descriptions can and cannot support".
 - **Rewriting `iconRules.ts`.**
@@ -539,18 +544,37 @@ The curve omits retry cost, which rises with batch size.
 
 ## Open experiments
 
-Neither blocks the plan; both change a default if they come back unexpected.
+Listed in priority order. The first two **change the input to all 4,134 icons**,
+and because errors are deterministic, getting either wrong means regenerating
+rather than patching — so both should run *before* the full generation. Each is
+2 invocations against the same 60-icon sample, reusing the existing named/Sonnet
+batch-30 run as the control and the labelled contact sheets for grading.
 
-1. **Does thematic clustering degrade descriptions? — 2 runs, needs grading.**
-   The seeded shuffle is now the only unmeasured element of the design. Test: the
+1. **Haiku versus Sonnet.** All measurements to date are Sonnet. Haiku 4.5 is
+   roughly 3× cheaper per token, and since the cost here is dominated by
+   per-invocation context rather than images, that should pass through nearly
+   directly — **~$43 → ~$15-equivalent**, with a proportional drop in quota and
+   wall clock. That is the difference between a run that may hit a usage limit
+   and one that comfortably fits.
+
+   The reason to *doubt* it: this task is fine-grained visual discrimination on
+   small monochrome line art, which is where smaller models degrade most, and
+   Haiku 4.5 is a generation behind. Sonnet already misses 2–3%, concentrated in
+   composite icons and thin geometry. A model 3× cheaper and 3× wronger is a bad
+   trade for a permanent artifact whose errors can only be fixed by hand.
+   **Decide it by measurement, on the same 60 icons.**
+
+2. **512×512 versus 256×256** — the lever most likely to fix the `claw-hammer`
+   class (thin geometry lost to a 2× downsample). ~+4× image tokens, which is
+   **~+$4 over a full run**, under 10%. Run this against whichever model wins
+   experiment 1; the two interact, since a weaker model may need the resolution.
+
+3. **Does thematic clustering degrade descriptions?** The seeded shuffle is the
+   only unmeasured element of the design and the lowest-value test, since
+   shuffling is free either way and a null result changes nothing. Test: the
    thirteen `fire`–`fire-zone` icons described (a) inside an alphabetically
-   contiguous batch of 30 and (b) inside a batch of 30 where the other 17 are
-   drawn from elsewhere in the collection. Compare the same thirteen across both.
-   If the descriptions are equally discriminating, the shuffle is optional — but
-   it costs nothing, so a null result changes little.
-2. **512×512 versus 256×256** on the same sample — the lever most likely to fix
-   the `claw-hammer` class (thin geometry lost to a 2× downsample). ~+4× image
-   tokens, which is **~+$4 over a full run**, under 10%.
+   contiguous batch of 30 and (b) inside a batch of 30 whose other 17 come from
+   elsewhere in the collection. Compare the same thirteen across both.
 
 ## Testing
 
