@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { isNameEcho, validateEntry } from "../src/data/iconDescriptions";
-import { DEFAULT_MODEL, describeBatch } from "./icon-descriptions/invoke";
+import { assertClaudeAvailable, DEFAULT_MODEL, describeBatch } from "./icon-descriptions/invoke";
 import {
   DEFAULT_RENDER_SIZE,
   ensurePngs,
@@ -115,6 +115,8 @@ console.log(
     `${total} to do in ${batches.length} batches of ${batchSize} (${model}, ${size}px).`,
 );
 if (total === 0) process.exit(0);
+
+await assertClaudeAvailable();
 
 console.log("Rendering PNGs…");
 const { pngDir } = await ensurePngs({

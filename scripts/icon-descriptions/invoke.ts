@@ -83,6 +83,16 @@ export function extractDescriptions(stdout: string, requested: readonly string[]
   return { descriptions, cost: envelope.total_cost_usd ?? 0 };
 }
 
+// Without this, a missing binary surfaces only after every PNG has been
+// rendered, and then as 3 retries per batch with real backoff between them.
+export async function assertClaudeAvailable(): Promise<void> {
+  try {
+    await execFileP("claude", ["--version"]);
+  } catch {
+    throw new Error("`claude` binary not found on PATH — install the CLI and authenticate.");
+  }
+}
+
 export const describeBatch: DescribeBatch = async (names, { pngDir, model }) => {
   let stdout: string;
   try {

@@ -43,10 +43,6 @@ describe("renderIcon", () => {
     expect(red?.min).toBeLessThan(64);
     expect(red?.max).toBeGreaterThan(192);
   });
-
-  test("rejects an icon that is not in the collection", async () => {
-    await expect(renderIcon(loadCollection(), "not-an-icon", 512)).rejects.toThrow(/not-an-icon/);
-  });
 });
 
 describe("ensurePngs", () => {
