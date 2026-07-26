@@ -1,7 +1,9 @@
-export const MIN_LENGTH = 15;
-export const MAX_LENGTH = 200;
+const MIN_LENGTH = 15;
+const MAX_LENGTH = 200;
 
-const REFUSAL_PATTERNS = [/\bI can'?t\b/i, /\bI'?m unable\b/i, /\bsorry\b/i];
+// The apostrophe class covers the typographic form, which the model emits in
+// prose more often than the ASCII one.
+const REFUSAL_PATTERNS = [/\bI can['’]?t\b/i, /\bI['’]?m unable\b/i, /\bsorry\b/i];
 
 const STOPWORDS = new Set(["a", "an", "and", "of", "or", "the", "with", "shown", "pair"]);
 

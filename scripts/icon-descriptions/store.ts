@@ -8,7 +8,7 @@ export function readDescriptions(path: string): Record<string, string> {
 
 export function writeDescriptions(path: string, descriptions: Record<string, string>): void {
   const sorted: Record<string, string> = {};
-  for (const key of Object.keys(descriptions).sort()) sorted[key] = descriptions[key] as string;
+  for (const key of Object.keys(descriptions).sort()) sorted[key] = descriptions[key];
 
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.tmp`;

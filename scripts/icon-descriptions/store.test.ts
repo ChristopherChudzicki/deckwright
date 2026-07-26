@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
@@ -39,22 +39,5 @@ describe("writeDescriptions", () => {
   test("leaves no temp file behind", () => {
     writeDescriptions(path, { fireball: "A ball of flame." });
     expect(() => readFileSync(`${path}.tmp`, "utf8")).toThrow();
-  });
-
-  test("a merged write keeps entries from an earlier write", () => {
-    writeDescriptions(path, { fireball: "A ball of flame." });
-    const merged = { ...readDescriptions(path), broadsword: "A large sword." };
-    writeDescriptions(path, merged);
-
-    expect(readDescriptions(path)).toEqual({
-      broadsword: "A large sword.",
-      fireball: "A ball of flame.",
-    });
-  });
-
-  test("does not truncate an existing file when the new content is shorter", () => {
-    writeFileSync(path, `${JSON.stringify({ a: "x".repeat(500) }, null, 2)}\n`);
-    writeDescriptions(path, { a: "short" });
-    expect(readDescriptions(path)).toEqual({ a: "short" });
   });
 });

@@ -1,6 +1,7 @@
-// Verbatim from the runs that produced every measurement in the spec — the
-// batch-30 cost curve, the 4x named-over-blind margin, the 2-3% miss rate.
-// Rewording it invalidates all of them and costs a full regeneration.
+// Prompt stability is load-bearing. Adopting a reworded prompt incrementally
+// leaves the file a mix of two versions with no marker distinguishing them, so
+// any change here means regenerating all 4,134 entries. See the design doc,
+// "Risks and follow-ups".
 const INSTRUCTIONS = `These are icons from the game-icons.net collection, used in a Dungeons & Dragons spell-and-item card app.
 
 Read every PNG file listed below and describe what each one depicts.

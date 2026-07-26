@@ -1,7 +1,7 @@
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 import { ITEM_RULES, SCHOOL_ICONS, SPELL_NAME_RULES } from "../cards/iconRules";
-import { render, screen } from "../test/render";
+import { render, screen, within } from "../test/render";
 import { IconDebugView } from "./IconDebugView";
 
 // 40 keys, not 2: the reroll assertion compares sampled sets, and on a tiny
@@ -67,12 +67,17 @@ describe("<IconDebugView>", () => {
   });
 
   describe("descriptions panel", () => {
-    test("shows a sampled icon beside its description", async () => {
+    // Scoped with within(): broadsword is also an ITEM_RULES iconKey, so an
+    // unscoped getByRole("img") is satisfied by the rules table below.
+    test("pairs each sampled icon with its own description", async () => {
       render(<IconDebugView />);
-      expect(
-        await screen.findByText(/A large two-handed sword with a straight blade/),
-      ).toBeInTheDocument();
-      expect(screen.getAllByRole("img", { name: "broadsword" }).length).toBeGreaterThan(0);
+      await screen.findByText(/A large two-handed sword with a straight blade/);
+
+      const row = screen
+        .getAllByTestId("described-icon")
+        .find((el) => el.dataset.iconKey === "broadsword") as HTMLElement;
+      within(row).getByRole("img", { name: "broadsword" });
+      within(row).getByText(/A large two-handed sword with a straight blade/);
     });
 
     // Random sampling over 4,134 would essentially never surface the 34 icons
@@ -82,8 +87,7 @@ describe("<IconDebugView>", () => {
       await screen.findByText(/A large two-handed sword/);
 
       const shown = screen.getAllByTestId("described-icon").map((el) => el.dataset.iconKey);
-      expect(shown).toContain("broadsword");
-      expect(shown.some((key) => key?.startsWith("fixture-icon-"))).toBe(false);
+      expect(shown).toEqual(["broadsword"]);
     });
 
     test("reroll draws a different sample", async () => {
@@ -94,7 +98,7 @@ describe("<IconDebugView>", () => {
       await userEvent.click(screen.getByRole("button", { name: /reroll/i }));
       const after = screen.getAllByTestId("described-icon").map((el) => el.dataset.iconKey);
 
-      expect(before.length).toBeGreaterThan(1);
+      expect(before).toHaveLength(24);
       expect(after).not.toEqual(before);
     });
   });

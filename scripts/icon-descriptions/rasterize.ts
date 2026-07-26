@@ -57,7 +57,7 @@ export async function ensurePngs(opts: {
   names: readonly string[];
   size: number;
   cacheDir: string;
-}): Promise<Map<string, string>> {
+}): Promise<{ pngDir: string; paths: Map<string, string> }> {
   const { collection, names, size, cacheDir } = opts;
   const metaPath = join(cacheDir, "meta.json");
   const pngDir = join(cacheDir, "png");
@@ -83,5 +83,5 @@ export async function ensurePngs(opts: {
     if (!existsSync(path)) writeFileSync(path, await renderIcon(collection, name, size));
     paths.set(name, path);
   }
-  return paths;
+  return { pngDir, paths };
 }

@@ -1,7 +1,7 @@
 import type { DescribeBatch } from "./invoke";
 
-export const MAX_CONSECUTIVE_FAILURES = 3;
-export const RETRY_DELAYS_MS = [5_000, 20_000];
+const MAX_CONSECUTIVE_FAILURES = 3;
+const RETRY_DELAYS_MS = [5_000, 20_000];
 
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -14,7 +14,13 @@ export async function runBatches(opts: {
   validateEntry: (name: string, description: string) => string | null;
   sleep?: (ms: number) => Promise<void>;
   log?: (message: string) => void;
-}): Promise<{ described: number; failedBatches: number; totalCost: number; aborted: boolean }> {
+}): Promise<{
+  described: number;
+  succeededBatches: number;
+  failedBatches: number;
+  totalCost: number;
+  aborted: boolean;
+}> {
   const {
     batches,
     describeBatch,
@@ -27,6 +33,7 @@ export async function runBatches(opts: {
   } = opts;
 
   let described = 0;
+  let succeededBatches = 0;
   let failedBatches = 0;
   let totalCost = 0;
   let consecutiveFailures = 0;
@@ -36,7 +43,7 @@ export async function runBatches(opts: {
     let accepted: Record<string, string> | null = null;
 
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-      if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1] as number);
+      if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
       try {
         const { descriptions, cost } = await describeBatch(names, { pngDir, model });
         totalCost += cost;
@@ -59,12 +66,13 @@ export async function runBatches(opts: {
       consecutiveFailures++;
       if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
         log(`Aborting after ${consecutiveFailures} consecutive batch failures.`);
-        return { described, failedBatches, totalCost, aborted: true };
+        return { described, succeededBatches, failedBatches, totalCost, aborted: true };
       }
       continue;
     }
 
     consecutiveFailures = 0;
+    succeededBatches++;
     onAccept(accepted);
     const count = Object.keys(accepted).length;
     described += count;
@@ -74,5 +82,5 @@ export async function runBatches(opts: {
     );
   }
 
-  return { described, failedBatches, totalCost, aborted: false };
+  return { described, succeededBatches, failedBatches, totalCost, aborted: false };
 }

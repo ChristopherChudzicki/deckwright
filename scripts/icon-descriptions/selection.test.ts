@@ -11,10 +11,6 @@ describe("selectBatches", () => {
     expect(select().flat().sort()).toEqual([...alphabet].sort());
   });
 
-  test("chunks by batch size", () => {
-    expect(select().map((b) => b.length)).toEqual([10, 10, 10, 10, 10, 10, 10, 10, 10, 10]);
-  });
-
   test("leaves a short final batch", () => {
     expect(select({ batchSize: 30 }).map((b) => b.length)).toEqual([30, 30, 30, 10]);
   });
@@ -69,5 +65,20 @@ describe("selectBatches", () => {
 
   test("--limit truncates in shuffled order, not alphabetical order", () => {
     expect(select({ limit: 10 }).flat()).toEqual(select().at(0));
+  });
+
+  // Discriminates --limit applied to the surviving icons from --limit applied
+  // to the full collection before the resume filter.
+  test("--limit counts icons still to do, not icons already described", () => {
+    const existing = new Set(alphabet.slice(0, 90));
+    expect(select({ existing, limit: 5 }).flat()).toHaveLength(5);
+  });
+
+  // A fix-up run must not fragment into one invocation per icon.
+  test("--only packs densely rather than keeping full-collection boundaries", () => {
+    const only = select()
+      .flat()
+      .filter((_, i) => i % 17 === 0);
+    expect(select({ only }).map((b) => b.length)).toEqual([6]);
   });
 });

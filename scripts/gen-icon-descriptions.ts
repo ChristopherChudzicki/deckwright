@@ -19,15 +19,17 @@ const OUTPUT = resolve(__dirname, "../src/data/icon-descriptions.json");
 const CACHE_DIR = resolve(__dirname, "../.icon-cache");
 const LOCKFILE = join(CACHE_DIR, "run.lock");
 
+// No parseArgs defaults: --validate is exclusive, and a defaulted flag is
+// indistinguishable from one the operator actually passed.
 const { values } = parseArgs({
   options: {
     only: { type: "string", multiple: true },
-    "batch-size": { type: "string", default: String(DEFAULT_BATCH_SIZE) },
-    force: { type: "boolean", default: false },
-    validate: { type: "boolean", default: false },
+    "batch-size": { type: "string" },
+    force: { type: "boolean" },
+    validate: { type: "boolean" },
     limit: { type: "string" },
-    model: { type: "string", default: DEFAULT_MODEL },
-    size: { type: "string", default: String(DEFAULT_RENDER_SIZE) },
+    model: { type: "string" },
+    size: { type: "string" },
   },
 });
 
@@ -37,10 +39,9 @@ const fail = (message: string): never => {
 };
 
 if (values.validate) {
-  const conflicting = (["only", "force", "limit"] as const).filter((flag) => {
-    const value = values[flag];
-    return Array.isArray(value) ? value.length > 0 : Boolean(value);
-  });
+  const conflicting = (["only", "batch-size", "force", "limit", "model", "size"] as const).filter(
+    (flag) => values[flag] !== undefined,
+  );
   if (conflicting.length) {
     fail(`--validate is exclusive; remove: ${conflicting.map((f) => `--${f}`).join(", ")}`);
   }
@@ -60,16 +61,17 @@ if (values.validate) {
   process.exit(problems.length ? 1 : 0);
 }
 
-const positiveInt = (raw: string | undefined, flag: string): number | undefined => {
-  if (raw === undefined) return undefined;
+const positiveInt = (raw: string | undefined, flag: string, fallback: number): number => {
+  if (raw === undefined) return fallback;
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1) fail(`--${flag} must be a positive integer`);
   return value;
 };
 
-const batchSize = positiveInt(values["batch-size"], "batch-size") as number;
-const size = positiveInt(values.size, "size") as number;
-const limit = positiveInt(values.limit, "limit");
+const batchSize = positiveInt(values["batch-size"], "batch-size", DEFAULT_BATCH_SIZE);
+const size = positiveInt(values.size, "size", DEFAULT_RENDER_SIZE);
+const limit = values.limit === undefined ? undefined : positiveInt(values.limit, "limit", 0);
+const model = values.model ?? DEFAULT_MODEL;
 
 // Concurrent runs would lose updates: each reads the file, merges, and renames
 // over the other's work.
@@ -81,37 +83,52 @@ closeSync(openSync(LOCKFILE, "wx"));
 process.on("exit", () => {
   if (existsSync(LOCKFILE)) unlinkSync(LOCKFILE);
 });
+// Ctrl-C and `kill` default to terminating without running exit handlers, so
+// route them through process.exit to release the lock.
 process.on("SIGINT", () => process.exit(130));
+process.on("SIGTERM", () => process.exit(143));
+process.on("SIGHUP", () => process.exit(129));
 
 const collection = loadCollection();
 const all = iconNames(collection);
 const existing = readDescriptions(OUTPUT);
 
-const batches = selectBatches({
-  all,
-  existing: new Set(Object.keys(existing)),
-  only: values.only,
-  force: values.force,
-  limit,
-  batchSize,
-});
+const selectOrFail = (): string[][] => {
+  try {
+    return selectBatches({
+      all,
+      existing: new Set(Object.keys(existing)),
+      only: values.only,
+      force: values.force,
+      limit,
+      batchSize,
+    });
+  } catch (err) {
+    return fail((err as Error).message);
+  }
+};
+const batches = selectOrFail();
 
 const total = batches.reduce((sum, batch) => sum + batch.length, 0);
 console.log(
   `${all.length} icons, ${Object.keys(existing).length} described; ` +
-    `${total} to do in ${batches.length} batches of ${batchSize} (${values.model}, ${size}px).`,
+    `${total} to do in ${batches.length} batches of ${batchSize} (${model}, ${size}px).`,
 );
 if (total === 0) process.exit(0);
 
 console.log("Rendering PNGs…");
-const pngs = await ensurePngs({ collection, names: batches.flat(), size, cacheDir: CACHE_DIR });
-const pngDir = dirname(pngs.values().next().value as string);
+const { pngDir } = await ensurePngs({
+  collection,
+  names: batches.flat(),
+  size,
+  cacheDir: CACHE_DIR,
+});
 
 const result = await runBatches({
   batches,
   describeBatch,
   pngDir,
-  model: values.model as string,
+  model,
   validateEntry,
   onAccept: (accepted) => {
     // Re-read before each merge: the file is the progress marker, so a crash
@@ -121,7 +138,7 @@ const result = await runBatches({
 });
 
 console.log(
-  `Described ${result.described} icons in ${batches.length - result.failedBatches} batches ` +
+  `Described ${result.described} icons in ${result.succeededBatches} batches ` +
     `($${result.totalCost.toFixed(2)} API-equivalent).`,
 );
 if (result.failedBatches) console.warn(`${result.failedBatches} batches failed; re-run to retry.`);

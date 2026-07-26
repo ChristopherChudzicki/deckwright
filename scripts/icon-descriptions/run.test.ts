@@ -35,7 +35,12 @@ describe("runBatches", () => {
     const result = await promise;
 
     expect(Object.keys(accepted).sort()).toEqual(["a", "b", "c"]);
-    expect(result).toMatchObject({ described: 3, failedBatches: 0, aborted: false });
+    expect(result).toMatchObject({
+      described: 3,
+      succeededBatches: 2,
+      failedBatches: 0,
+      aborted: false,
+    });
     expect(result.totalCost).toBeCloseTo(0.6);
   });
 
@@ -53,6 +58,28 @@ describe("runBatches", () => {
     expect(maxInFlight).toBe(1);
   });
 
+  // The file is the progress marker, so a crash must leave every accepted
+  // batch on disk — a buffer-then-flush refactor would pass every other test.
+  test("hands over each accepted batch as it lands, not once at the end", async () => {
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
+      descriptions: ok(names),
+      cost: 0,
+    }));
+    const onAccept = vi.fn();
+    await runBatches({
+      batches: [["a"], ["b"], ["c"]],
+      describeBatch,
+      pngDir: "/tmp/png",
+      model: "sonnet",
+      onAccept,
+      validateEntry: () => null,
+      sleep: async () => {},
+      log: () => {},
+    });
+
+    expect(onAccept).toHaveBeenCalledTimes(3);
+  });
+
   // Partial acceptance: all-or-nothing would discard 29 good descriptions
   // over one bad one, permanently, on every future run.
   test("keeps the good entries of a batch with one invalid entry", async () => {
@@ -66,7 +93,7 @@ describe("runBatches", () => {
     const result = await promise;
 
     expect(Object.keys(accepted).sort()).toEqual(["a", "c"]);
-    expect(result.described).toBe(2);
+    expect(result).toMatchObject({ described: 2, failedBatches: 0, aborted: false });
   });
 
   test("retries a failing batch and accepts the retry", async () => {
@@ -109,8 +136,7 @@ describe("runBatches", () => {
     const describeBatch = vi.fn<DescribeBatch>().mockRejectedValue(new Error("expired"));
     const result = await run([["a"], ["b"], ["c"], ["d"]], describeBatch).promise;
 
-    expect(result.aborted).toBe(true);
-    expect(result.failedBatches).toBe(3);
+    expect(result).toMatchObject({ aborted: true, succeededBatches: 0, failedBatches: 3 });
     expect(describeBatch).toHaveBeenCalledTimes(9);
   });
 
@@ -125,15 +151,16 @@ describe("runBatches", () => {
     expect(result.failedBatches).toBe(4);
   });
 
-  test("a batch whose entries all fail validation counts as a failure", async () => {
+  test("a batch whose entries all fail validation counts as a failure, and is still paid for", async () => {
     const describeBatch = vi.fn<DescribeBatch>(async () => ({
       descriptions: { a: "no" },
-      cost: 0,
+      cost: 0.1,
     }));
-    const result = await run([["a"], ["b"], ["c"]], describeBatch, {
+    const result = await run([["a"]], describeBatch, {
       validateEntry: () => "too short",
     }).promise;
 
-    expect(result.aborted).toBe(true);
+    expect(result).toMatchObject({ described: 0, succeededBatches: 0, failedBatches: 1 });
+    expect(result.totalCost).toBeCloseTo(0.3);
   });
 });

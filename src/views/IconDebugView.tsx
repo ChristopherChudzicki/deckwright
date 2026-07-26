@@ -5,6 +5,7 @@ import { loadIconDescriptions } from "../data/loadIconDescriptions";
 import { Button } from "../lib/ui/Button";
 import { IconPreview } from "../lib/ui/IconPreview";
 import { Input } from "../lib/ui/Input";
+import { LoadingState } from "../lib/ui/LoadingState";
 import { Radio, RadioGroup } from "../lib/ui/RadioGroup";
 import styles from "./IconDebugView.module.css";
 
@@ -159,12 +160,19 @@ export function IconDebugView() {
             <Radio value="rules">Icons used by rules ({RULE_ICON_KEYS.length})</Radio>
             <Radio value="random">Random {SAMPLE_SIZE}</Radio>
           </RadioGroup>
-          <Button size="sm" variant="secondary" onPress={() => setReroll((n) => n + 1)}>
+          <Button
+            size="sm"
+            variant="secondary"
+            isDisabled={scope === "rules"}
+            onPress={() => setReroll((n) => n + 1)}
+          >
             Reroll
           </Button>
         </div>
         {descriptions === null ? (
-          <p>Loading descriptions…</p>
+          <LoadingState label="Loading descriptions…" />
+        ) : sample.length === 0 ? (
+          <p>No descriptions yet — run `npm run gen:icon-descriptions`.</p>
         ) : (
           <ul className={styles.descriptions}>
             {sample.map((key) => (

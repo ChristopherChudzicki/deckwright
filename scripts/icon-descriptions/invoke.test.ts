@@ -55,6 +55,31 @@ describe("extractDescriptions", () => {
     expect(descriptions).toEqual({ a: "x {y} z", b: "plain" });
   });
 
+  test("recovers the JSON when the model fences something else first", () => {
+    const { descriptions } = extractDescriptions(
+      envelope(
+        'I read the files.\n\n```\nfireball.png\n```\n\n```json\n{"fireball": "A ball of flame."}\n```',
+      ),
+      ["fireball"],
+    );
+    expect(descriptions).toEqual({ fireball: "A ball of flame." });
+  });
+
+  test("recovers the JSON when an inline code span trails it", () => {
+    const { descriptions } = extractDescriptions(
+      envelope('{"fireball": "A ball of flame."}\n\nI used ```Read``` to load them.'),
+      ["fireball"],
+    );
+    expect(descriptions).toEqual({ fireball: "A ball of flame." });
+  });
+
+  test("tolerates a closing brace inside a description", () => {
+    const { descriptions } = extractDescriptions(envelope('{"fireball": "A brace } inside."}'), [
+      "fireball",
+    ]);
+    expect(descriptions).toEqual({ fireball: "A brace } inside." });
+  });
+
   test("accepts keys that kept the .png extension", () => {
     const { descriptions } = extractDescriptions(envelope('{"fireball.png": "A ball of flame."}'), [
       "fireball",
@@ -96,6 +121,18 @@ describe("extractDescriptions", () => {
     expect(() => extractDescriptions(envelope('{"fireball": "A ball'), ["fireball"])).toThrow(
       /unbalanced/,
     );
+  });
+
+  test("throws when the envelope carries no result string", () => {
+    expect(() => extractDescriptions(JSON.stringify({ type: "result" }), ["fireball"])).toThrow(
+      /no result string/,
+    );
+  });
+
+  // Without the ?? 0 the run's running total becomes NaN, with no other symptom.
+  test("reports zero cost when the envelope omits total_cost_usd", () => {
+    const stdout = JSON.stringify({ is_error: false, result: '{"fireball": "A ball of flame."}' });
+    expect(extractDescriptions(stdout, ["fireball"]).cost).toBe(0);
   });
 
   test("throws when stdout is not the expected envelope", () => {

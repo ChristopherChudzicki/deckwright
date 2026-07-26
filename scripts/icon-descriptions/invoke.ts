@@ -5,7 +5,7 @@ import { buildPrompt } from "./prompt";
 const execFileP = promisify(execFile);
 
 export const DEFAULT_MODEL = "sonnet";
-export const INVOKE_TIMEOUT_MS = 300_000;
+const INVOKE_TIMEOUT_MS = 300_000;
 
 export type BatchResult = { descriptions: Record<string, string>; cost: number };
 export type DescribeBatch = (
@@ -15,20 +15,49 @@ export type DescribeBatch = (
 
 type Envelope = { is_error?: boolean; result?: unknown; total_cost_usd?: number };
 
-function firstJsonObject(text: string): unknown {
-  let body = text.trim();
-  const fence = body.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fence?.[1]) body = fence[1].trim();
-
+function scanJsonObject(body: string): unknown {
   const start = body.indexOf("{");
   if (start === -1) throw new Error(`no JSON object in model response: ${body.slice(0, 200)}`);
 
+  // Brace counting must skip string literals: a description containing "}"
+  // would otherwise close the object early and truncate the JSON.
   let depth = 0;
+  let inString = false;
+  let escaped = false;
   for (let i = start; i < body.length; i++) {
-    if (body[i] === "{") depth++;
-    else if (body[i] === "}" && --depth === 0) return JSON.parse(body.slice(start, i + 1));
+    const char = body[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === "{") depth++;
+    else if (char === "}" && --depth === 0) return JSON.parse(body.slice(start, i + 1));
   }
   throw new Error(`unbalanced JSON object in model response: ${body.slice(start, start + 200)}`);
+}
+
+// Try every fenced block, then the raw text. Committing to the first fence
+// loses the answer whenever the model fences something else too — a narrated
+// filename before the JSON, or an inline `Read` span after it.
+function firstJsonObject(text: string): unknown {
+  const body = text.trim();
+  const candidates = [...body.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)]
+    .map((match) => match[1]?.trim())
+    .filter((block): block is string => Boolean(block));
+  candidates.push(body);
+
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    try {
+      return scanJsonObject(candidate);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
 }
 
 export function extractDescriptions(stdout: string, requested: readonly string[]): BatchResult {

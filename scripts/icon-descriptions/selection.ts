@@ -36,6 +36,17 @@ export function selectBatches(opts: {
 
   if (limit !== undefined) kept = kept.slice(0, limit);
 
+  // --only is a bounded fix-up, not a resume, so pack it densely. Keeping the
+  // full-collection boundaries would put two hand-picked icons in two separate
+  // invocations, and singleton batches make the 3-consecutive-failure abort
+  // trivially reachable.
+  if (onlySet) {
+    const names = kept.map(({ name }) => name);
+    const packed: string[][] = [];
+    for (let i = 0; i < names.length; i += batchSize) packed.push(names.slice(i, i + batchSize));
+    return packed;
+  }
+
   const grouped = new Map<number, string[]>();
   for (const { name, batch } of kept) {
     const bucket = grouped.get(batch);

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -14,8 +14,10 @@ afterEach(() => {
 });
 
 describe("loadCollection", () => {
-  test("returns the full 4,134-icon collection", () => {
-    expect(iconNames(loadCollection())).toHaveLength(4134);
+  test("returns the real collection, not the 2-icon test stub", () => {
+    const names = iconNames(loadCollection());
+    expect(names.length).toBeGreaterThan(4000);
+    expect(names).toContain("fireball");
   });
 
   test("names are sorted", () => {
@@ -49,7 +51,7 @@ describe("renderIcon", () => {
 
 describe("ensurePngs", () => {
   test("writes one PNG per name and returns absolute paths", async () => {
-    const result = await ensurePngs({
+    const { paths: result } = await ensurePngs({
       collection: loadCollection(),
       names: ["fireball", "broadsword"],
       size: 512,
@@ -63,7 +65,7 @@ describe("ensurePngs", () => {
   });
 
   test("reuses an existing PNG rather than re-rendering", async () => {
-    const first = await ensurePngs({
+    const { paths: first } = await ensurePngs({
       collection: loadCollection(),
       names: ["fireball"],
       size: 512,
@@ -82,8 +84,38 @@ describe("ensurePngs", () => {
     expect(readFileSync(path, "utf8")).toBe("sentinel");
   });
 
+  test("discards the cache when the icon-set version changes", async () => {
+    mkdirSync(join(dir, "png"), { recursive: true });
+    writeFileSync(join(dir, "meta.json"), JSON.stringify({ iconSetVersion: "0.0.0", size: 512 }));
+    writeFileSync(join(dir, "png", "fireball.png"), "sentinel");
+
+    const { paths } = await ensurePngs({
+      collection: loadCollection(),
+      names: ["fireball"],
+      size: 512,
+      cacheDir: dir,
+    });
+
+    expect((await sharp(paths.get("fireball") as string).metadata()).format).toBe("png");
+  });
+
+  test("treats a corrupt meta.json as a missing one", async () => {
+    mkdirSync(join(dir, "png"), { recursive: true });
+    writeFileSync(join(dir, "meta.json"), "{ truncated");
+    writeFileSync(join(dir, "png", "fireball.png"), "sentinel");
+
+    const { paths } = await ensurePngs({
+      collection: loadCollection(),
+      names: ["fireball"],
+      size: 512,
+      cacheDir: dir,
+    });
+
+    expect((await sharp(paths.get("fireball") as string).metadata()).format).toBe("png");
+  });
+
   test("discards the cache when the render size changes", async () => {
-    const first = await ensurePngs({
+    const { paths: first } = await ensurePngs({
       collection: loadCollection(),
       names: ["fireball"],
       size: 256,
@@ -91,7 +123,7 @@ describe("ensurePngs", () => {
     });
     writeFileSync(first.get("fireball") as string, "sentinel");
 
-    const second = await ensurePngs({
+    const { paths: second } = await ensurePngs({
       collection: loadCollection(),
       names: ["fireball"],
       size: 512,
