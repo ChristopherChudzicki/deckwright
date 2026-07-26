@@ -105,22 +105,23 @@ Three details the render must get right:
 3. Composite onto opaque white (`.flatten({ background: "#fff" })`); transparent
    PNGs composite unpredictably.
 
-**Resolution is 256×256, and this is not yet validated against the alternative.**
-All runs so far downsampled 2× from the 512 sources. The one recorded miss of
-this kind (`claw-hammer`, read as a hatchet — thin claw geometry) is exactly the
-error a 2× downsample produces.
+**Resolution is 512×512 — the source viewBox, with no downsampling.** Earlier
+runs rendered at 256 and the one recorded miss of this kind (`claw-hammer`, read
+as a hatchet — thin claw geometry) is exactly the error a 2× downsample produces.
+Rendering at native size removes resolution as a variable. `--size` overrides it.
 
-**Resolution is a quality lever, not a cost lever.** Claude prices images by
-dimensions (~`w×h/750` tokens), so 256×256 is ~87 tokens — about 2,600 tokens
-per 30-icon batch, ~$0.008 against a measured $0.31 invocation, roughly **1% of
-cost**. Halving resolution would save nothing worth having; 512×512 costs ~350
-tokens/image, about **+$4 across a full run**, which is the cheap direction to
-test. See "Open experiments".
+**Resolution is a quality lever with a real cost tail under the API transport.**
+Claude prices images by dimensions — `ceil(w/28) × ceil(h/28)` tokens — so
+512×512 is **361 tokens** against 100 at 256×256. Under `--transport cli` that
+difference is noise beside the agent scaffolding. Under `--transport api` images
+dominate the bill, and dropping to 256 would cut a full run by roughly 45%. That
+trade is deliberately not taken: the artifact is permanent and its errors are
+only fixable by hand, so quality outranks a few dollars.
 
 **PNG, not JPEG,** for the same reason: token cost is dimensional, so JPEG saves
 zero, while its ringing artifacts degrade precisely the thin black-on-white
-strokes that already fail. PNG also compresses this content better — measured
-9KB average, ~40MB for the collection.
+strokes that already fail. At 512 the rendered collection measures **18KB
+average, 71MB total** (97MB once base64-encoded for the API transport).
 
 `sharp` is an explicit devDependency (`^0.35.3`, approved and committed). It was
 previously present only transitively via `wrangler → miniflare`, and this script
@@ -194,10 +195,19 @@ a prefix is the condition most likely to induce the name-following the authority
 clause otherwise prevents. Randomizing is free; the untested hypothesis is that
 clustering hurts. See "Open experiments" for the run that would settle it.
 
-**The shuffle must assign a stable batch index over the full 4,134 before any
-filtering.** Shuffling and then filtering out already-described icons changes
-chunk boundaries on every resume, so batch composition would differ between
-runs — resumed batches should get smaller, not get reshuffled.
+**The shuffle runs over the full 4,134 before any filtering; chunking happens
+after.** The shuffle is what breaks up thematic clustering, and it must see the
+whole collection to do that. Batch *boundaries*, though, are recomputed on every
+resume: the survivors are packed densely into full batches rather than preserving
+whole-collection chunk positions.
+
+An earlier draft pinned the boundaries so that a resume shrank batches rather
+than recomposing them. That is the wrong trade. Nothing consumes a batch index,
+and preserving boundaries leaves a resume running mostly-singleton invocations —
+each paying the same fixed per-invocation cost as a full batch, and singletons
+make the consecutive-failure abort trivially reachable. Dense packing keeps the
+anti-clustering property (membership is still drawn from shuffled order) while
+keeping every invocation economically full.
 
 A caveat on `--only` reruns: regenerating "the fire ones" by hand recreates
 exactly the thematic clustering the shuffle avoids. Fix-up batches should be
@@ -208,8 +218,10 @@ assembled from the shuffled order, not hand-grouped.
 | path | committed | contents |
 |---|---|---|
 | `src/data/icon-descriptions.json` | yes | `{ "<icon-name>": "<description>" }`, keys sorted |
+| `src/data/icon-descriptions-overrides.json` | yes | hand-written corrections; merged over the generated map at read time, never written by the script |
 | `.icon-cache/png/<icon-name>.png` | no | rendered icons, skipped when present |
 | `.icon-cache/meta.json` | no | icon-set version + render settings, for cache invalidation |
+| `.icon-cache/run.lock` | no | `wx` lockfile; released via `process.exit` on signal |
 
 `src/data/` rather than `data/` because the descriptions ship to the client once
 the picker searches them. Realistically **~600–650KB** (4,134 × ~120 chars of
@@ -246,10 +258,13 @@ Arguments via `node:util parseArgs`.
 | flag | default | effect |
 |---|---|---|
 | `--only <name>` | all | repeatable (`multiple: true`); implies `--force` for the named icons. An unknown name is a hard error listing the offenders. |
-| `--batch-size <n>` | 30 | icons per `claude -p` invocation; see the measured curve below |
+| `--batch-size <n>` | 30 | icons per invocation; see the measured curve below |
 | `--force` | off | re-describe icons that already have entries |
-| `--validate` | off | run per-entry checks over the committed file and exit; exclusive — combining it with any other flag is an error (exit 2) |
+| `--validate` | off | run per-entry checks over the merged generated+overrides map and exit; exclusive — combining it with any other flag is an error (exit 2) |
 | `--limit <n>` | none | truncate the selection to n icons, for smoke-testing |
+| `--model <name>` | `sonnet` | the measurements are Sonnet-specific; the flag exists to re-run the comparison, not for routine use |
+| `--size <n>` | 512 | render resolution; changing it invalidates the whole PNG cache |
+| `--transport <cli\|api>` | `cli` | which back end runs the batch — see "Transports" |
 
 **Selection pipeline, in order:** all 4,134 → seeded shuffle → `--only` filter →
 drop already-described (unless `--force`/`--only`) → `--limit` truncate → chunk
@@ -266,32 +281,67 @@ re-runs.
 ("read existing, merge, atomic rename") is a lost-update race under concurrent
 writers. A `wx`-flag lockfile in `.icon-cache/` prevents two runs in two
 terminals from silently clobbering each other. At batch 30 that is **138
-invocations and ~3.2 hours wall clock** for a full run, measured.
+invocations** for a full run — ~3.2 hours wall clock under `cli`, measured. Under
+`api` the binding constraint is per-request latency rather than quota: the whole
+job is ~1.5M input tokens against a 2,000,000 ITPM Start-tier limit, so rate
+limiting never engages.
 
-## The `claude -p` contract
+## Transports
 
-- Model pinned in a script constant, not inherited from operator config — the
-  measurements below are Sonnet-specific.
-- `--output-format json`. **stdout is an envelope**
-  (`{"type":"result","is_error":…,"result":"<model text>","total_cost_usd":…}`).
-  Parse with `JSON.parse(stdout)`, check `is_error`, then extract the description
-  object from `envelope.result`. Naively "extracting the first `{…}` block" from
-  stdout yields the envelope and fails every batch forever.
-- Within `.result`: strip ``` fences, then take the first `{` through its
-  matching `}` via depth counting. Test fixtures must include a fenced response
-  and one with a prose preamble.
-- Images referenced by absolute path with `--allowedTools Read`, working
-  directory scoped to `.icon-cache/png/`.
-- **Per-invocation timeout** (300s) with an explicit kill signal. An unbounded
-  hang stalls the entire run with no output — the most likely real-world failure
-  across ~138 invocations.
-- Fail fast with a clear message when the `claude` binary is absent or
-  unauthenticated.
+Both transports implement one seam — `DescribeBatch`, in
+`scripts/icon-descriptions/invoke.ts` — so `runBatches` is unaware of which is in
+play. They send the same images under the same prompt with the same schema, and
+differ only in delivery and billing.
 
-The literal prompt lives in one exported constant
-(`scripts/icon-descriptions/prompt.ts`) and is reproduced verbatim in the plan.
-Prompt stability is load-bearing — a change means a full regeneration — so it
-must be a reviewable constant, not a paraphrase.
+**Shared contract.** Model pinned in a script constant, not inherited from
+operator config; the measurements below are Sonnet-specific. The literal prompt
+lives in one exported constant (`scripts/icon-descriptions/prompt.ts`). Prompt
+stability is load-bearing — a change means a full regeneration — so it must be a
+reviewable constant, not a paraphrase. Both fail fast, before any PNG is
+rendered, when their credential is missing.
+
+**Response shape is schema-constrained, not parsed out of prose.** Naming every
+requested icon as a required property with `additionalProperties: false` turns a
+short or renamed response into a constraint violation rather than a silent
+shortfall paid for again later. `responseSchema()` builds it once and both
+transports use it unchanged. This replaced an earlier design that stripped ```
+fences and depth-counted braces out of free-form model text; that machinery is
+gone, and with it the fenced/preamble test fixtures it needed.
+
+### `--transport cli` (default)
+
+Shells out to `claude -p` with `--output-format json`, `--json-schema`, and
+`--allowedTools Read`, working directory scoped to `.icon-cache/png/` so the
+agent reads the images off disk itself. stdout is an envelope; the descriptions
+are in `structured_output` and the cost in `total_cost_usd`. A run reporting
+`subtype: "success"` with no `structured_output` is a failure, not an empty
+batch. Per-invocation timeout 600s with an explicit kill signal — an unbounded
+hang stalls the entire run with no output.
+
+Spends subscription quota, not money. This is the default so that a bare
+`npm run gen:icon-descriptions` cannot bill anyone by accident.
+
+### `--transport api`
+
+Posts directly to the Messages API with images inline as base64, using native
+structured output (`output_config.format`) for the same constraint the CLI gets
+from `--json-schema`. Bare `fetch`; no SDK dependency for a single POST. Auth via
+`ANTHROPIC_API_KEY`, which is Console billing and entirely separate from both the
+subscription and purchasable usage credits.
+
+The pinned prompt names files, because the CLI reads them itself. Over HTTP
+nothing carries a filename, so **each inline image is preceded by a text block
+naming it** — that label, not position, is what ties a description back to an
+icon. `prompt.ts` is untouched.
+
+Cost is computed from `usage` against a per-model price table. Only models with
+confirmed pricing are accepted: a guessed rate would report a run's spend as fact
+while being wrong about it, which is worse than refusing the model.
+
+**Why it exists:** roughly 91% of the CLI transport's tokens are agent
+scaffolding rather than images. Purchasable usage credits bill the CLI path at
+standard API rates, which makes finishing the run on credits cost ~$65 against
+~$4.70 direct — the same output for ~14× the money.
 
 ### Failure policy
 
@@ -299,13 +349,19 @@ Distinguish three cases, because they need different handling:
 
 | failure | handling |
 |---|---|
-| subprocess error (non-zero exit, timeout, rate limit) | retry up to 2× with backoff (5s, 20s), then log and skip |
-| response unparseable | log and skip the batch |
+| transport error (non-zero exit, timeout, non-2xx, rate limit) | retry up to 2× with backoff (5s, 20s), then log and skip |
+| response unparseable, or parseable but carrying no valid entry | **retry** on the same path, then log and skip |
 | individual entry fails per-entry validation | drop **that entry**, keep the rest of the batch |
 
 Nothing failed is written, so failures are simply still-missing keys that the
 next run picks up. That is the same mechanism as resume — no separate
 bookkeeping.
+
+An unparseable response retries rather than skipping, reversing an earlier draft.
+Skipping treats a malformed reply as terminal when it is usually transient, and
+the cost asymmetry runs the wrong way: a retry costs one invocation, while a skip
+strands 30 icons until someone notices and re-runs. The three-consecutive-failure
+abort still bounds the damage when the malformation is in fact systematic.
 
 **Partial batch acceptance is required.** All-or-nothing discards 29 good
 descriptions because of 1 bad one, and if a specific image reliably trips the
@@ -421,19 +477,28 @@ pass.
 
 ## Validation
 
-The rules live in `src/data/iconDescriptions.ts` with its test beside it —
-**`src/`, not `scripts/`**, because `vitest.config.ts` includes only
-`src/**/*.{test,spec}.{ts,tsx}`. A test under `scripts/` is never collected and
-`npm test` goes green having asserted nothing. `scripts/fetch-srd.ts:5-9`
-already sets the precedent of a script importing from `src/data/`.
+The rules live in `src/data/iconDescriptions.ts` with its test beside it, because
+the app reads them too — `scripts/fetch-srd.ts:5-9` already sets the precedent of
+a script importing from `src/data/`.
+
+`vitest.config.ts` originally collected only `src/**/*.{test,spec}.{ts,tsx}`,
+which silently discarded every test under `scripts/`: the suite went green having
+asserted nothing about them. The `include` now covers `scripts/**/*.{test,spec}.ts`
+as well. That is a repo-wide fix, not a local one — `scripts/` already held
+untested code before this change.
 
 Two tiers, because conflating them makes `--validate` fail by construction after
 any partial run:
 
 **Per-entry** (run at batch acceptance, by `--validate`, and by the test):
 - Non-empty, not whitespace-only.
-- Length 15–200 **characters**. The 25-word prompt instruction is guidance; the
-  character bound is the hard gate.
+- Length 15–260 **characters**. The 30-word prompt instruction is guidance; the
+  character bound is the hard gate. The ceiling was raised from 200: measured max
+  across 299 generated descriptions is 191, and a reply honouring the word budget
+  tops out near 210, but schema-constrained mode produced a legitimate 203. The
+  headroom is deliberate — a rejected entry never enters the file, but it burns
+  two retries and then re-fails identically, stranding that icon in a paid
+  re-invocation.
 - No refusal/apology boilerplate ("I can't", "I'm unable", "Sorry") — the
   signature of a silently degraded call.
 
@@ -491,23 +556,34 @@ Three prompt variants were run, all blind, all 12 icons:
    fantasy readings (table above).
 
 `claw-hammer` is the standing example of the thin-geometry miss: the claw reads
-as a second blade at 256×256, which is what the resolution experiment targets.
+as a second blade at 256×256. Rendering at 512 is the response; whether it
+actually clears this class of miss has not been re-measured.
 
 Incidental evidence that the model reads pixels rather than recalling assets: in
 the blind runs it read rank *and* suit correctly off three different playing
 cards. It cannot have inferred "Seven of Clubs" from a hash.
 
-### Cost is subscription usage, not dollars
+### What a run actually costs depends on the transport
 
-`total_cost_usd` reports **API-equivalent** pricing. Run under a Claude
-subscription, these invocations draw down plan usage; they are not billed. The
-binding constraints are therefore **usage limits and wall clock**, not money.
+Under `--transport cli`, `total_cost_usd` reports **API-equivalent** pricing. Run
+against a Claude subscription's included usage, those invocations draw down plan
+quota rather than being billed, so the binding constraints are **usage limits and
+wall clock**, not money. That makes resumability load-bearing rather than a
+nicety: **hitting a usage limit is the expected interruption**, not an exotic one.
 
-This reframes the batch-size question: it is not "how do I spend less" but "how
-much quota does a full run consume, and how likely am I to hit a limit partway
-through". It also makes resumability the load-bearing property of the design
-rather than a nicety — **hitting a usage limit is the expected interruption**,
-not an exotic one.
+Three distinct funding sources exist and they are not interchangeable:
+
+| source | covers | billed to |
+|---|---|---|
+| plan usage (5-hour + weekly limits) | `cli` | included in the subscription |
+| purchasable usage credits | `cli` | claude.ai payment method, at standard API rates |
+| API key | `api` | Console organization, separate balance |
+
+The middle row is the trap. Credits bill the CLI path at standard API rates while
+that path spends ~91% of its tokens on agent scaffolding, so finishing the run on
+credits costs **~$65** against **~$4.70** through `--transport api` — identical
+output, ~14× the money. If a run is going to cost real money, it should go
+through the transport that isn't mostly overhead.
 
 ### The measured cost curve
 
@@ -534,67 +610,99 @@ witchcraft or a witch's flight") and `butter-toast` came out garbled, both of
 which batch 20 and 30 got right.
 
 Images are a negligible share of that cost — 87 tokens each at 256×256, so ~2,600
-tokens (~$0.008) against a $0.31 invocation. **Resolution is a quality lever, not
-a cost lever.** PNG is also the right format: token cost depends on dimensions,
-not bytes, so JPEG saves nothing and its ringing artifacts would degrade exactly
-the thin black-on-white strokes that already fail. Rendered PNGs average 9KB
-(~40MB for the full collection).
+tokens (~$0.008) against a $0.31 invocation. Under `cli`, **resolution is a
+quality lever, not a cost lever**: the invocation is dominated by agent
+scaffolding either way.
 
 The curve omits retry cost, which rises with batch size.
 
+#### The API transport inverts the shape of the curve
+
+With the agent scaffolding gone, images become nearly the entire bill, and the
+fixed per-invocation term largely disappears. At 512×512 and Sonnet 5's
+introductory $2/$10 per MTok (through 2026-08-31; $3/$15 after):
+
+| batch | input tokens/request | requests for 3,924 | total |
+|---|---|---|---|
+| 1 | ~1,100 | 3,924 | ~$12.87 |
+| **30** | ~11,600 | 131 | **~$4.73** |
+| 100 | ~37,000 | 40 | ~$4.63 |
+
+**Batching still matters, but only up to a point.** One icon per request is 2.7×
+costlier because a fixed ~740-token overhead is amortized over a single 361-token
+image. Past ~30 the images already dominate and further batching buys almost
+nothing — so batch 30, chosen on quality grounds under `cli`, is also near-optimal
+under `api`. No reason to change it.
+
+Rate limits are not a constraint: the whole job is ~1.5M input tokens against a
+2,000,000 ITPM Start-tier limit.
+
 ## Open experiments
 
-Listed in priority order. The first two **change the input to all 4,134 icons**,
-and because errors are deterministic, getting either wrong means regenerating
-rather than patching — so both should run *before* the full generation. Each is
-2 invocations against the same 60-icon sample, reusing the existing named/Sonnet
-batch-30 run as the control and the labelled contact sheets for grading.
+Anything that **changes the input to all 4,134 icons** must be settled before the
+full generation: errors are deterministic, so getting one wrong means
+regenerating rather than patching.
 
-1. **Haiku versus Sonnet.** All measurements to date are Sonnet. Haiku 4.5 is
-   roughly 3× cheaper per token, and since the cost here is dominated by
-   per-invocation context rather than images, that should pass through nearly
-   directly — **~$43 → ~$15-equivalent**, with a proportional drop in quota and
-   wall clock. That is the difference between a run that may hit a usage limit
-   and one that comfortably fits.
+**Settled — 512×512 over 256×256.** Adopted. It was the lever most likely to fix
+the `claw-hammer` class (thin geometry lost to a 2× downsample), and the cost was
+acceptable in both transports. `--size` remains for re-running the comparison.
 
-   The reason to *doubt* it: this task is fine-grained visual discrimination on
-   small monochrome line art, which is where smaller models degrade most, and
-   Haiku 4.5 is a generation behind. Sonnet already misses 2–3%, concentrated in
-   composite icons and thin geometry. A model 3× cheaper and 3× wronger is a bad
-   trade for a permanent artifact whose errors can only be fixed by hand.
-   **Decide it by measurement, on the same 60 icons.**
+**Settled — no Batch API.** It halves token price, but turnaround is
+asynchronous with a 24-hour ceiling, and the control flow inverts: submit 131
+requests, poll, download JSONL, merge. That bypasses `runBatches` entirely, whose
+retry / abort / merge-after-each-batch machinery is per-batch and sequential. The
+saving is ~$2.30 per full regeneration, and realistic lifetime full runs number
+1–3 — prompt iteration happens on 60-icon samples at ~$0.07, and an icon-set bump
+only describes the new icons. ~200 lines of async machinery to save maybe $7, on
+the use case it serves worst. Revisit only if a third full regeneration is queued.
 
-2. **512×512 versus 256×256** — the lever most likely to fix the `claw-hammer`
-   class (thin geometry lost to a 2× downsample). ~+4× image tokens, which is
-   **~+$4 over a full run**, under 10%. Run this against whichever model wins
-   experiment 1; the two interact, since a weaker model may need the resolution.
+**Settled — no off-the-shelf generation framework.** Curator, distilabel,
+DataDreamer and similar tools were considered. The decision turns on scale, not
+language or sunk cost: their value is orchestration, and at 131 requests, under
+ten minutes and under $5 there is essentially nothing left to orchestrate.
 
-3. **Does thematic clustering degrade descriptions?** The seeded shuffle is the
-   only unmeasured element of the design and the lowest-value test, since
-   shuffling is free either way and a null result changes nothing. Test: the
-   thirteen `fire`–`fire-zone` icons described (a) inside an alphabetically
-   contiguous batch of 30 and (b) inside a batch of 30 whose other 17 come from
-   elsewhere in the collection. Compare the same thirteen across both.
+**Open — Haiku versus Sonnet.** All measurements to date are Sonnet. The original
+motivation was quota pressure under `cli`; with `api` costing ~$4.70 a full run,
+a 3× cheaper model now saves ~$3, which does not justify the risk. This task is
+fine-grained visual discrimination on small monochrome line art — where smaller
+models degrade most — and Sonnet already misses 2–3%, concentrated in composite
+icons and thin geometry. A model 3× cheaper and 3× wronger is a bad trade for a
+permanent artifact whose errors can only be fixed by hand. If it is ever
+revisited, decide it by measurement on the same 60 icons.
+
+**Open — does thematic clustering degrade descriptions?** The seeded shuffle is
+the only unmeasured element of the design and the lowest-value test, since
+shuffling is free either way and a null result changes nothing. Test: the
+thirteen `fire`–`fire-zone` icons described (a) inside an alphabetically
+contiguous batch of 30 and (b) inside a batch of 30 whose other 17 come from
+elsewhere in the collection. Compare the same thirteen across both.
 
 ## Testing
 
-Structured so the units are testable: `claude` invocation sits behind an
-injectable seam (`describeBatch(images, { run })` defaulting to the real
-`execFile`), and selection is a pure exported function
-(`selectIcons({ all, existing, only, force, limit })`). Otherwise the tests have
-to mock `node:child_process` globally.
+Structured so the units are testable: the transport sits behind an injectable
+seam (`DescribeBatch`, passed into `runBatches`), and selection is a pure
+exported function (`selectBatches({ all, existing, only, force, limit,
+batchSize })`). Otherwise the tests have to mock `node:child_process` globally.
+That seam is also what let the API transport be added without touching
+`runBatches`, `selection`, `store`, `rasterize`, or `prompt`.
 
 - **Rasterization:** a rendered icon is a non-empty PNG of the expected
   dimensions **and is not blank** (assert dark pixels are present via
   `sharp().stats()`) — the `currentColor` hazard makes the blank case real.
-- **Shuffle:** seeded and deterministic; differs from alphabetical order, and
-  assigns batch membership before the already-described filter, so a resume
-  shrinks batches rather than recomposing them.
+- **Shuffle:** seeded and deterministic; differs from alphabetical order.
 - **Selection:** resume picks only missing icons; `--force` reselects all;
-  `--only` restricts and implies force; `--limit` truncates before chunking.
-- **Response parsing:** the `--output-format json` envelope is unwrapped
-  correctly; fenced and preamble-prefixed responses parse; a missing key, a
-  non-string value, and a key naming no requested icon are each rejected.
+  `--only` restricts and implies force; `--limit` truncates before chunking; a
+  resume packs survivors into full batches rather than preserving whole-collection
+  boundaries.
+- **Response parsing, `cli`:** the `--output-format json` envelope is unwrapped
+  correctly; a success envelope carrying no `structured_output` is a failure; a
+  non-string value and a key naming no requested icon are each rejected.
+- **Response parsing, `api`:** the JSON text block is read and `usage` is priced;
+  an error payload, a `max_tokens` truncation, and a missing text block each
+  throw; a non-2xx surfaces its status.
+- **Request shape, `api`:** every image is preceded by a text block naming its
+  file, and the request carries the response schema. Both are asserted through
+  MSW rather than by mocking `fetch`.
 - **Partial acceptance:** a batch with one bad entry writes the other 29.
 - **Merge semantics:** writing batch 2 does not drop batch 1; output keys are
   sorted. (Real atomicity is not unit-testable and should not be attempted.)
@@ -630,14 +738,15 @@ lines, with `const SHUFFLE_SEED = 20260725` — rather than a new dependency.
   tested for stability, though the mechanism should carry over — and
   `card-king-spades` failed identically in two of four blind runs, which is
   consistent.)
-- **Manual edits do not survive `--force`, and re-generation cannot replace
-  them.** Descriptions are data and a human may correct one in the committed
-  file, but a full `--force` run overwrites it and the flat map has nowhere to
-  record provenance. A sibling `icon-descriptions-overrides.json`, merged at read
-  time and never written by the script, is the minimal fix. This was deferred as
-  YAGNI on the assumption that `--only` re-runs would serve; **the determinism
-  finding above undermines that assumption**, so it should be reconsidered before
-  the full run rather than after.
+- **Manual edits do not survive `--force`, so they live in a separate file.**
+  Descriptions are data and a human may correct one, but a full `--force` run
+  overwrites the generated map and a flat map has nowhere to record provenance.
+  `src/data/icon-descriptions-overrides.json` is merged over it at read time and
+  never written by the script. This was originally deferred as YAGNI on the
+  assumption that `--only` re-runs would serve as the repair path; the determinism
+  finding above undermines that assumption, so the overrides file ships.
+  `--validate` checks the **merged** map, since an override can be hand-written
+  too long, and one supplying an icon the generated file lacks is not missing.
 - **A prompt change costs a full regeneration.** Incremental adoption via
   `--only` is *not* recommended: it leaves the file a mix of two prompt versions
   with no marker distinguishing them, in an artifact whose value is consistency.
@@ -674,5 +783,15 @@ lines, with `const SHUFFLE_SEED = 20260725` — rather than a new dependency.
   It judges quality; it does not detect per-batch faults.
 - **The 6.4MB icons chunk** is untouched here. Once curation lands, shipping only
   curated icons could cut it substantially — out of scope.
-- **Log `total_cost_usd` per batch** for a running total, so a runaway run is
-  obvious.
+- **The picker enumerates 4,137 icons, the generator describes 4,134.** `listIcons`
+  includes three aliases (`eskimo`, `sattelite`, `star-sattelites`) that
+  `Object.keys(collection.icons)` does not. They need entries in the overrides
+  file, or the completeness test has to exclude them.
+- **`--transport api` was smoke-tested but the corpus predates it.** The 210
+  entries committed before it existed were generated through `cli`, where the
+  agent reads PNGs off disk; `api` sends the same bytes inline with filename
+  labels. Same images, same prompt, same schema, but not the same delivery path,
+  and the equivalence is assumed rather than measured. Re-describing a handful of
+  already-described icons with `--force --transport api` and diffing against the
+  committed text would settle it for a few cents.
+- Per-batch cost is logged as a running total, so a runaway run is obvious.
