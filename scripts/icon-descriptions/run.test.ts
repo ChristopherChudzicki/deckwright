@@ -1,0 +1,139 @@
+import { describe, expect, test, vi } from "vitest";
+import type { DescribeBatch } from "./invoke";
+import { runBatches } from "./run";
+
+const ok = (names: readonly string[]): Record<string, string> =>
+  Object.fromEntries(names.map((n) => [n, `A drawing of a ${n}.`]));
+
+const run = (
+  batches: string[][],
+  describeBatch: DescribeBatch,
+  overrides: Partial<Parameters<typeof runBatches>[0]> = {},
+) => {
+  const accepted: Record<string, string> = {};
+  const promise = runBatches({
+    batches,
+    describeBatch,
+    pngDir: "/tmp/png",
+    model: "sonnet",
+    onAccept: (entries) => Object.assign(accepted, entries),
+    validateEntry: () => null,
+    sleep: async () => {},
+    log: () => {},
+    ...overrides,
+  });
+  return { promise, accepted };
+};
+
+describe("runBatches", () => {
+  test("describes every batch and reports the running cost", async () => {
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
+      descriptions: ok(names),
+      cost: 0.3,
+    }));
+    const { promise, accepted } = run([["a", "b"], ["c"]], describeBatch);
+    const result = await promise;
+
+    expect(Object.keys(accepted).sort()).toEqual(["a", "b", "c"]);
+    expect(result).toMatchObject({ described: 3, failedBatches: 0, aborted: false });
+    expect(result.totalCost).toBeCloseTo(0.6);
+  });
+
+  test("invokes batches sequentially", async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
+      maxInFlight = Math.max(maxInFlight, ++inFlight);
+      await Promise.resolve();
+      inFlight--;
+      return { descriptions: ok(names), cost: 0 };
+    });
+    await run([["a"], ["b"], ["c"]], describeBatch).promise;
+
+    expect(maxInFlight).toBe(1);
+  });
+
+  // Partial acceptance: all-or-nothing would discard 29 good descriptions
+  // over one bad one, permanently, on every future run.
+  test("keeps the good entries of a batch with one invalid entry", async () => {
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
+      descriptions: { ...ok(names), b: "no" },
+      cost: 0,
+    }));
+    const { promise, accepted } = run([["a", "b", "c"]], describeBatch, {
+      validateEntry: (_name, description) => (description === "no" ? "too short" : null),
+    });
+    const result = await promise;
+
+    expect(Object.keys(accepted).sort()).toEqual(["a", "c"]);
+    expect(result.described).toBe(2);
+  });
+
+  test("retries a failing batch and accepts the retry", async () => {
+    const describeBatch = vi
+      .fn<DescribeBatch>()
+      .mockRejectedValueOnce(new Error("rate limited"))
+      .mockImplementation(async (names) => ({ descriptions: ok(names), cost: 0 }));
+    const { promise, accepted } = run([["a"]], describeBatch);
+    const result = await promise;
+
+    expect(describeBatch).toHaveBeenCalledTimes(2);
+    expect(accepted).toHaveProperty("a");
+    expect(result.failedBatches).toBe(0);
+  });
+
+  test("gives up on a batch after three attempts and continues to the next", async () => {
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
+      if (names[0] === "a") throw new Error("always fails");
+      return { descriptions: ok(names), cost: 0 };
+    });
+    const { promise, accepted } = run([["a"], ["b"]], describeBatch);
+    const result = await promise;
+
+    expect(describeBatch).toHaveBeenCalledTimes(4);
+    expect(accepted).toEqual({ b: "A drawing of a b." });
+    expect(result.failedBatches).toBe(1);
+  });
+
+  test("backs off between retries", async () => {
+    const sleep = vi.fn<(ms: number) => Promise<void>>(async () => {});
+    const describeBatch = vi.fn<DescribeBatch>().mockRejectedValue(new Error("boom"));
+    await run([["a"]], describeBatch, { sleep }).promise;
+
+    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([5_000, 20_000]);
+  });
+
+  // Without this, an expired credential at batch 3 of 138 logs 135 failures
+  // and exits 0.
+  test("aborts after three consecutive batch failures", async () => {
+    const describeBatch = vi.fn<DescribeBatch>().mockRejectedValue(new Error("expired"));
+    const result = await run([["a"], ["b"], ["c"], ["d"]], describeBatch).promise;
+
+    expect(result.aborted).toBe(true);
+    expect(result.failedBatches).toBe(3);
+    expect(describeBatch).toHaveBeenCalledTimes(9);
+  });
+
+  test("a success resets the consecutive-failure count", async () => {
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
+      if (names[0] === "ok") return { descriptions: ok(names), cost: 0 };
+      throw new Error("boom");
+    });
+    const result = await run([["a"], ["b"], ["ok"], ["c"], ["d"]], describeBatch).promise;
+
+    expect(result.aborted).toBe(false);
+    expect(result.failedBatches).toBe(4);
+  });
+
+  test("a batch whose entries all fail validation counts as a failure", async () => {
+    const describeBatch = vi.fn<DescribeBatch>(async () => ({
+      descriptions: { a: "no" },
+      cost: 0,
+    }));
+    const result = await run([["a"], ["b"], ["c"]], describeBatch, {
+      validateEntry: () => "too short",
+    }).promise;
+
+    expect(result.aborted).toBe(true);
+  });
+});
