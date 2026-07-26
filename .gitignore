@@ -11,6 +11,10 @@ coverage
 *.tsbuildinfo
 /generated/
 
+# Rendered icon PNGs for the description generator (not under /generated/,
+# which `cmk --clean` wipes on every build)
+/.icon-cache/
+
 # Claude Code: machine-local scratch
 .claude/settings.local.json
 .claude/worktrees/
