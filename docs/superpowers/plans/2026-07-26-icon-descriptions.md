@@ -15,7 +15,9 @@
 - **Working directory is the worktree:** `/Users/cchudzicki/dev/dnd-cards/.worktrees/icon-descriptions`. All paths below are relative to it. Never use `git -C`.
 - **Collection size is 4,134** — `Object.keys(iconsJson.icons)`. `listIcons("", "game-icons")` returns 4,137 because `@iconify/react` folds in 3 aliases (`eskimo`, `sattelite`, `star-sattelites`). The generator and validator both use 4,134.
 - **`tsconfig.node.json` has no `resolveJsonModule`.** Scripts cannot `import` the collection JSON. Use `createRequire(import.meta.url)` + `require.resolve` + `readFileSync`, exactly as `scripts/generate-og.ts:33-36` does.
-- **`sharp`'s entry point is `sharp/dist/index.cjs`** at 0.35.x.
+- **Import sharp as plain `"sharp"`.** The spec's `sharp/dist/index.cjs` note came from a prototype that imported by absolute node_modules path, bypassing the package's export map; the bare specifier resolves with types.
+- **Script tests do not need `// @vitest-environment node`.** The suite's jsdom environment still runs on Node, so `sharp` and `node:fs` work under it — and a node-env file would crash, because `src/test/setup.ts:70` reads `HTMLElement` unconditionally.
+- **`createRequire` + `readFileSync` bypasses the global icon mock.** `src/test/setup.ts:37` mocks the ESM import of `icons.json`; reading the resolved path off disk returns the real 4,134-icon collection with no `vi.unmock` needed.
 - **Serialization is `JSON.stringify(sorted, null, 2) + "\n"`**, keys sorted with plain `.sort()` (code-unit order — **not** `localeCompare`). Matches `scripts/fetch-srd.ts:71`. Pre-commit runs `biome-check` and `end-of-file-fixer`, so this is required, not cosmetic.
 - **`const SHUFFLE_SEED = 20260725`** — the seed used for every experimental run to date. Changing it invalidates the 60-icon sample as a control.
 - **The prompt text in Task 4 is verbatim from the measured runs.** Every cost and quality figure in the spec is tied to that exact string. Do not reword it, reformat it, or "improve" it.
@@ -146,15 +148,12 @@ Turns each icon's `body` fragment into a PNG on disk. Three hazards the spec cal
 Create `scripts/icon-descriptions/rasterize.test.ts`:
 
 ```ts
-// @vitest-environment node
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import sharp from "sharp/dist/index.cjs";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import sharp from "sharp";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { ensurePngs, iconNames, loadCollection, renderIcon } from "./rasterize";
-
-vi.unmock("@iconify-json/game-icons/icons.json");
 
 let dir: string;
 beforeEach(() => {
@@ -249,7 +248,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import type { IconifyJSON } from "@iconify/types";
-import sharp from "sharp/dist/index.cjs";
+import sharp from "sharp";
 
 export const DEFAULT_RENDER_SIZE = 512;
 
@@ -337,9 +336,7 @@ export async function ensurePngs(opts: {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npm test -- scripts/icon-descriptions/rasterize.test.ts`
-Expected: PASS, 6 tests.
-
-If `loadCollection` returns 2 icons instead of 4,134, the `vi.unmock` in the test is not taking effect — `src/test/setup.ts:37` mocks the collection globally. Switch to reading via `vi.importActual` in the test rather than relying on `vi.unmock`.
+Expected: PASS, 7 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1330,7 +1327,6 @@ Read, merge, and write the committed file. Merge semantics are the reason the ou
 Create `scripts/icon-descriptions/store.test.ts`:
 
 ```ts
-// @vitest-environment node
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
