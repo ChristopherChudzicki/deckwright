@@ -51,6 +51,13 @@ exists yet.
   clause *only if* a well-established one exists. No relevance flag, no tags.
 - **No generated synonym / search-text field.** Name indexing + `fuzzysort` +
   query-side expansion come first; expansion would amplify wrong descriptions.
+- **Search is a goal of the wider effort, sequenced immediately after this
+  change** — not rejected. Its first version needs no new data: `fuzzysort`
+  (already `^3.1.0`) over name + description, replacing the `.includes()` at
+  `IconPickerDialog.tsx:123`. This change produces the file and nothing else.
+- **Model pinned in a script constant**, not inherited from operator config. All
+  measurements are Sonnet; a different model invalidates the cost curve and the
+  miss rate.
 - **Filesystem, not DB.** Output `src/data/icon-descriptions.json` (committed);
   PNG cache `.icon-cache/png/<icon-name>.png` (gitignored). No hashing.
 - **The output file is the progress marker** — no separate progress file.
@@ -59,13 +66,31 @@ exists yet.
 
 ## Not decided
 
-1. **256×256 vs 512×512.** Untested. Images are ~1% of cost, so 512 is ~+$4 over
-   a full run — cheap, and the direction that might fix the `claw-hammer` class.
-2. **Does thematic clustering actually hurt?** The seeded shuffle is now the only
-   unmeasured element. Designed test is in the spec's "Open experiments".
-3. **`--force` overwrites hand-corrected descriptions.** Documented as a
-   limitation with `--only` as the repair path; an overrides file was considered
-   and deferred as YAGNI.
+All three experiments are **quota-blocked, not undecided in principle** — the
+session ended at 99% usage. Each is 2 invocations against the existing 60-icon
+sample, graded against the labelled contact sheets `exp-sheet.mjs` produces.
+Experiments 1 and 2 change the input to all 4,134 icons, and since errors are
+deterministic, getting either wrong means regenerating rather than patching —
+**both should run before the full generation, though neither blocks writing the
+code.**
+
+1. **Haiku vs Sonnet.** ~3× cheaper per token, and cost here is dominated by
+   per-invocation context rather than images, so it should pass through nearly
+   directly: **~$43 → ~$15**, with proportional quota and wall-clock drops.
+   Against it: fine-grained visual discrimination on small monochrome line art is
+   where smaller models degrade most, and Sonnet already misses 2–3%.
+2. **256×256 vs 512×512.** Images are ~1% of cost, so 512 is ~+$4 over a full
+   run — the direction that might fix the `claw-hammer` thin-geometry class.
+   **Run against whichever model wins #1**; a weaker model may need the pixels.
+3. **Does thematic clustering actually hurt?** Lowest value — the shuffle is free
+   either way, so a null result changes nothing.
+
+Also open, and a **reversal**: **the overrides file should probably come back.**
+`icon-descriptions-overrides.json` was deferred as YAGNI because `--only` re-runs
+would repair bad entries. The determinism finding kills that reasoning — a re-run
+reproduces the same wrong answer, so hand-correction is the only repair, and
+without an overrides file every correction is one `--force` from being erased.
+~30 lines. My recommendation is to include it; the user has not ruled.
 
 ## Measured, so it need not be re-derived
 
@@ -133,7 +158,27 @@ exists yet.
 
 ## Next step
 
-Spec review by the user, then `writing-plans`.
+**`writing-plans`.** The user approved starting the remaining steps; the spec is
+settled apart from the quota-blocked experiments above. Six pieces to build:
+
+| file | what |
+|---|---|
+| `scripts/gen-icon-descriptions.ts` | entrypoint: `parseArgs`, selection pipeline, lockfile, sequential loop, merge + atomic write |
+| `scripts/icon-descriptions/prompt.ts` | the prompt as one reviewable constant |
+| `scripts/icon-descriptions/rasterize.ts` | sharp wrapper, PNG cache, `meta.json` invalidation |
+| `scripts/icon-descriptions/invoke.ts` | `claude -p` spawn, envelope parse, fence strip, depth-counted extraction, timeout, retry |
+| `src/data/iconDescriptions.ts` + test | validation rules — in `src/` so vitest collects them |
+| `IconDebugView` | side-by-side image/description review mode |
+
+Put **model and resolution in constants at the top** of the relevant modules, so
+the two pending experiments can settle them without touching the pipeline.
+
+`exp-render.mjs` and `exp-run.mjs` (scratchpad) are working prototypes of the
+rasterize and invoke pieces — they drove all six experimental runs, so the two
+trickiest parts are already de-risked.
+
+Separately queued and independent: the **repo-wide vitest scope fix** (see "Repo
+facts"). The spec works around it by putting validation in `src/`.
 
 Scratch experiment scripts (`exp-render.mjs`, `exp-run.mjs`, `exp-sheet.mjs`,
 `exp-summary.mjs`) and all run outputs live in this session's scratchpad, not the
