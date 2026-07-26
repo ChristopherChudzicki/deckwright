@@ -8,7 +8,11 @@ Date: 2026-07-25. Spec:
 | branch | worktree | state |
 |---|---|---|
 | `chore/refetch-srd` | `.worktrees/srd-refetch` | **merged** as `3cf38b8` (PR #96) |
-| `feat/icon-descriptions` | `.worktrees/icon-descriptions` | spec + experiments, rebased on merged main; no implementation |
+| `feat/icon-descriptions` | `.worktrees/icon-descriptions` | **pipeline implemented and green**; no generation run yet |
+
+Implementation is complete through the plan's Task 9 (`docs/superpowers/plans/2026-07-26-icon-descriptions.md`).
+941 tests pass, `npm run build` and `npm run lint` clean. What remains is Task 10:
+the Haiku experiment, the full run, and the completeness test.
 
 Worktrees need `ln -s <repo>/node_modules <worktree>/node_modules` to run
 anything. The repo root had no `node_modules` at session start; `npm install`
@@ -85,12 +89,19 @@ code.**
 3. **Does thematic clustering actually hurt?** Lowest value — the shuffle is free
    either way, so a null result changes nothing.
 
-Also open, and a **reversal**: **the overrides file should probably come back.**
-`icon-descriptions-overrides.json` was deferred as YAGNI because `--only` re-runs
-would repair bad entries. The determinism finding kills that reasoning — a re-run
-reproduces the same wrong answer, so hand-correction is the only repair, and
-without an overrides file every correction is one `--force` from being erased.
-~30 lines. My recommendation is to include it; the user has not ruled.
+**Settled since:** the overrides file **shipped** (`src/data/icon-descriptions-overrides.json`,
+merged at read time, never written by the script). It also absorbs the repair channel — a
+Sonnet-generated fix for a bad Haiku entry is the same kind of thing as a hand-correction —
+so there is no per-entry model provenance field.
+
+**Also settled: no reviewer script.** Reviewing the finished file is a job for a person or a
+model reading it, not code. And it need not be image-based: because the prompt supplies the
+name, a wrong description usually contradicts its own filename (`card-king-spades` with a
+heart pip; `overdose` mentioning colors in a monochrome collection) — both recorded misses
+are catchable as text. The whole file is ~125K tokens, so one reading pass covers all 4,134;
+render images only for the shortlist that pass produces. What text cannot catch: descriptions
+wrong in detail but consistent with the name, and the ~204 `abstract-*`/`card-*`/`tarot-*`
+icons whose names carry no signal to contradict.
 
 ## Measured, so it need not be re-derived
 
@@ -137,6 +148,26 @@ without an overrides file every correction is one `--force` from being erased.
 - **Domain-aware prompt does not strain on irrelevant icons** — `laptop` and
   `basketball-ball` get no association clause at all.
 
+## Learned while building (not in the spec, and it was wrong about two of these)
+
+- **`import sharp from "sharp"` is correct.** The spec's `sharp/dist/index.cjs` note came
+  from a prototype importing by absolute node_modules path, which bypasses the package's
+  export map. The bare specifier resolves, with types.
+- **Script tests must NOT use `// @vitest-environment node`.** `src/test/setup.ts:70`
+  touches `HTMLElement` unconditionally, so a node-env file crashes on setup. jsdom still
+  runs on Node, so `sharp` and `node:fs` work fine under it.
+- **`createRequire` + `readFileSync` bypasses the global icon mock**, so `loadCollection()`
+  returns the real 4,134 in tests with no `vi.unmock` needed.
+- **A dynamic `import()` of a JSON file bypasses `vi.mock` entirely** — the real file loads.
+  This cost real debugging time. Hence `src/data/loadIconDescriptions.ts`: the view imports
+  it statically, so it is mockable. Kept separate from `iconDescriptions.ts` because the
+  generator script imports that one and `tsconfig.node.json` has no `resolveJsonModule`.
+- **`localeCompare` vs plain `.sort()` does not actually diverge** on these icon names under
+  Node's default collation. The spec's rationale for `.sort()` is unreproducible; the choice
+  is still right because it matches `scripts/fetch-srd.ts:71`.
+- **The lockfile needs `mkdirSync(CACHE_DIR)` first.** Found by running it: `openSync(…, "wx")`
+  fails with ENOENT on a fresh checkout, which would have broken every first run.
+
 ## Repo facts worth keeping
 
 - `vitest.config.ts` includes **only `src/**`**. Tests under `scripts/` are never
@@ -156,29 +187,41 @@ without an overrides file every correction is one `--force` from being erased.
   a reviewer may ask why sharp was added; the spec answers it.
 - `sharp`'s entry point is `sharp/dist/index.cjs` at 0.35.x.
 
-## Next step
+## As built
 
-**`writing-plans`.** The user approved starting the remaining steps; the spec is
-settled apart from the quota-blocked experiments above. Six pieces to build:
+`npm run gen:icon-descriptions [-- --only X --batch-size N --force --validate --limit N --model M --size N]`
 
 | file | what |
 |---|---|
-| `scripts/gen-icon-descriptions.ts` | entrypoint: `parseArgs`, selection pipeline, lockfile, sequential loop, merge + atomic write |
-| `scripts/icon-descriptions/prompt.ts` | the prompt as one reviewable constant |
+| `scripts/gen-icon-descriptions.ts` | `parseArgs`, `--validate` mode, lockfile, wiring |
+| `scripts/icon-descriptions/prompt.ts` | the prompt, byte-identical to the measured runs (verified against the scratchpad prototype) |
 | `scripts/icon-descriptions/rasterize.ts` | sharp wrapper, PNG cache, `meta.json` invalidation |
-| `scripts/icon-descriptions/invoke.ts` | `claude -p` spawn, envelope parse, fence strip, depth-counted extraction, timeout, retry |
-| `src/data/iconDescriptions.ts` + test | validation rules — in `src/` so vitest collects them |
-| `IconDebugView` | side-by-side image/description review mode |
+| `scripts/icon-descriptions/selection.ts` | batch index over all 4,134 → filters → grouping |
+| `scripts/icon-descriptions/invoke.ts` | `claude -p` spawn, envelope parse, fence strip, depth-counted extraction, timeout |
+| `scripts/icon-descriptions/run.ts` | sequential loop, retry/backoff, partial acceptance, abort threshold |
+| `scripts/icon-descriptions/store.ts` | read / merge / atomic sorted write |
+| `src/data/iconShuffle.ts` | mulberry32 + Fisher-Yates, seed `20260725` |
+| `src/data/iconDescriptions.ts` | per-entry validation, name-echo warning, override merge |
+| `src/data/loadIconDescriptions.ts` | app-side loader (the mockable seam) |
+| `src/views/IconDebugView.tsx` | Descriptions panel: rules-scoped (34 icons) or random 24 + Reroll |
 
-Put **model and resolution in constants at the top** of the relevant modules, so
-the two pending experiments can settle them without touching the pipeline.
+**Defaults differ from the spec in two approved ways:** render size is **512** (native
+viewBox, no resampling, ~+$4 a run — chosen instead of running the 256-vs-512 experiment),
+and `--model` is a flag defaulting to `sonnet`.
 
-`exp-render.mjs` and `exp-run.mjs` (scratchpad) are working prototypes of the
-rasterize and invoke pieces — they drove all six experimental runs, so the two
-trickiest parts are already de-risked.
+## Next step
 
-Separately queued and independent: the **repo-wide vitest scope fix** (see "Repo
-facts"). The spec works around it by putting validation in `src/`.
+**Task 10 of the plan — the only part that spends quota.** In order:
+1. Smoke test: `--limit 2 --batch-size 2`, then `--limit 4 --batch-size 2` to confirm resume.
+2. **Haiku vs Sonnet** on the seeded 60-icon sample; control is `exp/result-named-30.json`
+   in the scratchpad (2 misses of 60, $0.73).
+3. The full run, then `--validate`, then the completeness test, then eyeball via
+   `/icon-debug` — rules scope first, those are the 34 that matter on day one.
+4. Fold the two deviations back into the spec.
+
+Separately queued and independent: the **repo-wide vitest scope fix** (see "Repo facts").
+This branch already took the narrow additive half — `vitest.config.ts` now also collects
+`scripts/**/*.{test,spec}.ts`.
 
 Scratch experiment scripts (`exp-render.mjs`, `exp-run.mjs`, `exp-sheet.mjs`,
 `exp-summary.mjs`) and all run outputs live in this session's scratchpad, not the
