@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { isNameEcho, mergeOverrides, validateEntry } from "../src/data/iconDescriptions";
 import { assertClaudeAvailable, DEFAULT_MODEL, describeBatch } from "./icon-descriptions/invoke";
+import { assertApiKey, describeBatchApi, resolveModel } from "./icon-descriptions/invoke-api";
 import {
   DEFAULT_RENDER_SIZE,
   ensurePngs,
@@ -31,6 +32,7 @@ const { values } = parseArgs({
     limit: { type: "string" },
     model: { type: "string" },
     size: { type: "string" },
+    transport: { type: "string" },
   },
 });
 
@@ -40,9 +42,9 @@ const fail = (message: string): never => {
 };
 
 if (values.validate) {
-  const conflicting = (["only", "batch-size", "force", "limit", "model", "size"] as const).filter(
-    (flag) => values[flag] !== undefined,
-  );
+  const conflicting = (
+    ["only", "batch-size", "force", "limit", "model", "size", "transport"] as const
+  ).filter((flag) => values[flag] !== undefined);
   if (conflicting.length) {
     fail(`--validate is exclusive; remove: ${conflicting.map((f) => `--${f}`).join(", ")}`);
   }
@@ -84,6 +86,12 @@ const size = positiveInt(values.size, "size", DEFAULT_RENDER_SIZE);
 const limit = values.limit === undefined ? undefined : positiveInt(values.limit, "limit", 0);
 const model = values.model ?? DEFAULT_MODEL;
 
+// `cli` spends subscription quota, `api` spends money on an ANTHROPIC_API_KEY.
+// Defaulting to `cli` keeps the zero-real-money path the one you get by accident.
+const transport = values.transport ?? "cli";
+if (transport !== "cli" && transport !== "api") fail("--transport must be cli or api");
+const describe = transport === "api" ? describeBatchApi : describeBatch;
+
 // Concurrent runs would lose updates: each reads the file, merges, and renames
 // over the other's work.
 mkdirSync(CACHE_DIR, { recursive: true });
@@ -123,11 +131,23 @@ const batches = selectOrFail();
 const total = batches.reduce((sum, batch) => sum + batch.length, 0);
 console.log(
   `${all.length} icons, ${Object.keys(existing).length} described; ` +
-    `${total} to do in ${batches.length} batches of up to ${batchSize} (${model}, ${size}px).`,
+    `${total} to do in ${batches.length} batches of up to ${batchSize} ` +
+    `(${transport}, ${model}, ${size}px).`,
 );
 if (total === 0) process.exit(0);
 
-await assertClaudeAvailable();
+// Up front so a missing key or binary surfaces before every PNG has been
+// rendered, rather than as three retries per batch with backoff.
+try {
+  if (transport === "api") {
+    resolveModel(model);
+    assertApiKey();
+  } else {
+    await assertClaudeAvailable();
+  }
+} catch (err) {
+  fail((err as Error).message);
+}
 
 console.log("Rendering PNGs…");
 const { pngDir } = await ensurePngs({
@@ -139,7 +159,7 @@ const { pngDir } = await ensurePngs({
 
 const result = await runBatches({
   batches,
-  describeBatch,
+  describeBatch: describe,
   pngDir,
   model,
   validateEntry,
@@ -148,7 +168,7 @@ const result = await runBatches({
 
 console.log(
   `Described ${result.described} icons in ${result.succeededBatches} batches ` +
-    `($${result.totalCost.toFixed(2)} API-equivalent).`,
+    `($${result.totalCost.toFixed(2)} ${transport === "api" ? "billed" : "API-equivalent"}).`,
 );
 if (result.failedBatches) console.warn(`${result.failedBatches} batches failed; re-run to retry.`);
 process.exit(result.aborted ? 1 : 0);
