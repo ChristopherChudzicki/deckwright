@@ -38,8 +38,9 @@ These are downstream consumers of this artifact, each its own piece of work:
 
 - **Curating a shortlist** from the descriptions, and constraining the
   auto-picker to it.
-- **Fuzzy search over descriptions** in `IconPickerDialog`. This should land
-  *after* curation — see "What descriptions can and cannot support" below.
+- **Fuzzy search over descriptions** in `IconPickerDialog`. With the
+  domain-aware prompt this no longer has to wait for curation — see "What
+  descriptions can and cannot support" below.
 - **Rewriting `iconRules.ts`.**
 - **LLM card-body summarization**, deferred until this pipeline pattern proves out.
 
@@ -259,36 +260,64 @@ nothing, and exits 0.
 
 ## Description style
 
-One sentence, ≤25 words, describing what is depicted, then its distinguishing
-visible details.
+**Blind means blind to the *name*, not blind to the *domain*.** An earlier draft
+conflated the two and required purely literal pixel description. That was an
+over-correction: withholding domain context does not close any leak the three
+defenses don't already close, and it strips out the vocabulary downstream search
+needs.
 
-**Naming a recognizable object by its conventional name is required, not
-forbidden.** "Describe only what is visibly present" bars inference from the
-*filename*, not object recognition — calling a caduceus a caduceus is reading
-the image. The trial output already does this ("a caduceus staff with wings and
-two entwined snakes"), and the specificity is what makes descriptions
-retrievable.
+Structure, in one sentence of ≤30 words:
+
+1. **Literally what is depicted**, leading with the primary object named as
+   specifically as the image supports. Naming a recognizable object by its
+   conventional name is required, not forbidden — calling a caduceus a caduceus
+   is reading the image, not the filename.
+2. **Then, only if a well-established real-world or fantasy-genre association
+   exists**, what it conventionally symbolizes. No invented flavor text; nothing
+   the image does not show.
+
+The prompt states that these are icons for a D&D spell-and-item card app.
+
+### Measured: the conditional clause self-regulates
+
+Both halves of this were A/B'd on 12-icon samples (see "Measured behavior").
+The conditional in step 2 is load-bearing — it is what stops the model straining
+to find a D&D reading for irrelevant icons, and it works without any explicit
+"flag as irrelevant" instruction:
+
+| icon | output |
+|---|---|
+| `laptop` | "A laptop computer shown open with its screen and keyboard visible." — **association clause omitted entirely** |
+| `basketball-ball` | "A basketball, the ball used in the sport of basketball." |
+| `card-7-clubs` | "A playing card depicting the Seven of Clubs." — no invented meaning |
+| `card-ace-spades` | "…historically nicknamed the 'death card', associated with fate or bad luck" — genuine association surfaced |
+| `turtle-shell` | "…commonly symbolizes protection or defense" |
+| `dragon-head` | "…a classic fantasy creature symbolizing danger or power" |
+
+**No relevance flag is added.** "Is this D&D-relevant" is the curation pass's
+judgment, and a per-icon boolean produced inside a 25-icon batch has no global
+view, whereas curation sees all 4,134 descriptions at once. Same reasoning as
+deferring tags.
 
 ### What descriptions can and cannot support
 
-A blind visual description of `caduceus` will not contain the word "healing",
-and `skull-crossed-bones` will not contain "undead". `IconPickerDialog.tsx:123`
-filters with a plain `.includes()` substring match, and `fuzzysort` (already a
-dependency) is lexical, not semantic. So descriptions support **depicted-object**
-queries ("snake", "skull", "flower") and do **not** support **functional**
-queries ("healing", "undead", "protection").
+With domain context, functional vocabulary does appear — "protection", "fire
+damage", "fire magic", "battle" all surfaced in testing. This substantially
+relaxes, but does not eliminate, the lexical gap: `IconPickerDialog.tsx:123`
+filters with a plain `.includes()` substring match and `fuzzysort` (already a
+dependency) is lexical, not semantic, so retrieval still depends on the
+association clause happening to contain the user's word.
 
-This is why fuzzy search should land after curation: the curation pass is where
-functional vocabulary can be attached with full information. Shipping search on
-descriptions alone would be a disappointing feature, and that ordering
-constraint is a deliberate part of this design rather than an accident.
+Fuzzy search over descriptions is therefore **viable independently of
+curation** — a reversal of this spec's earlier position, which assumed literal
+descriptions and concluded search had to wait. Confidence is moderate: the
+evidence is two 12-icon samples, not a retrieval benchmark.
 
-The corollary for consumers with no human in the loop: **the name is a search
-signal, not a semantic one.** The "index name + description together" mitigation
-recovers the bad-description/good-name case (`claw-hammer` findable via
-"hammer"). It does *nothing* for bad-description/bad-name, and a curation or
-rules pass that matches on names alone reproduces the `fire-flower` defect this
-work exists to fix.
+The corollary for consumers with no human in the loop still stands: **the name
+is a search signal, not a semantic one.** Indexing name + description recovers
+the bad-description/good-name case (`claw-hammer` findable via "hammer"), does
+*nothing* for bad-description/bad-name, and a curation or rules pass matching on
+names alone reproduces the `fire-flower` defect this work exists to fix.
 
 **Deferring keywords/tags remains correct**, on one condition: it holds only if
 the curation pass re-renders the images. If curation works from this text alone,
@@ -361,32 +390,61 @@ From a 12-icon trial on a deterministic random sample (Sonnet, 256×256):
 - **The miss was `claw-hammer`**, described as "a hand axe or hatchet held at an
   angle with a chipped blade edge." Inspecting the image, that is a defensible
   misread — the claw reads as a second blade.
-- **Cost: $0.198 for 12 icons, 23s.**
+- **Cost: $0.198 for 12 icons, 23s** (literal-only prompt); **$0.234, 47s** with
+  the domain-aware prompt, which produces longer output.
 
-**The cost extrapolation is one data point and two models fit it equally well.**
-If cost is per-invocation, a full run is ~$68 at batch 12, ~$33 at the default
-25, ~$9 at 100. If cost is per-icon — which an agentic read-one-file-at-a-time
-loop would produce — it is ~$68 at *every* batch size. The two are
-indistinguishable at N=12 by construction and differ 7× at N=100. Batch-size
-savings are therefore **hypothetical**, and the honest planning number is
-**~$68**, with ~$33 as the optimistic case at the default.
+Three prompt variants were run, all blind, all 12 icons:
 
-The extrapolation also omits retry cost, which rises with batch size: a batch
-failure wastes proportionally more work at N=100 than at N=25.
+1. **Literal-only** — accurate but no functional vocabulary.
+2. **Domain-aware** — functional vocabulary appears; `claw-hammer` regressed from
+   the hedged "a hand axe or hatchet" to the confident "A hand axe (tomahawk)".
+   Domain priming makes wrong answers *more assured*, which raises the value of
+   the name/description disagreement report.
+3. **Domain-aware on deliberately irrelevant icons** — no strain, no invented
+   fantasy readings (table above).
+
+Incidental evidence on parametric recognition: the model read rank *and* suit
+correctly off three different playing cards. It cannot have inferred "Seven of
+Clubs" from a hash, so at least some of the time it is genuinely reading pixels.
+
+### Cost is subscription usage, not dollars
+
+`total_cost_usd` reports **API-equivalent** pricing. Run under a Claude
+subscription, these invocations draw down plan usage; they are not billed. The
+binding constraints are therefore **usage limits and wall clock**, not money.
+
+This reframes the batch-size question: it is not "how do I spend less" but "how
+much quota does a full run consume, and how likely am I to hit a limit partway
+through". It also makes resumability the load-bearing property of the design
+rather than a nicety — **hitting a usage limit is the expected interruption**,
+not an exotic one.
+
+**The cost curve is still one data point and two models fit it equally well.**
+Per-invocation cost gives ~$68-equivalent at batch 12, ~$33 at 25, ~$9 at 100.
+Per-icon cost — which an agentic read-one-file-at-a-time loop produces — gives
+~$68 at *every* batch size. The two are indistinguishable at N=12 by
+construction and differ 7× at N=100. Batch-size savings remain **hypothetical**;
+the batch-size default of 25 is a guess, not a finding. The curve also omits
+retry cost, which rises with batch size.
 
 ## Open experiments
 
-Three cheap measurements (~$1.50 total) that would convert the spec's three
-weakest claims into measured ones. None blocks writing the plan; all three
-change defaults if they come back unexpected.
+Two measurements, neither blocking the plan, both changing defaults if they come
+back unexpected. Grading is the bottleneck, not generation, so each is designed
+to minimize what has to be judged by hand.
 
-1. **Cost at N=25 and N=50** — discriminates per-invocation from per-icon cost,
-   settling the batch-size default.
-2. **Blind versus named A/B on one sample** — the only evidence that the hashing
-   and shuffling buy anything, and the only probe of parametric recognition. If
-   outputs are near-identical, defenses 2 and 3 can be simplified away.
-3. **512×512 versus 256×256 on the same 12 icons** — tests the lever most likely
-   to fix the `claw-hammer` class, at roughly +$3 per full run.
+1. **Cost curve — 4 runs, no grading.** The same 60 icons at batch 10 / 20 / 30 /
+   60. Identical work, different invocation counts; read `total_cost_usd` off
+   each. Discriminates per-invocation from per-icon and settles `--batch-size`.
+2. **Blind versus named — 2 runs, needs grading.** The same 60 icons, one batch
+   size, with and without the icon name in the prompt. **This control has never
+   been run.** Blindness is currently justified by reasoning, not measurement:
+   the `fire-flower` evidence shows name-based *rules* fail, which is not the
+   same claim as name-*informed descriptions* being worse. If outputs are
+   near-identical, hash filenames and seeded shuffle can be simplified away.
+
+A third, lower priority: **512×512 versus 256×256** on the same sample, testing
+the lever most likely to fix the `claw-hammer` class at ~+4× image tokens.
 
 ## Testing
 
@@ -430,10 +488,13 @@ lines, with `const SHUFFLE_SEED = 20260725` — rather than a new dependency.
 - **A prompt change costs a full regeneration.** Incremental adoption via
   `--only` is *not* recommended: it leaves the file a mix of two prompt versions
   with no marker distinguishing them, in an artifact whose value is consistency.
-- **~15% of the collection is unreachable by any D&D query** — 121 `abstract-*`,
-  61 `card-*`, 22 `tarot-*`, and 41 first-token groups of ≥8 covering 629 icons.
-  Describing all 4,134 still buys completeness and a simpler contract, but a
-  material fraction of the spend produces descriptions no card will ever match.
+- **~204 icons produce accurate descriptions no D&D query will want** — 121
+  `abstract-*`, 61 `card-*`, 22 `tarot-*`, about 5% of the run. Verified in
+  testing: they come out correct and boring (`card-7-clubs` → "A playing card
+  depicting the Seven of Clubs"). Not worth special-casing; describing all 4,134
+  buys completeness and a simpler contract. A wider count of 41 first-token
+  groups of ≥8 covers 629 icons, so the genuinely-unreachable fraction may be
+  larger.
 - **`IconDebugView` sampling has poor power for systematic faults.** If 1 batch
   in 50 goes bad, a 24-icon random sample catches it about a third of the time.
   It judges quality; it does not detect per-batch faults.
