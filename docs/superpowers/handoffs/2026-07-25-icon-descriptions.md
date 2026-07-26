@@ -99,6 +99,14 @@ exists yet.
 - **Images are ~1% of cost** (87 tokens at 256²; ~2,600 per 30-icon batch vs a
   $0.31 invocation). JPEG saves nothing — token cost is dimensional — and its
   artifacts would hurt thin line art. PNGs average 9KB.
+- **Errors are deterministic.** Six of eight blind misses were the *same wrong
+  object class* in all four runs, with wording varying freely. So re-running at
+  the same settings is not a repair, self-consistency voting is near-worthless,
+  and only changing the input (name, resolution) helps.
+- **Named-run misses were `card-king-spades`** (rotated spade called "a
+  heart-shaped symbol" — accurate shape, wrong identification, and it
+  contradicted the filename to get there) **and `overdose`** ("different sizes
+  and colors" on a monochrome image; soft, since the capsules are two-tone).
 - **`--output-format json` returns an envelope**; the model text is in
   `.result`, usually inside ``` fences.
 - **Domain-aware prompt does not strain on irrelevant icons** — `laptop` and

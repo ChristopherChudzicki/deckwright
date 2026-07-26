@@ -586,12 +586,34 @@ lines, with `const SHUFFLE_SEED = 20260725` — rather than a new dependency.
 
 ## Risks and follow-ups
 
-- **Manual edits do not survive `--force`.** Descriptions are data and a human
-  may correct one in the committed file, but a full `--force` run overwrites it
-  and the flat map has nowhere to record provenance. The sanctioned repair path
-  is `--only <name>` plus a commit. If hand-correction becomes common, a sibling
-  `icon-descriptions-overrides.json` merged at read time and never written by
-  the script is the minimal fix — deliberately deferred as YAGNI.
+- **Errors are deterministic, so re-running is not a repair.** Across four
+  independent runs of the same 60 icons, six of the eight blind misses landed on
+  the *same wrong object class every time* — `flamethrower` was "a rifle fitted
+  with a bayonet" in all four, `bellows` a broom in all four — while the wording
+  varied freely. Only two flipped, and both flips correlate with batch 60
+  specifically rather than with resampling.
+
+  Three consequences:
+  1. **`--only <name>` at the same settings will likely reproduce the same wrong
+     answer.** The spec's sanctioned repair path is weaker than it looks.
+  2. **Self-consistency voting is not worth its cost.** Generating twice and
+     diffing lights up on wording noise and stays silent on the stable errors —
+     it is close to an inverted detector, at 2–3× the quota.
+  3. **What helps is changing the input, not resampling it.** Adding the name is
+     the demonstrated instance; resolution is the untested one.
+
+  (Measured on the blind runs. The named run's remaining misses have not been
+  tested for stability, though the mechanism should carry over — and
+  `card-king-spades` failed identically in two of four blind runs, which is
+  consistent.)
+- **Manual edits do not survive `--force`, and re-generation cannot replace
+  them.** Descriptions are data and a human may correct one in the committed
+  file, but a full `--force` run overwrites it and the flat map has nowhere to
+  record provenance. A sibling `icon-descriptions-overrides.json`, merged at read
+  time and never written by the script, is the minimal fix. This was deferred as
+  YAGNI on the assumption that `--only` re-runs would serve; **the determinism
+  finding above undermines that assumption**, so it should be reconsidered before
+  the full run rather than after.
 - **A prompt change costs a full regeneration.** Incremental adoption via
   `--only` is *not* recommended: it leaves the file a mix of two prompt versions
   with no marker distinguishing them, in an artifact whose value is consistency.
@@ -602,11 +624,23 @@ lines, with `const SHUFFLE_SEED = 20260725` — rather than a new dependency.
   buys completeness and a simpler contract. A wider count of 41 first-token
   groups of ≥8 covers 629 icons, so the genuinely-unreachable fraction may be
   larger.
-- **Expect ~3% of entries to be confidently wrong.** That is the named-run miss
-  rate measured on 60 icons, and domain priming makes the wrong ones fluent
-  rather than hedged, so they will not stand out. Extrapolated, that is **~120
-  bad entries** across the collection. The mitigations are `--only` re-runs and
-  `IconDebugView` review, not a validator — no mechanical check can see them.
+- **Expect ~2–3% of entries to be confidently wrong** — 1–2 clear misses in the
+  60-icon named run, so **roughly 85–120 bad entries** across the collection.
+  Domain priming makes them fluent rather than hedged, so they will not stand
+  out. No mechanical check can see them; the mitigations are human.
+  - The clear miss was `card-king-spades`, whose bottom pip (a spade rotated
+    180°, per card convention) was called "a heart-shaped symbol". The shape was
+    described accurately and identified wrongly — and note it *contradicted the
+    filename* to do so, which is the anti-parroting evidence pointing the wrong
+    way. Two of four blind runs made the same call.
+  - The soft miss was `overdose`, "capsules of different sizes and colors" on a
+    monochrome image — defensible, since each capsule is drawn two-tone.
+- **The A/B sample was light on adversarial names.** Of the 60 icons, only
+  `pick-of-destiny` had a name that actively misleads, and the model ignored it
+  correctly. The sample contained no case where the name is *plausibly but
+  wrongly* descriptive — precisely the input that would most threaten the
+  name-informed decision. This is a limitation of the experiment, not of the
+  pipeline, and it is the gap a follow-up should target.
 - **The blind-versus-named margin was graded by a non-blind grader on 60
   icons.** Both limits cut against the measured 4× margin rather than for it, and
   the blind failures were systematic rather than marginal, but the result has not
