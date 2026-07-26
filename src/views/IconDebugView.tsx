@@ -1,12 +1,38 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { FALLBACK_ICON_KEY, ITEM_RULES, SCHOOL_ICONS, SPELL_NAME_RULES } from "../cards/iconRules";
+import { SHUFFLE_SEED, shuffleSeeded } from "../data/iconShuffle";
+import { loadIconDescriptions } from "../data/loadIconDescriptions";
+import { Button } from "../lib/ui/Button";
 import { IconPreview } from "../lib/ui/IconPreview";
 import { Input } from "../lib/ui/Input";
+import { Radio, RadioGroup } from "../lib/ui/RadioGroup";
 import styles from "./IconDebugView.module.css";
 
 type Kind = "item" | "spell";
+type Scope = "rules" | "random";
 
 const SCHOOL_NAMES = Object.keys(SCHOOL_ICONS) as (keyof typeof SCHOOL_ICONS)[];
+
+const SAMPLE_SIZE = 24;
+
+// Random sampling over 4,134 would essentially never surface the icons the
+// app actually shows today.
+const RULE_ICON_KEYS = [
+  ...new Set([
+    FALLBACK_ICON_KEY,
+    ...ITEM_RULES.map((rule) => rule.iconKey),
+    ...SPELL_NAME_RULES.map((rule) => rule.iconKey),
+    ...Object.values(SCHOOL_ICONS),
+  ]),
+].sort();
+
+function useDescriptions() {
+  const [descriptions, setDescriptions] = useState<Record<string, string> | null>(null);
+  useEffect(() => {
+    void loadIconDescriptions().then(setDescriptions);
+  }, []);
+  return descriptions;
+}
 
 function pickRule(rules: typeof ITEM_RULES, name: string, headerTagsText: string) {
   const haystack = `${name} ${headerTagsText}`;
@@ -38,6 +64,16 @@ export function IconDebugView() {
     headerTags: `${idBase}-headerTags`,
     kind: `${idBase}-kind`,
   };
+
+  const descriptions = useDescriptions();
+  const [scope, setScope] = useState<Scope>("rules");
+  const [reroll, setReroll] = useState(0);
+
+  const sample = useMemo(() => {
+    if (!descriptions) return [];
+    if (scope === "rules") return RULE_ICON_KEYS.filter((key) => key in descriptions);
+    return shuffleSeeded(Object.keys(descriptions), SHUFFLE_SEED + reroll).slice(0, SAMPLE_SIZE);
+  }, [descriptions, scope, reroll]);
 
   const rules = kind === "item" ? ITEM_RULES : SPELL_NAME_RULES;
   const matched = pickRule(rules, name, headerTagsText);
@@ -110,6 +146,43 @@ export function IconDebugView() {
             </>
           )}
         </div>
+      </section>
+
+      <section>
+        <h2>Descriptions</h2>
+        <div className={styles.row}>
+          <RadioGroup
+            aria-label="Sample"
+            value={scope}
+            onChange={(next) => setScope(next as Scope)}
+          >
+            <Radio value="rules">Icons used by rules ({RULE_ICON_KEYS.length})</Radio>
+            <Radio value="random">Random {SAMPLE_SIZE}</Radio>
+          </RadioGroup>
+          <Button size="sm" variant="secondary" onPress={() => setReroll((n) => n + 1)}>
+            Reroll
+          </Button>
+        </div>
+        {descriptions === null ? (
+          <p>Loading descriptions…</p>
+        ) : (
+          <ul className={styles.descriptions}>
+            {sample.map((key) => (
+              <li
+                key={key}
+                className={styles.described}
+                data-testid="described-icon"
+                data-icon-key={key}
+              >
+                <IconPreview iconKey={key} label={key} size="lg" />
+                <div>
+                  <code>{key}</code>
+                  <p>{descriptions[key]}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section>

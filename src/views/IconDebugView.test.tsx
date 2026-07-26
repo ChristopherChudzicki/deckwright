@@ -1,8 +1,26 @@
 import userEvent from "@testing-library/user-event";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { ITEM_RULES, SCHOOL_ICONS, SPELL_NAME_RULES } from "../cards/iconRules";
 import { render, screen } from "../test/render";
 import { IconDebugView } from "./IconDebugView";
+
+// 40 keys, not 2: the reroll assertion compares sampled sets, and on a tiny
+// fixture a reshuffle returns the same set every time.
+const FIXTURE = Object.fromEntries(
+  Array.from({ length: 40 }, (_, i) => [
+    `fixture-icon-${String(i).padStart(2, "0")}`,
+    `A drawing of fixture subject number ${i}, rendered as a monochrome glyph.`,
+  ]),
+);
+
+// A dynamic import() of a JSON file bypasses vi.mock, so the loader module —
+// which IconDebugView imports statically — is the mockable seam.
+vi.mock("../data/loadIconDescriptions", () => ({
+  loadIconDescriptions: async () => ({
+    ...FIXTURE,
+    broadsword: "A large two-handed sword with a straight blade and a crossguard.",
+  }),
+}));
 
 describe("<IconDebugView>", () => {
   test("default kind is item; rules table shows ITEM_RULES + fallback row", () => {
@@ -46,5 +64,38 @@ describe("<IconDebugView>", () => {
     await userEvent.click(screen.getByRole("radio", { name: /spell/i }));
     await userEvent.type(screen.getByLabelText(/header tags/i), "3rd-level evocation");
     expect(screen.getByTestId("simulator-result")).toHaveTextContent(SCHOOL_ICONS.evocation);
+  });
+
+  describe("descriptions panel", () => {
+    test("shows a sampled icon beside its description", async () => {
+      render(<IconDebugView />);
+      expect(
+        await screen.findByText(/A large two-handed sword with a straight blade/),
+      ).toBeInTheDocument();
+      expect(screen.getAllByRole("img", { name: "broadsword" }).length).toBeGreaterThan(0);
+    });
+
+    // Random sampling over 4,134 would essentially never surface the 34 icons
+    // the app actually shows today, so the rules scope is the default.
+    test("the rules scope shows only icons iconRules references", async () => {
+      render(<IconDebugView />);
+      await screen.findByText(/A large two-handed sword/);
+
+      const shown = screen.getAllByTestId("described-icon").map((el) => el.dataset.iconKey);
+      expect(shown).toContain("broadsword");
+      expect(shown.some((key) => key?.startsWith("fixture-icon-"))).toBe(false);
+    });
+
+    test("reroll draws a different sample", async () => {
+      render(<IconDebugView />);
+      await userEvent.click(await screen.findByRole("radio", { name: /random/i }));
+
+      const before = screen.getAllByTestId("described-icon").map((el) => el.dataset.iconKey);
+      await userEvent.click(screen.getByRole("button", { name: /reroll/i }));
+      const after = screen.getAllByTestId("described-icon").map((el) => el.dataset.iconKey);
+
+      expect(before.length).toBeGreaterThan(1);
+      expect(after).not.toEqual(before);
+    });
   });
 });
