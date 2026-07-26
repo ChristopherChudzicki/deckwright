@@ -2,7 +2,7 @@ import { closeSync, existsSync, mkdirSync, openSync, unlinkSync } from "node:fs"
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { isNameEcho, validateEntry } from "../src/data/iconDescriptions";
+import { isNameEcho, mergeOverrides, validateEntry } from "../src/data/iconDescriptions";
 import { assertClaudeAvailable, DEFAULT_MODEL, describeBatch } from "./icon-descriptions/invoke";
 import {
   DEFAULT_RENDER_SIZE,
@@ -16,6 +16,7 @@ import { mergeDescriptions, readDescriptions } from "./icon-descriptions/store";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT = resolve(__dirname, "../src/data/icon-descriptions.json");
+const OVERRIDES = resolve(__dirname, "../src/data/icon-descriptions-overrides.json");
 const CACHE_DIR = resolve(__dirname, "../.icon-cache");
 const LOCKFILE = join(CACHE_DIR, "run.lock");
 
@@ -46,7 +47,9 @@ if (values.validate) {
     fail(`--validate is exclusive; remove: ${conflicting.map((f) => `--${f}`).join(", ")}`);
   }
 
-  const descriptions = readDescriptions(OUTPUT);
+  // Validate what actually ships: an override can be hand-written too long, and
+  // one supplying an icon the generated file lacks is not missing.
+  const descriptions = mergeOverrides(readDescriptions(OUTPUT), readDescriptions(OVERRIDES));
   const problems: string[] = [];
   const echoes: string[] = [];
   for (const [name, description] of Object.entries(descriptions)) {
