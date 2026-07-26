@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { readDescriptions, writeDescriptions } from "./store";
+import { mergeDescriptions, readDescriptions, writeDescriptions } from "./store";
 
 let dir: string;
 let path: string;
@@ -18,10 +18,26 @@ describe("readDescriptions", () => {
   test("treats a missing file as empty", () => {
     expect(readDescriptions(path)).toEqual({});
   });
+});
 
-  test("round-trips what was written", () => {
-    writeDescriptions(path, { fireball: "A ball of flame." });
-    expect(readDescriptions(path)).toEqual({ fireball: "A ball of flame." });
+describe("mergeDescriptions", () => {
+  // The whole run's accumulated work rides on this: each batch merges into
+  // whatever is already on disk rather than replacing it.
+  test("keeps entries written by earlier batches", () => {
+    mergeDescriptions(path, { fireball: "A ball of flame." });
+    mergeDescriptions(path, { broadsword: "A large sword." });
+
+    expect(readDescriptions(path)).toEqual({
+      fireball: "A ball of flame.",
+      broadsword: "A large sword.",
+    });
+  });
+
+  test("lets a later entry replace an earlier one for the same icon", () => {
+    mergeDescriptions(path, { fireball: "A ball of flame." });
+    mergeDescriptions(path, { fireball: "A sphere of fire." });
+
+    expect(readDescriptions(path)).toEqual({ fireball: "A sphere of fire." });
   });
 });
 

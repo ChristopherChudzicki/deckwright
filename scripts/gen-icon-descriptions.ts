@@ -12,7 +12,7 @@ import {
 } from "./icon-descriptions/rasterize";
 import { runBatches } from "./icon-descriptions/run";
 import { DEFAULT_BATCH_SIZE, selectBatches } from "./icon-descriptions/selection";
-import { readDescriptions, writeDescriptions } from "./icon-descriptions/store";
+import { mergeDescriptions, readDescriptions } from "./icon-descriptions/store";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT = resolve(__dirname, "../src/data/icon-descriptions.json");
@@ -55,10 +55,18 @@ if (values.validate) {
     else if (isNameEcho(name, description)) echoes.push(name);
   }
 
-  console.log(`Validated ${Object.keys(descriptions).length} entries.`);
+  // Iterating the file alone reports nothing about icons that have no entry at
+  // all, which is exactly the list `--only` needs to close a residue.
+  const missing = iconNames(loadCollection()).filter((name) => !(name in descriptions));
+
+  console.log(`Validated ${Object.keys(descriptions).length} entries; ${missing.length} missing.`);
   for (const name of echoes) console.warn(`  WARN: ${name} adds nothing beyond its own name`);
   for (const problem of problems) console.error(`  FAIL: ${problem}`);
-  process.exit(problems.length ? 1 : 0);
+  if (missing.length) {
+    console.error(`  MISSING (${missing.length}): ${missing.join(" ")}`);
+    console.error(`  Close them with: ${missing.map((n) => `--only ${n}`).join(" ")}`);
+  }
+  process.exit(problems.length || missing.length ? 1 : 0);
 }
 
 const positiveInt = (raw: string | undefined, flag: string, fallback: number): number => {
@@ -112,7 +120,7 @@ const batches = selectOrFail();
 const total = batches.reduce((sum, batch) => sum + batch.length, 0);
 console.log(
   `${all.length} icons, ${Object.keys(existing).length} described; ` +
-    `${total} to do in ${batches.length} batches of ${batchSize} (${model}, ${size}px).`,
+    `${total} to do in ${batches.length} batches of up to ${batchSize} (${model}, ${size}px).`,
 );
 if (total === 0) process.exit(0);
 
@@ -132,11 +140,7 @@ const result = await runBatches({
   pngDir,
   model,
   validateEntry,
-  onAccept: (accepted) => {
-    // Re-read before each merge: the file is the progress marker, so a crash
-    // must leave every accepted batch on disk.
-    writeDescriptions(OUTPUT, { ...readDescriptions(OUTPUT), ...accepted });
-  },
+  onAccept: (accepted) => mergeDescriptions(OUTPUT, accepted),
 });
 
 console.log(

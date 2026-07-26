@@ -20,16 +20,14 @@ describe("selectBatches", () => {
     expect(select({ existing }).flat().sort()).toEqual(alphabet.slice(90).sort());
   });
 
-  // The load-bearing property: batch membership is assigned over the full
-  // collection before filtering, so resuming shrinks batches instead of
-  // recomposing them. Filter-then-chunk shifts every later boundary.
-  test("a resume shrinks batches rather than recomposing them", () => {
+  // The property that costs money. Every invocation carries the same fixed
+  // cost whether it describes 1 icon or 30, so a resume holding one leftover
+  // per original batch must coalesce them, not run an invocation apiece.
+  test("a resume packs scattered leftovers into full batches", () => {
     const full = select();
-    const done = new Set(full[0]?.slice(0, 4));
-    const resumed = select({ existing: done });
+    const done = new Set(full.flat().filter((_, i) => i % 10 !== 0));
 
-    expect(resumed[0]).toEqual(full[0]?.slice(4));
-    expect(resumed.slice(1)).toEqual(full.slice(1));
+    expect(select({ existing: done }).map((b) => b.length)).toEqual([10]);
   });
 
   test("drops batches that are fully described", () => {
@@ -72,13 +70,5 @@ describe("selectBatches", () => {
   test("--limit counts icons still to do, not icons already described", () => {
     const existing = new Set(alphabet.slice(0, 90));
     expect(select({ existing, limit: 5 }).flat()).toHaveLength(5);
-  });
-
-  // A fix-up run must not fragment into one invocation per icon.
-  test("--only packs densely rather than keeping full-collection boundaries", () => {
-    const only = select()
-      .flat()
-      .filter((_, i) => i % 17 === 0);
-    expect(select({ only }).map((b) => b.length)).toEqual([6]);
   });
 });

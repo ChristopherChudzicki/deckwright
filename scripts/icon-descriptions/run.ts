@@ -65,7 +65,13 @@ export async function runBatches(opts: {
       failedBatches++;
       consecutiveFailures++;
       if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-        log(`Aborting after ${consecutiveFailures} consecutive batch failures.`);
+        // Exhausting a usage window looks exactly like this, and is the
+        // expected way a full run ends. Everything accepted so far is already
+        // on disk, so re-running resumes from there.
+        log(
+          `Aborting after ${consecutiveFailures} consecutive batch failures. ` +
+            `If those read as usage or rate limits, re-run to resume once the window resets.`,
+        );
         return { described, succeededBatches, failedBatches, totalCost, aborted: true };
       }
       continue;

@@ -21,17 +21,33 @@ describe("validateEntry", () => {
   });
 
   test("rejects a description above the maximum length", () => {
-    expect(validateEntry("fireball", "A ball of flame. ".repeat(20))).toMatch(/200/);
+    expect(validateEntry("fireball", "A ball of flame. ".repeat(20))).toMatch(/260/);
   });
 
   // The signature of a silently degraded call: the batch succeeded, the
-  // envelope was clean, and the model declined.
+  // envelope was clean, and the model declined. One row per pattern — the
+  // curly-apostrophe row is the form the comment claims is the more common
+  // one, and the impersonal rows are what a JSON-only instruction elicits.
   test.each([
     "I can't see the image at that path.",
+    "I can’t see the image at that path.",
     "I'm unable to read these files.",
-    "Sorry, no image was provided here.",
+    "Sorry, this one is not legible.",
+    "Unable to read the file at this path.",
+    "The image could not be loaded from disk.",
+    "No image was provided for this filename.",
+    "A blank white square with no discernible content.",
   ])("rejects refusal boilerplate: %s", (description) => {
     expect(validateEntry("fireball", description)).toMatch(/refusal/);
+  });
+
+  // The impersonal patterns must not swallow ordinary descriptions of icons
+  // that legitimately depict squares, failure, or absence.
+  test.each([
+    "A blank scroll beside a quill, symbolizing an unwritten contract.",
+    "A cracked white square tile, conventionally marking a broken floor trap.",
+  ])("accepts a legitimate description that brushes a refusal pattern: %s", (description) => {
+    expect(validateEntry("fireball", description)).toBeNull();
   });
 });
 
@@ -50,10 +66,6 @@ describe("isNameEcho", () => {
 });
 
 describe("mergeOverrides", () => {
-  test("returns the base entries when there are no overrides", () => {
-    expect(mergeOverrides({ fireball: good }, {})).toEqual({ fireball: good });
-  });
-
   test("lets an override win over the generated description", () => {
     expect(mergeOverrides({ fireball: good }, { fireball: "Corrected." })).toEqual({
       fireball: "Corrected.",

@@ -1,97 +1,100 @@
 import { describe, expect, test } from "vitest";
-import { extractDescriptions } from "./invoke";
+import { extractDescriptions, responseSchema } from "./invoke";
 import { buildPrompt } from "./prompt";
 
-const envelope = (result: string, extra: Record<string, unknown> = {}) =>
-  JSON.stringify({
-    type: "result",
-    is_error: false,
-    result,
-    total_cost_usd: 0.31,
-    ...extra,
-  });
+const envelope = (structured_output: unknown, extra: Record<string, unknown> = {}) =>
+  JSON.stringify({ is_error: false, subtype: "success", structured_output, ...extra });
 
 describe("buildPrompt", () => {
   test("lists each requested icon as a .png filename", () => {
     expect(buildPrompt(["fireball", "broadsword"])).toContain("fireball.png\nbroadsword.png");
   });
 
-  test("keeps the authority clause that makes the image outrank the name", () => {
-    expect(buildPrompt(["fireball"])).toContain("the image is authoritative");
+  // Pinned in full, deliberately. Any edit here — including a reflow — changes
+  // what the descriptions mean, and the corpus carries no marker separating
+  // entries written under one wording from another. Updating this test is the
+  // moment to decide whether to regenerate all 4,134 entries.
+  test("pins the instruction text exactly", () => {
+    expect(
+      buildPrompt(["fireball"]),
+    ).toBe(`These are icons from the game-icons.net collection, used in a Dungeons & Dragons spell-and-item card app.
+
+Read every PNG file listed below and describe what each one depicts.
+
+For each icon write ONE sentence of at most 30 words:
+1. Begin with what is literally depicted, naming the primary object as specifically as the image supports.
+2. Then, ONLY IF a well-established real-world or fantasy-genre association exists, state what it conventionally symbolizes. If no such association exists, stop after the literal description. Never invent flavor text and never describe anything the image does not show.
+
+Reply with ONLY a JSON object mapping each filename (without the .png extension) to its description string.
+
+Each filename is the icon's name in the collection. The name is a hint, but the image is authoritative — where they disagree, describe the image.
+
+Files:
+fireball.png`);
+  });
+});
+
+describe("responseSchema", () => {
+  // Requiring every name is what turns a short response into a retry instead of
+  // a silent shortfall that costs a whole extra invocation to close later.
+  test("requires every requested icon and forbids any other key", () => {
+    expect(responseSchema(["fireball", "broadsword"])).toEqual({
+      type: "object",
+      properties: { fireball: { type: "string" }, broadsword: { type: "string" } },
+      required: ["fireball", "broadsword"],
+      additionalProperties: false,
+    });
   });
 });
 
 describe("extractDescriptions", () => {
-  test("unwraps the envelope rather than parsing it as the answer", () => {
+  test("reads structured_output and the cost", () => {
     const { descriptions, cost } = extractDescriptions(
-      envelope('{"fireball": "A ball of flame."}'),
+      envelope({ fireball: "A ball of flame." }, { total_cost_usd: 0.31 }),
       ["fireball"],
     );
     expect(descriptions).toEqual({ fireball: "A ball of flame." });
     expect(cost).toBe(0.31);
   });
 
-  test("strips a fenced code block", () => {
-    const { descriptions } = extractDescriptions(
-      envelope('```json\n{"fireball": "A ball of flame."}\n```'),
-      ["fireball"],
-    );
-    expect(descriptions).toEqual({ fireball: "A ball of flame." });
-  });
-
-  test("skips a prose preamble", () => {
-    const { descriptions } = extractDescriptions(
-      envelope('Here are the descriptions:\n\n{"fireball": "A ball of flame."}'),
-      ["fireball"],
-    );
-    expect(descriptions).toEqual({ fireball: "A ball of flame." });
-  });
-
-  test("tolerates a nested brace by matching depth rather than the first close", () => {
-    const { descriptions } = extractDescriptions(envelope('{"a": "x {y} z", "b": "plain"}'), [
-      "a",
-      "b",
-    ]);
-    expect(descriptions).toEqual({ a: "x {y} z", b: "plain" });
-  });
-
-  test("recovers the JSON when the model fences something else first", () => {
-    const { descriptions } = extractDescriptions(
-      envelope(
-        'I read the files.\n\n```\nfireball.png\n```\n\n```json\n{"fireball": "A ball of flame."}\n```',
-      ),
-      ["fireball"],
-    );
-    expect(descriptions).toEqual({ fireball: "A ball of flame." });
-  });
-
-  test("recovers the JSON when an inline code span trails it", () => {
-    const { descriptions } = extractDescriptions(
-      envelope('{"fireball": "A ball of flame."}\n\nI used ```Read``` to load them.'),
-      ["fireball"],
-    );
-    expect(descriptions).toEqual({ fireball: "A ball of flame." });
-  });
-
-  test("tolerates a closing brace inside a description", () => {
-    const { descriptions } = extractDescriptions(envelope('{"fireball": "A brace } inside."}'), [
-      "fireball",
-    ]);
-    expect(descriptions).toEqual({ fireball: "A brace } inside." });
-  });
-
-  test("accepts keys that kept the .png extension", () => {
-    const { descriptions } = extractDescriptions(envelope('{"fireball.png": "A ball of flame."}'), [
+  test("trims surrounding whitespace", () => {
+    const { descriptions } = extractDescriptions(envelope({ fireball: "  A ball of flame.\n" }), [
       "fireball",
     ]);
     expect(descriptions).toEqual({ fireball: "A ball of flame." });
   });
 
-  // Measured: the batch-60 run returned an object of the right size in which
-  // one key matched no requested file, silently losing butter-toast.
+  // The CLI can report success and still carry no structured output; treating
+  // that as an empty batch would bank a paid-for invocation as a no-op.
+  test("throws when the envelope reports success but carries no structured_output", () => {
+    expect(() => extractDescriptions(JSON.stringify({ subtype: "success" }), ["fireball"])).toThrow(
+      /no structured_output/,
+    );
+  });
+
+  test("throws when structured_output is an array rather than an object", () => {
+    expect(() => extractDescriptions(envelope([{ fireball: "A ball." }]), ["fireball"])).toThrow(
+      /no structured_output/,
+    );
+  });
+
+  test("throws when the envelope reports an error", () => {
+    expect(() =>
+      extractDescriptions(envelope(null, { is_error: true, result: "Credit balance too low" }), [
+        "fireball",
+      ]),
+    ).toThrow(/Credit balance too low/);
+  });
+
+  test("throws when stdout is not the expected envelope", () => {
+    expect(() => extractDescriptions("command not found", ["fireball"])).toThrow(/envelope/);
+  });
+
+  // Belt-and-braces behind the schema: a wrong key silently lost butter-toast in
+  // a measured run, back when nothing constrained the response shape.
   test("drops a key that names no requested icon and keeps the rest", () => {
     const { descriptions } = extractDescriptions(
-      envelope('{"fireball": "A ball of flame.", "butter-toads": "Nonsense."}'),
+      envelope({ fireball: "A ball of flame.", "butter-toads": "Nonsense." }),
       ["fireball", "butter-toast"],
     );
     expect(descriptions).toEqual({ fireball: "A ball of flame." });
@@ -99,43 +102,16 @@ describe("extractDescriptions", () => {
 
   test("drops a non-string value and keeps the rest", () => {
     const { descriptions } = extractDescriptions(
-      envelope('{"fireball": "A ball of flame.", "broadsword": null}'),
+      envelope({ fireball: "A ball of flame.", broadsword: null }),
       ["fireball", "broadsword"],
     );
     expect(descriptions).toEqual({ fireball: "A ball of flame." });
   });
 
-  test("throws when the envelope reports an error", () => {
-    expect(() =>
-      extractDescriptions(envelope("Credit balance too low", { is_error: true }), ["fireball"]),
-    ).toThrow(/Credit balance too low/);
-  });
-
-  test("throws when the response contains no object", () => {
-    expect(() =>
-      extractDescriptions(envelope("I could not read the files."), ["fireball"]),
-    ).toThrow(/no JSON object/);
-  });
-
-  test("throws when the object never closes", () => {
-    expect(() => extractDescriptions(envelope('{"fireball": "A ball'), ["fireball"])).toThrow(
-      /unbalanced/,
-    );
-  });
-
-  test("throws when the envelope carries no result string", () => {
-    expect(() => extractDescriptions(JSON.stringify({ type: "result" }), ["fireball"])).toThrow(
-      /no result string/,
-    );
-  });
-
   // Without the ?? 0 the run's running total becomes NaN, with no other symptom.
   test("reports zero cost when the envelope omits total_cost_usd", () => {
-    const stdout = JSON.stringify({ is_error: false, result: '{"fireball": "A ball of flame."}' });
-    expect(extractDescriptions(stdout, ["fireball"]).cost).toBe(0);
-  });
-
-  test("throws when stdout is not the expected envelope", () => {
-    expect(() => extractDescriptions("command not found", ["fireball"])).toThrow(/envelope/);
+    expect(extractDescriptions(envelope({ fireball: "A ball of flame." }), ["fireball"]).cost).toBe(
+      0,
+    );
   });
 });

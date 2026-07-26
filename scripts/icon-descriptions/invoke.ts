@@ -5,7 +5,10 @@ import { buildPrompt } from "./prompt";
 const execFileP = promisify(execFile);
 
 export const DEFAULT_MODEL = "sonnet";
-const INVOKE_TIMEOUT_MS = 300_000;
+// A timeout yields nothing while still having consumed quota, so cutting off a
+// slow-but-working invocation is a guaranteed loss. Measured mean for a batch
+// of 30 is ~167s; the ceiling is deliberately far above it.
+const INVOKE_TIMEOUT_MS = 600_000;
 
 export type BatchResult = { descriptions: Record<string, string>; cost: number };
 export type DescribeBatch = (
@@ -13,51 +16,24 @@ export type DescribeBatch = (
   opts: { pngDir: string; model: string },
 ) => Promise<BatchResult>;
 
-type Envelope = { is_error?: boolean; result?: unknown; total_cost_usd?: number };
+type Envelope = {
+  is_error?: boolean;
+  result?: unknown;
+  structured_output?: unknown;
+  subtype?: unknown;
+  total_cost_usd?: number;
+};
 
-function scanJsonObject(body: string): unknown {
-  const start = body.indexOf("{");
-  if (start === -1) throw new Error(`no JSON object in model response: ${body.slice(0, 200)}`);
-
-  // Brace counting must skip string literals: a description containing "}"
-  // would otherwise close the object early and truncate the JSON.
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = start; i < body.length; i++) {
-    const char = body[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (char === "\\") escaped = true;
-      else if (char === '"') inString = false;
-      continue;
-    }
-    if (char === '"') inString = true;
-    else if (char === "{") depth++;
-    else if (char === "}" && --depth === 0) return JSON.parse(body.slice(start, i + 1));
-  }
-  throw new Error(`unbalanced JSON object in model response: ${body.slice(start, start + 200)}`);
-}
-
-// Try every fenced block, then the raw text. Committing to the first fence
-// loses the answer whenever the model fences something else too — a narrated
-// filename before the JSON, or an inline `Read` span after it.
-function firstJsonObject(text: string): unknown {
-  const body = text.trim();
-  const candidates = [...body.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)]
-    .map((match) => match[1]?.trim())
-    .filter((block): block is string => Boolean(block));
-  candidates.push(body);
-
-  let lastError: unknown;
-  for (const candidate of candidates) {
-    try {
-      return scanJsonObject(candidate);
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError;
+// Naming every requested icon as a required property, with no additional ones
+// allowed, makes a short or renamed response a schema violation the CLI retries
+// on rather than a silent shortfall we would pay to re-invoke later.
+export function responseSchema(names: readonly string[]): Record<string, unknown> {
+  return {
+    type: "object",
+    properties: Object.fromEntries(names.map((name) => [name, { type: "string" }])),
+    required: [...names],
+    additionalProperties: false,
+  };
 }
 
 export function extractDescriptions(stdout: string, requested: readonly string[]): BatchResult {
@@ -67,18 +43,25 @@ export function extractDescriptions(stdout: string, requested: readonly string[]
   } catch {
     throw new Error(`stdout is not a claude -p JSON envelope: ${stdout.slice(0, 200)}`);
   }
-  if (typeof envelope.result !== "string") {
-    throw new Error(`claude -p envelope has no result string: ${stdout.slice(0, 200)}`);
+  if (envelope.is_error) {
+    throw new Error(`claude -p reported an error: ${String(envelope.result).slice(0, 300)}`);
   }
-  if (envelope.is_error) throw new Error(`claude -p reported an error: ${envelope.result}`);
 
-  const parsed = firstJsonObject(envelope.result) as Record<string, unknown>;
+  // A run can report subtype "success" and still carry no structured output;
+  // that is a failure, not an empty batch.
+  const output = envelope.structured_output;
+  if (typeof output !== "object" || output === null || Array.isArray(output)) {
+    throw new Error(
+      `claude -p returned no structured_output (subtype ${String(envelope.subtype)}): ` +
+        `${stdout.slice(0, 200)}`,
+    );
+  }
+
   const wanted = new Set(requested);
   const descriptions: Record<string, string> = {};
-  for (const [rawKey, value] of Object.entries(parsed)) {
-    const key = rawKey.replace(/\.png$/, "");
-    if (!wanted.has(key) || typeof value !== "string") continue;
-    descriptions[key] = value;
+  for (const [name, value] of Object.entries(output)) {
+    if (!wanted.has(name) || typeof value !== "string") continue;
+    descriptions[name] = value.trim();
   }
   return { descriptions, cost: envelope.total_cost_usd ?? 0 };
 }
@@ -105,6 +88,8 @@ export const describeBatch: DescribeBatch = async (names, { pngDir, model }) => 
         "Read",
         "--output-format",
         "json",
+        "--json-schema",
+        JSON.stringify(responseSchema(names)),
         "--model",
         model,
       ],

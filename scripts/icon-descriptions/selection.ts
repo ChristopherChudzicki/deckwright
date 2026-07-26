@@ -20,15 +20,8 @@ export function selectBatches(opts: {
     }
   }
 
-  // Batch index is fixed over the whole collection before any filtering, so a
-  // resumed run shrinks its batches instead of shifting every boundary.
-  const indexed = shuffleSeeded(all, SHUFFLE_SEED).map((name, position) => ({
-    name,
-    batch: Math.floor(position / batchSize),
-  }));
-
   const onlySet = only?.length ? new Set(only) : null;
-  let kept = indexed.filter(({ name }) => {
+  let kept = shuffleSeeded(all, SHUFFLE_SEED).filter((name) => {
     if (onlySet) return onlySet.has(name);
     if (force) return true;
     return !existing.has(name);
@@ -36,22 +29,12 @@ export function selectBatches(opts: {
 
   if (limit !== undefined) kept = kept.slice(0, limit);
 
-  // --only is a bounded fix-up, not a resume, so pack it densely. Keeping the
-  // full-collection boundaries would put two hand-picked icons in two separate
-  // invocations, and singleton batches make the 3-consecutive-failure abort
-  // trivially reachable.
-  if (onlySet) {
-    const names = kept.map(({ name }) => name);
-    const packed: string[][] = [];
-    for (let i = 0; i < names.length; i += batchSize) packed.push(names.slice(i, i + batchSize));
-    return packed;
-  }
-
-  const grouped = new Map<number, string[]>();
-  for (const { name, batch } of kept) {
-    const bucket = grouped.get(batch);
-    if (bucket) bucket.push(name);
-    else grouped.set(batch, [name]);
-  }
-  return [...grouped.entries()].sort(([a], [b]) => a - b).map(([, names]) => names);
+  // Packed densely rather than preserving whole-collection batch boundaries.
+  // Nothing consumes a batch index, and preserving boundaries would leave a
+  // resume running mostly-singleton invocations — each paying the same fixed
+  // per-invocation cost as a full batch, and singletons make the
+  // consecutive-failure abort trivially reachable.
+  const packed: string[][] = [];
+  for (let i = 0; i < kept.length; i += batchSize) packed.push(kept.slice(i, i + batchSize));
+  return packed;
 }

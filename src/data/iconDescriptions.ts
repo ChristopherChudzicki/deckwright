@@ -1,9 +1,23 @@
 const MIN_LENGTH = 15;
-const MAX_LENGTH = 200;
+// Measured max across 299 generated descriptions is 191, and a response that
+// honours the prompt's 30-word budget tops out near 210. The headroom is
+// deliberate: a reject never enters the file, but it does burn two retries and
+// then re-fail identically, stranding that icon in a paid re-invocation.
+const MAX_LENGTH = 260;
 
 // The apostrophe class covers the typographic form, which the model emits in
-// prose more often than the ASCII one.
-const REFUSAL_PATTERNS = [/\bI can['’]?t\b/i, /\bI['’]?m unable\b/i, /\bsorry\b/i];
+// prose more often than the ASCII one. The impersonal patterns matter because
+// the prompt demands JSON only, which makes a terse third-person failure string
+// the likelier degradation than a first-person refusal.
+const REFUSAL_PATTERNS = [
+  /\bI can['’]?t\b/i,
+  /\bI['’]?m unable\b/i,
+  /\bsorry\b/i,
+  /\b(?:unable|failed) to (?:read|load|open|access)\b/i,
+  /\b(?:could not|couldn['’]?t|cannot) be (?:read|loaded|opened|accessed|displayed)\b/i,
+  /\bno image (?:was )?(?:provided|found|available)\b/i,
+  /\bblank (?:white |black )?(?:square|image)\b/i,
+];
 
 const STOPWORDS = new Set(["a", "an", "and", "of", "or", "the", "with", "shown", "pair"]);
 

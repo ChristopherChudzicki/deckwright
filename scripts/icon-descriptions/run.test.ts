@@ -5,6 +5,10 @@ import { runBatches } from "./run";
 const ok = (names: readonly string[]): Record<string, string> =>
   Object.fromEntries(names.map((n) => [n, `A drawing of a ${n}.`]));
 
+// runBatches only forwards the model to describeBatch, which is stubbed in
+// every test here, so naming a real model would imply a dependency there isn't.
+const MODEL = "stub-model";
+
 const run = (
   batches: string[][],
   describeBatch: DescribeBatch,
@@ -15,7 +19,7 @@ const run = (
     batches,
     describeBatch,
     pngDir: "/tmp/png",
-    model: "sonnet",
+    model: MODEL,
     onAccept: (entries) => Object.assign(accepted, entries),
     validateEntry: () => null,
     sleep: async () => {},
@@ -58,26 +62,34 @@ describe("runBatches", () => {
     expect(maxInFlight).toBe(1);
   });
 
-  // The file is the progress marker, so a crash must leave every accepted
-  // batch on disk — a buffer-then-flush refactor would pass every other test.
+  // The file is the progress marker, so a crash must leave every accepted batch
+  // on disk. Asserting the interleaving is what rules out a buffer-then-flush
+  // refactor; a call count alone is satisfied by three flushes at the end.
   test("hands over each accepted batch as it lands, not once at the end", async () => {
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
-      descriptions: ok(names),
-      cost: 0,
-    }));
-    const onAccept = vi.fn();
+    const events: string[] = [];
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
+      events.push(`describe:${names[0]}`);
+      return { descriptions: ok(names), cost: 0 };
+    });
     await runBatches({
       batches: [["a"], ["b"], ["c"]],
       describeBatch,
       pngDir: "/tmp/png",
-      model: "sonnet",
-      onAccept,
+      model: MODEL,
+      onAccept: (entries) => events.push(`accept:${Object.keys(entries)[0]}`),
       validateEntry: () => null,
       sleep: async () => {},
       log: () => {},
     });
 
-    expect(onAccept).toHaveBeenCalledTimes(3);
+    expect(events).toEqual([
+      "describe:a",
+      "accept:a",
+      "describe:b",
+      "accept:b",
+      "describe:c",
+      "accept:c",
+    ]);
   });
 
   // Partial acceptance: all-or-nothing would discard 29 good descriptions
