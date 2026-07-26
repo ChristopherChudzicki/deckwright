@@ -5,12 +5,10 @@ Date: 2026-07-25. Spec:
 
 ## State
 
-Two independent branches, neither merged.
-
 | branch | worktree | state |
 |---|---|---|
-| `chore/refetch-srd` | `.worktrees/srd-refetch` | **draft PR #96**, complete, tests + build pass |
-| `feat/icon-descriptions` | `.worktrees/icon-descriptions` | spec only, no implementation |
+| `chore/refetch-srd` | `.worktrees/srd-refetch` | **merged** as `3cf38b8` (PR #96) |
+| `feat/icon-descriptions` | `.worktrees/icon-descriptions` | spec + experiments, rebased on merged main; no implementation |
 
 Worktrees need `ln -s <repo>/node_modules <worktree>/node_modules` to run
 anything. The repo root had no `node_modules` at session start; `npm install`
@@ -44,32 +42,30 @@ exists yet.
 - **Describe all 4,134 icons**, not a curated subset. Curation becomes a
   *second* LLM pass over the descriptions; the full set stays reachable by
   search, so "the curated list is too limited" cannot recur.
-- **Blind to the name, not to the domain.** The prompt withholds icon names
-  (hashed filenames, seeded shuffle) but *does* say these are D&D card icons.
+- **The name IS given to the model**, subordinated by an explicit "the image is
+  authoritative" clause. This reverses the earlier blind protocol; see below.
+- **Batch size 30.**
+- **Batch order stays randomized** (seeded shuffle) — user's call, on intuition
+  rather than measurement, and it costs nothing.
 - **Description shape:** literal depiction first, then a conventional-association
   clause *only if* a well-established one exists. No relevance flag, no tags.
+- **No generated synonym / search-text field.** Name indexing + `fuzzysort` +
+  query-side expansion come first; expansion would amplify wrong descriptions.
 - **Filesystem, not DB.** Output `src/data/icon-descriptions.json` (committed);
-  PNG cache `.icon-cache/png/` (gitignored).
+  PNG cache `.icon-cache/png/<icon-name>.png` (gitignored). No hashing.
 - **The output file is the progress marker** — no separate progress file.
   Requires that per-entry validation gate the write.
 - **Sequential invocations.** Concurrency is out of scope (lost-update race).
 
 ## Not decided
 
-1. **`--batch-size`.** Default 25 is a guess. The cost curve is one data point
-   fitting two models that differ 7× at N=100.
-2. **Blind vs. include-name was never A/B'd.** Blindness rests on reasoning, not
-   measurement. Note the distinction: `fire-flower` proves name-based *rules*
-   fail, which is not the claim that name-*informed descriptions* are worse.
-3. **256×256 vs 512×512.** Untested; the one recorded miss (`claw-hammer`) is the
-   kind of error a 2× downsample produces.
-4. **`--force` overwrites hand-corrected descriptions.** Currently documented as
-   a limitation with `--only` as the repair path; an overrides file was
-   considered and deferred as YAGNI.
-
-Recommended experiment design (trimmed from a 9-run factorial, since grading is
-the bottleneck): 4 ungraded runs of the same 60 icons at batch 10/20/30/60 for
-the cost curve, plus 2 graded runs ±name for the blind control.
+1. **256×256 vs 512×512.** Untested. Images are ~1% of cost, so 512 is ~+$4 over
+   a full run — cheap, and the direction that might fix the `claw-hammer` class.
+2. **Does thematic clustering actually hurt?** The seeded shuffle is now the only
+   unmeasured element. Designed test is in the spec's "Open experiments".
+3. **`--force` overwrites hand-corrected descriptions.** Documented as a
+   limitation with `--only` as the repair path; an overrides file was considered
+   and deferred as YAGNI.
 
 ## Measured, so it need not be re-derived
 
@@ -83,9 +79,26 @@ the cost curve, plus 2 graded runs ±name for the blind control.
   paths, strokes, `fill-rule`, or text anywhere. Plus 3 aliases and 1 hidden
   icon, so `listIcons()` returns **4,137**.
 - **`claude -p` reads rendered PNGs.** Verified blind on anonymized filenames.
-  12 icons ≈ $0.20–0.23 API-equivalent, 23–47s. Cost driver is per-invocation
-  harness overhead (~110k cached tokens), not images (~87 tokens at 256²).
-  Under a subscription this is **usage quota, not dollars**.
+  Under a subscription `total_cost_usd` is **usage quota, not dollars**.
+- **Cost curve, 60 icons, same sample, blind:** batch 10 → $1.435/376s;
+  20 → $0.867/255s; **30 → $0.625/167s**; 60 → $0.487/123s but **one entry
+  silently dropped**. Fit is `~$0.14–0.20 fixed per invocation + ~$0.005/icon`;
+  both components are real, resolving the earlier two-model ambiguity. Full run
+  at batch 30 ≈ **$43-equivalent, 138 invocations, 3.2h**.
+- **Named beats blind 4×:** 2 misses vs 8 out of 60, for +17% cost. Blind
+  failures were systematic — `flamethrower` ("a rifle fitted with a bayonet"),
+  `bellows` ("a broom"), `sea-star` ("a shooting star"), `energy-sword` — wrong
+  the same way at *every* batch size. Named descriptions add detail the name
+  doesn't contain (the flamethrower's hose and fuel tank).
+- **No parroting:** the model contradicted the filename on `card-king-spades`,
+  ignored the joke name on `pick-of-destiny`, and declined on `abstract-092`
+  ("no representational subject").
+- **Quality vs batch size:** flat 10→30, degrades at 60 (dropped entry plus two
+  icons correct at 10/20/30 and hallucinated at 60). Smaller isn't better —
+  batch 10 invented an association for `bellows` and garbled `butter-toast`.
+- **Images are ~1% of cost** (87 tokens at 256²; ~2,600 per 30-icon batch vs a
+  $0.31 invocation). JPEG saves nothing — token cost is dimensional — and its
+  artifacts would hurt thin line art. PNGs average 9KB.
 - **`--output-format json` returns an envelope**; the model text is in
   `.result`, usually inside ``` fences.
 - **Domain-aware prompt does not strain on irrelevant icons** — `laptop` and
@@ -112,9 +125,9 @@ the cost curve, plus 2 graded runs ±name for the blind control.
 
 ## Next step
 
-Spec review by the user, then `writing-plans`. Optionally run the two
-experiments first — they change `--batch-size` and could delete two of the three
-blind-protocol defenses.
+Spec review by the user, then `writing-plans`.
 
-Scratch experiment scripts (rasterizing, contact sheets, batch runs) are in this
-session's scratchpad, not the repo. They are trivial to recreate from the spec.
+Scratch experiment scripts (`exp-render.mjs`, `exp-run.mjs`, `exp-sheet.mjs`,
+`exp-summary.mjs`) and all run outputs live in this session's scratchpad, not the
+repo. `exp-run.mjs blind|named <batchSize>` reproduces any run; grading is done
+by viewing the labelled contact sheets `exp-sheet.mjs` produces.

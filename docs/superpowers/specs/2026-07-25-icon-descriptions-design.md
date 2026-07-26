@@ -41,6 +41,8 @@ These are downstream consumers of this artifact, each its own piece of work:
 - **Fuzzy search over descriptions** in `IconPickerDialog`. With the
   domain-aware prompt this no longer has to wait for curation — see "What
   descriptions can and cannot support" below.
+- **A generated synonym or "search text" field.** Deliberately not part of this
+  artifact; the reasoning is in "What descriptions can and cannot support".
 - **Rewriting `iconRules.ts`.**
 - **LLM card-body summarization**, deferred until this pipeline pattern proves out.
 
@@ -51,7 +53,7 @@ Three stages, one entrypoint, one committed artifact:
 ```
 game-icons icons.json
    → rasterize to PNG (cached, gitignored)
-   → describe in batches via `claude -p` (blind)
+   → describe in shuffled batches via `claude -p` (name-informed)
    → src/data/icon-descriptions.json (committed)
 ```
 
@@ -99,61 +101,110 @@ Three details the render must get right:
    PNGs composite unpredictably.
 
 **Resolution is 256×256, and this is not yet validated against the alternative.**
-The trial ran at 256, downsampling 2× from the 512 sources. The one recorded
-miss (`claw-hammer`, read as a hatchet — thin claw geometry) is the kind of error
-a 2× downsample produces. 512×512 costs ~350 tokens/image versus 87, roughly +$3
-across a full run. See "Open experiments".
+All runs so far downsampled 2× from the 512 sources. The one recorded miss of
+this kind (`claw-hammer`, read as a hatchet — thin claw geometry) is exactly the
+error a 2× downsample produces.
 
-`sharp` is added as an explicit devDependency (**requires approval** per
-CLAUDE.md's "Ask before `npm install`"). It is currently present only
-transitively via `wrangler → miniflare`, and this script should not depend on a
-grandchild of an unrelated package. The repo does already rasterize a game-icons
-SVG in `scripts/generate-og.ts` via Playwright Chromium; sharp is preferred here
-because 4,134 headless conversions through a browser is the wrong tool, but the
-Playwright path is a working fallback if adding a dependency is unwelcome.
+**Resolution is a quality lever, not a cost lever.** Claude prices images by
+dimensions (~`w×h/750` tokens), so 256×256 is ~87 tokens — about 2,600 tokens
+per 30-icon batch, ~$0.008 against a measured $0.31 invocation, roughly **1% of
+cost**. Halving resolution would save nothing worth having; 512×512 costs ~350
+tokens/image, about **+$4 across a full run**, which is the cheap direction to
+test. See "Open experiments".
 
-### The blind protocol
+**PNG, not JPEG,** for the same reason: token cost is dimensional, so JPEG saves
+zero, while its ringing artifacts degrade precisely the thin black-on-white
+strokes that already fail. PNG also compresses this content better — measured
+9KB average, ~40MB for the collection.
 
-The model is not told an icon's name. Three in-context leaks are closed:
+`sharp` is an explicit devDependency (`^0.35.3`, approved and committed). It was
+previously present only transitively via `wrangler → miniflare`, and this script
+should not depend on a grandchild of an unrelated package. The repo does already
+rasterize a game-icons SVG in `scripts/generate-og.ts` via Playwright Chromium;
+sharp is preferred here because 4,134 headless conversions through a browser is
+the wrong tool. Note its entry point is `sharp/dist/index.cjs` at 0.35.x.
 
-1. **The prompt** carries no names — images only.
-2. **Filenames are hashed** to `sha1(name)` truncated to 12 hex chars, since the
-   model reads file paths. Verified collision-free across all 4,134.
-3. **Batch membership is shuffled with a fixed seed.** Alphabetical order
-   correlates strongly with theme — thirteen consecutive keys run `fire-bottle`
-   through `fire-shrine`. A naive batch would show twelve flame images at once
-   and prime the model to read ambiguity as fire; `fire-flower` sits inside that
-   run.
+### The name is included; batch order is randomized
 
-**`.icon-cache/index.json` (hash → name) must live outside the directory the
-model can read.** Images go in `.icon-cache/png/<hash>.png` and the invocation is
-scoped to that subdirectory. An index file sitting beside the images is a
-plaintext answer key in the working directory, which defeats defense 2 entirely.
+**The prompt gives the model each icon's name, subordinated to the image.** An
+earlier draft withheld names behind a three-part "blind protocol" — hashed
+filenames, a seeded shuffle, and a name-free prompt. A/B measurement rejected it.
 
-Two limits stated honestly:
+The authority clause is load-bearing and ships verbatim with the prompt:
 
-- **Blindness is a prompt-and-cwd property, not an enforced one.** With
-  filesystem tools available, a sufficiently curious agent could read
-  `icons.json` directly. Scoping the working directory and `--allowedTools Read`
-  is the mitigation.
-- **Parametric recognition is not addressed.** game-icons is a large public
-  CC-BY collection; the model has likely seen these rasters with their names in
-  training. If it recognizes an asset rather than reading pixels, name-derived
-  inference re-enters through a door these three defenses do not lock. This may
-  even produce better descriptions — but the spec should not claim blindness is
-  achieved when only the in-context channel is closed. See "Open experiments".
+> Each filename is the icon's name in the collection. The name is a hint, but the
+> image is authoritative — where they disagree, describe the image.
+
+#### Measured: blind vs. named, 60 icons, batch 30
+
+Same 60 icons (seeded sample of the full collection), same prompt but for the
+clause above, graded against the rendered images. **Blind produced 8 clearly
+wrong descriptions; named produced 2.**
+
+| icon | blind | named |
+|---|---|---|
+| `flamethrower` | "a rifle fitted with a bayonet … infantry weaponry" | "nozzle emitting flame, connected by a hose to a two-cylinder fuel tank" |
+| `bellows` | "a bound broom or besom shown swinging" | "an accordion-style hand pump with a narrow nozzle, shown mid-squeeze" |
+| `thunder-blade` | "a straight sword and a curved blade crossed" | "a jagged lightning-bolt-shaped blade crossed with a straight sword" |
+| `spiral-thrust` | "a fin-like shape between them" | "one wrapped in a spiraling vortex line" |
+| `sea-star` | "a shooting star … symbolizes a wish" | "resembling a starfish" |
+| `architect-mask` | "hooded or ghost-like silhouette" | "a mask-like face … eye sockets pierced by needle-like spikes" |
+
+The blind failures were **systematic, not sampling noise**: `flamethrower`,
+`bellows`, `sea-star`, and `energy-sword` came back wrong in the same way at
+every batch size tested (10, 20, 30, 60). No batch size reaches them.
+
+The named descriptions add detail the name does not contain — the hose and fuel
+tank, the accordion body mid-squeeze. **The name unlocks the model's reading of
+the image rather than substituting for it.**
+
+#### Measured: the name does not induce parroting
+
+Three independent checks, all from the same run:
+
+- `card-king-spades` — the model **contradicted the filename**, calling a corner
+  pip a heart.
+- `pick-of-destiny` — ignored the Tenacious D reference entirely and described
+  what is there: a horned, skull-like ram mask.
+- `abstract-092` — declined to invent: "no representational subject."
+
+Cost of including the name is **+17%** ($0.732 vs $0.625 per 60 icons at batch
+30) — the descriptions are longer and more specific.
+
+Two limits stated honestly: the grading was **not blind to condition**, and 60
+icons is a small sample. Both cut against the measured margin, but the margin is
+4× and the failure mode was systematic rather than marginal.
+
+#### Randomized order is retained
+
+Batch membership is still shuffled with a fixed seed, and this is now a
+**precaution rather than a measured result** — the leak it was one of three
+defenses against no longer exists.
+
+The rationale that survives: alphabetical order correlates strongly with theme —
+thirteen consecutive keys run `fire` through `fire-zone`, with `fire-flower`
+inside that run. Homogeneous batches plausibly homogenize descriptions, costing
+the discriminating detail search depends on, and a batch of thirty names sharing
+a prefix is the condition most likely to induce the name-following the authority
+clause otherwise prevents. Randomizing is free; the untested hypothesis is that
+clustering hurts. See "Open experiments" for the run that would settle it.
+
+**The shuffle must assign a stable batch index over the full 4,134 before any
+filtering.** Shuffling and then filtering out already-described icons changes
+chunk boundaries on every resume, so batch composition would differ between
+runs — resumed batches should get smaller, not get reshuffled.
 
 A caveat on `--only` reruns: regenerating "the fire ones" by hand recreates
-exactly the thematic clustering the seeded shuffle prevents. Fix-up batches
-should be assembled from the shuffled order, not hand-grouped.
+exactly the thematic clustering the shuffle avoids. Fix-up batches should be
+assembled from the shuffled order, not hand-grouped.
 
 ## Artifacts
 
 | path | committed | contents |
 |---|---|---|
 | `src/data/icon-descriptions.json` | yes | `{ "<icon-name>": "<description>" }`, keys sorted |
-| `.icon-cache/png/<hash>.png` | no | rendered icons, skipped when present |
-| `.icon-cache/index.json` | no | hash → name, for debugging; outside `png/` |
+| `.icon-cache/png/<icon-name>.png` | no | rendered icons, skipped when present |
+| `.icon-cache/meta.json` | no | icon-set version + render settings, for cache invalidation |
 
 `src/data/` rather than `data/` because the descriptions ship to the client once
 the picker searches them. Realistically **~600–650KB** (4,134 × ~120 chars of
@@ -173,10 +224,14 @@ formatting is required, not cosmetic. A missing output file is treated as `{}`.
 CSS-module edit (`cmk --clean`: "Remove the output directory before generating
 files").
 
-**Cache invalidation:** the cache key is `sha1(name)`, which does not cover the
+**Cache invalidation:** the cache key is the icon name, which does not cover the
 artwork or the render settings. Bumping `@iconify-json/game-icons` or changing
-resolution would silently reuse stale PNGs. `index.json` records the icon-set
+resolution would silently reuse stale PNGs. `meta.json` records the icon-set
 version and render settings; a mismatch invalidates the whole cache directory.
+
+Filenames are the plain icon names. Hashing them was a blind-protocol defense and
+is now dead weight — it made the cache undebuggable and required an answer-key
+file kept outside the readable directory.
 
 ## Script interface
 
@@ -186,14 +241,16 @@ Arguments via `node:util parseArgs`.
 | flag | default | effect |
 |---|---|---|
 | `--only <name>` | all | repeatable (`multiple: true`); implies `--force` for the named icons. An unknown name is a hard error listing the offenders. |
-| `--batch-size <n>` | 25 | icons per `claude -p` invocation |
+| `--batch-size <n>` | 30 | icons per `claude -p` invocation; see the measured curve below |
 | `--force` | off | re-describe icons that already have entries |
 | `--validate` | off | run per-entry checks over the committed file and exit; exclusive — combining it with any other flag is an error (exit 2) |
 | `--limit <n>` | none | truncate the selection to n icons, for smoke-testing |
 
 **Selection pipeline, in order:** all 4,134 → seeded shuffle → `--only` filter →
 drop already-described (unless `--force`/`--only`) → `--limit` truncate → chunk
-by `--batch-size`. A final short batch is fine.
+by `--batch-size`. A final short batch is fine. The shuffle comes first and over
+the full collection precisely so that resumes shrink batches rather than
+recompose them.
 
 `--force` **merges into existing content and never truncates**, so a crash
 cannot destroy prior work. It is explicitly non-resumable: a restarted `--force`
@@ -203,8 +260,8 @@ re-runs.
 **Invocations are sequential.** Concurrency is out of scope: the write design
 ("read existing, merge, atomic rename") is a lost-update race under concurrent
 writers. A `wx`-flag lockfile in `.icon-cache/` prevents two runs in two
-terminals from silently clobbering each other. At ~166 sequential invocations,
-expect **1–2 hours wall clock** for a full run.
+terminals from silently clobbering each other. At batch 30 that is **138
+invocations and ~3.2 hours wall clock** for a full run, measured.
 
 ## The `claude -p` contract
 
@@ -222,7 +279,7 @@ expect **1–2 hours wall clock** for a full run.
   directory scoped to `.icon-cache/png/`.
 - **Per-invocation timeout** (300s) with an explicit kill signal. An unbounded
   hang stalls the entire run with no output — the most likely real-world failure
-  across ~166 invocations.
+  across ~138 invocations.
 - Fail fast with a clear message when the `claude` binary is absent or
   unauthenticated.
 
@@ -245,26 +302,27 @@ Nothing failed is written, so failures are simply still-missing keys that the
 next run picks up. That is the same mechanism as resume — no separate
 bookkeeping.
 
-**Partial batch acceptance is required.** All-or-nothing discards 24 good
+**Partial batch acceptance is required.** All-or-nothing discards 29 good
 descriptions because of 1 bad one, and if a specific image reliably trips the
-model, that batch fails on every run and its other 24 icons are never persisted
+model, that batch fails on every run and its other 29 icons are never persisted
 — a permanent hole indistinguishable from "not done yet". Responses are also
-rejected for *unknown* hashes (an unmapped hash would otherwise be written under
-the wrong icon); extra keys are ignored, missing ones simply retried.
+rejected for keys that name no requested icon; extra keys are ignored, missing
+ones simply retried. **Missing keys are not hypothetical** — the batch-60 run
+returned an object of the right size in which one key matched no requested file,
+silently losing `butter-toast`.
 
 **Abort threshold.** After 3 consecutive batch failures the run exits non-zero.
 This mirrors `scripts/fetch-srd.ts:90-101`, which throws on a >10% row loss
 precisely so a systemic failure cannot produce a quietly "successful" run.
-Without it, an expired credential at batch 3 of 166 logs 163 failures, writes
+Without it, an expired credential at batch 3 of 138 logs 135 failures, writes
 nothing, and exits 0.
 
 ## Description style
 
-**Blind means blind to the *name*, not blind to the *domain*.** An earlier draft
-conflated the two and required purely literal pixel description. That was an
-over-correction: withholding domain context does not close any leak the three
-defenses don't already close, and it strips out the vocabulary downstream search
-needs.
+**The prompt supplies domain context.** An earlier draft required purely literal
+pixel description, on the theory that any framing was a leak. That was an
+over-correction — it stripped out the vocabulary downstream search needs while
+closing nothing.
 
 Structure, in one sentence of ≤30 words:
 
@@ -295,7 +353,7 @@ to find a D&D reading for irrelevant icons, and it works without any explicit
 | `dragon-head` | "…a classic fantasy creature symbolizing danger or power" |
 
 **No relevance flag is added.** "Is this D&D-relevant" is the curation pass's
-judgment, and a per-icon boolean produced inside a 25-icon batch has no global
+judgment, and a per-icon boolean produced inside a 30-icon batch has no global
 view, whereas curation sees all 4,134 descriptions at once. Same reasoning as
 deferring tags.
 
@@ -310,14 +368,46 @@ association clause happening to contain the user's word.
 
 Fuzzy search over descriptions is therefore **viable independently of
 curation** — a reversal of this spec's earlier position, which assumed literal
-descriptions and concluded search had to wait. Confidence is moderate: the
-evidence is two 12-icon samples, not a retrieval benchmark.
+descriptions and concluded search had to wait. Name-informed generation
+strengthens this further: the 60-icon run produced "fire-based weaponry",
+"stoking or fanning a fire", "imbued with thunder or lightning power", "an energy
+or force-field barrier". Confidence is moderate — the evidence is graded samples,
+not a retrieval benchmark.
 
 The corollary for consumers with no human in the loop still stands: **the name
 is a search signal, not a semantic one.** Indexing name + description recovers
 the bad-description/good-name case (`claw-hammer` findable via "hammer"), does
 *nothing* for bad-description/bad-name, and a curation or rules pass matching on
 names alone reproduces the `fire-flower` defect this work exists to fix.
+
+#### Why there is no generated synonym field
+
+A second pass expanding each description into search terms ("curved blade" →
+"blade, sword, scimitar, sabre…") was considered and rejected for this artifact.
+
+The decisive objection is that **synonym expansion amplifies confident wrong
+descriptions.** The blind run described `flamethrower` as "a rifle fitted with a
+bayonet"; expanded, that icon becomes strongly retrievable by *rifle, gun,
+carbine, firearm, bayonet* and still unfindable by *flame*. Today a wrong
+description is inert. Expanded, it is an active magnet that outranks correct
+results. Expansion also collapses the distinctions a user is searching for: if
+every blade expands to sword/scimitar/sabre/falchion/dagger, "scimitar" returns
+hundreds of icons ordered by nothing.
+
+Three cheaper measures come first, in order:
+
+1. **Index the icon name alongside the description.** Free, and the highest-value
+   fix, since the name survives a wrong description.
+2. **Use `fuzzysort`** — already a dependency at `^3.1.0`, while
+   `IconPickerDialog.tsx:123` still does a plain `.includes()` over names only.
+3. **Expand the query, not the documents** — a small hand-edited synonym map
+   applied to the typed term. Roughly the words people actually type, fixable one
+   line at a time, no regeneration.
+
+If a generated field is ever wanted, the defensible form is a **closed-vocabulary
+category tag** (weapon / armor / creature / plant / food / tool / symbol / magic),
+not open synonyms: a closed vocabulary can be validated and does not collapse
+precision. That is the curation pass's business, not this one's.
 
 **Deferring keywords/tags remains correct**, on one condition: it holds only if
 the curation pass re-renders the images. If curation works from this text alone,
@@ -349,22 +439,24 @@ So a `--limit` smoke run or an `--only` fix-up leaves a file that passes
 `--validate`. The PR that adds the script also commits the complete file;
 otherwise CI is red from the first commit until a full run lands.
 
-**Name/description agreement is reported, not enforced.** An earlier draft
-failed entries that restate their icon name, calling it "the signature of name
-leakage." That is backwards: under a blind protocol the model cannot see the
-name, so agreement is the *expected* result for an unambiguously drawn icon —
-the rule would fail on the best entries in the file, including `turtle-shell`,
-which the trial run records as a success. Inverted, it becomes the artifact's
-most useful signal: `--validate` reports the agreement rate, and the
-disagreements are the human review queue and a per-icon confidence marker
-separating "trust the name" (`turtle-shell`) from "the name misleads"
-(`fire-flower`).
+**Name/description agreement carries no signal and is not measured.** Two
+earlier drafts got this wrong in opposite directions — first failing entries that
+restate their name as "the signature of name leakage", then inverting it into a
+confidence metric. Both assumed the model could not see the name. It can, so
+agreement is trivially expected and measures nothing.
+
+What remains worth reporting is the opposite: **entries that add nothing beyond
+their own name.** `--validate` flags descriptions whose content words are a
+subset of the name's, since those are the parroting failures the authority clause
+is meant to prevent, and they are worthless to search — the name is already
+indexed. This is a reported warning, not a hard failure; some short names
+genuinely exhaust their icon (`lungs`, `infinity`).
 
 The test must call `vi.importActual` for the icon collection: `src/test/setup.ts`
 globally mocks `@iconify-json/game-icons/icons.json` down to a **2-icon**
-fixture, so completeness and collision assertions would otherwise pass
-vacuously. `src/cards/iconRules.test.ts:16` shows the pattern. A sharp
-rasterization test needs `// @vitest-environment node`, since the suite is jsdom.
+fixture, so completeness assertions would otherwise pass vacuously.
+`src/cards/iconRules.test.ts:16` shows the pattern. A sharp rasterization test
+needs `// @vitest-environment node`, since the suite is jsdom.
 
 Neither caller needs `claude`; CI has no credentials and must never invoke the LLM.
 
@@ -379,33 +471,26 @@ main chunk — `src/app/router.tsx:15` imports `IconDebugView` statically.
 
 ## Measured behavior
 
-From a 12-icon trial on a deterministic random sample (Sonnet, 256×256):
-
-- **11/12 matched their icon name on inspection.** Note what this grades: it is
-  *name recovery*, judged by a grader who knew the names. It is a reasonable
-  smoke test, not a measure of description quality, and it is in tension with
-  the goal — it counts `claw-hammer` as a miss and then argues the miss is
-  acceptable. 11/12 carries a 95% Wilson interval of roughly **[65%, 99%]**; at
-  the lower bound ~1,450 of 4,134 entries would be wrong.
-- **The miss was `claw-hammer`**, described as "a hand axe or hatchet held at an
-  angle with a chipped blade edge." Inspecting the image, that is a defensible
-  misread — the claw reads as a second blade.
-- **Cost: $0.198 for 12 icons, 23s** (literal-only prompt); **$0.234, 47s** with
-  the domain-aware prompt, which produces longer output.
+All figures are Sonnet at 256×256. The blind-versus-named result and the cost
+curve are in their own sections above; this one records what the earlier 12-icon
+probes established, which the 60-icon runs did not supersede.
 
 Three prompt variants were run, all blind, all 12 icons:
 
 1. **Literal-only** — accurate but no functional vocabulary.
 2. **Domain-aware** — functional vocabulary appears; `claw-hammer` regressed from
    the hedged "a hand axe or hatchet" to the confident "A hand axe (tomahawk)".
-   Domain priming makes wrong answers *more assured*, which raises the value of
-   the name/description disagreement report.
+   **Domain priming makes wrong answers more assured** — the failure mode to
+   expect is confident and fluent, not hedged.
 3. **Domain-aware on deliberately irrelevant icons** — no strain, no invented
    fantasy readings (table above).
 
-Incidental evidence on parametric recognition: the model read rank *and* suit
-correctly off three different playing cards. It cannot have inferred "Seven of
-Clubs" from a hash, so at least some of the time it is genuinely reading pixels.
+`claw-hammer` is the standing example of the thin-geometry miss: the claw reads
+as a second blade at 256×256, which is what the resolution experiment targets.
+
+Incidental evidence that the model reads pixels rather than recalling assets: in
+the blind runs it read rank *and* suit correctly off three different playing
+cards. It cannot have inferred "Seven of Clubs" from a hash.
 
 ### Cost is subscription usage, not dollars
 
@@ -419,32 +504,53 @@ through". It also makes resumability the load-bearing property of the design
 rather than a nicety — **hitting a usage limit is the expected interruption**,
 not an exotic one.
 
-**The cost curve is still one data point and two models fit it equally well.**
-Per-invocation cost gives ~$68-equivalent at batch 12, ~$33 at 25, ~$9 at 100.
-Per-icon cost — which an agentic read-one-file-at-a-time loop produces — gives
-~$68 at *every* batch size. The two are indistinguishable at N=12 by
-construction and differ 7× at N=100. Batch-size savings remain **hypothetical**;
-the batch-size default of 25 is a guess, not a finding. The curve also omits
-retry cost, which rises with batch size.
+### The measured cost curve
+
+Four runs over the same 60 icons (blind, Sonnet, 256×256), varying only batch
+size:
+
+| batch | invocations | cost | per icon | wall | dropped | extrapolated to 4,134 |
+|---|---|---|---|---|---|---|
+| 10 | 6 | $1.435 | $0.0239 | 376s | 0 | $99, 7.2h |
+| 20 | 3 | $0.867 | $0.0145 | 255s | 0 | $60, 4.9h |
+| **30** | 2 | $0.625 | $0.0104 | 167s | 0 | **$43, 3.2h** |
+| 60 | 1 | $0.487 | $0.0081 | 123s | **1** | $34, 2.4h |
+
+This resolves the earlier ambiguity: **both** components are real. Fitting
+`cost = fixed + marginal × n` gives roughly **$0.14–0.20 fixed per invocation and
+~$0.005 per icon**. Neither pure model held.
+
+**Batch 30 is the default.** Quality is flat from 10 to 30 and breaks three ways
+at 60 — one entry silently dropped from the returned object, plus `abstract-092`
+and `card-king-spades` described correctly at 10/20/30 and hallucinated at 60
+("two humanoid torso silhouettes"; a heart-shaped pip). Smaller is not better
+either: at batch 10 `bellows` acquired an invented association ("symbolizing
+witchcraft or a witch's flight") and `butter-toast` came out garbled, both of
+which batch 20 and 30 got right.
+
+Images are a negligible share of that cost — 87 tokens each at 256×256, so ~2,600
+tokens (~$0.008) against a $0.31 invocation. **Resolution is a quality lever, not
+a cost lever.** PNG is also the right format: token cost depends on dimensions,
+not bytes, so JPEG saves nothing and its ringing artifacts would degrade exactly
+the thin black-on-white strokes that already fail. Rendered PNGs average 9KB
+(~40MB for the full collection).
+
+The curve omits retry cost, which rises with batch size.
 
 ## Open experiments
 
-Two measurements, neither blocking the plan, both changing defaults if they come
-back unexpected. Grading is the bottleneck, not generation, so each is designed
-to minimize what has to be judged by hand.
+Neither blocks the plan; both change a default if they come back unexpected.
 
-1. **Cost curve — 4 runs, no grading.** The same 60 icons at batch 10 / 20 / 30 /
-   60. Identical work, different invocation counts; read `total_cost_usd` off
-   each. Discriminates per-invocation from per-icon and settles `--batch-size`.
-2. **Blind versus named — 2 runs, needs grading.** The same 60 icons, one batch
-   size, with and without the icon name in the prompt. **This control has never
-   been run.** Blindness is currently justified by reasoning, not measurement:
-   the `fire-flower` evidence shows name-based *rules* fail, which is not the
-   same claim as name-*informed descriptions* being worse. If outputs are
-   near-identical, hash filenames and seeded shuffle can be simplified away.
-
-A third, lower priority: **512×512 versus 256×256** on the same sample, testing
-the lever most likely to fix the `claw-hammer` class at ~+4× image tokens.
+1. **Does thematic clustering degrade descriptions? — 2 runs, needs grading.**
+   The seeded shuffle is now the only unmeasured element of the design. Test: the
+   thirteen `fire`–`fire-zone` icons described (a) inside an alphabetically
+   contiguous batch of 30 and (b) inside a batch of 30 where the other 17 are
+   drawn from elsewhere in the collection. Compare the same thirteen across both.
+   If the descriptions are equally discriminating, the shuffle is optional — but
+   it costs nothing, so a null result changes little.
+2. **512×512 versus 256×256** on the same sample — the lever most likely to fix
+   the `claw-hammer` class (thin geometry lost to a 2× downsample). ~+4× image
+   tokens, which is **~+$4 over a full run**, under 10%.
 
 ## Testing
 
@@ -457,14 +563,15 @@ to mock `node:child_process` globally.
 - **Rasterization:** a rendered icon is a non-empty PNG of the expected
   dimensions **and is not blank** (assert dark pixels are present via
   `sharp().stats()`) — the `currentColor` hazard makes the blank case real.
-- **Hashing:** stable per name; collision-free across all 4,134 (via `importActual`).
-- **Shuffle:** seeded and deterministic; differs from alphabetical order.
+- **Shuffle:** seeded and deterministic; differs from alphabetical order, and
+  assigns batch membership before the already-described filter, so a resume
+  shrinks batches rather than recomposing them.
 - **Selection:** resume picks only missing icons; `--force` reselects all;
   `--only` restricts and implies force; `--limit` truncates before chunking.
 - **Response parsing:** the `--output-format json` envelope is unwrapped
-  correctly; fenced and preamble-prefixed responses parse; a missing hash, a
-  non-string value, and an unknown hash are each rejected.
-- **Partial acceptance:** a batch with one bad entry writes the other 24.
+  correctly; fenced and preamble-prefixed responses parse; a missing key, a
+  non-string value, and a key naming no requested icon are each rejected.
+- **Partial acceptance:** a batch with one bad entry writes the other 29.
 - **Merge semantics:** writing batch 2 does not drop batch 1; output keys are
   sorted. (Real atomicity is not unit-testable and should not be attempted.)
 - **Failure policy:** transient errors retry; the run aborts non-zero after 3
@@ -495,6 +602,15 @@ lines, with `const SHUFFLE_SEED = 20260725` — rather than a new dependency.
   buys completeness and a simpler contract. A wider count of 41 first-token
   groups of ≥8 covers 629 icons, so the genuinely-unreachable fraction may be
   larger.
+- **Expect ~3% of entries to be confidently wrong.** That is the named-run miss
+  rate measured on 60 icons, and domain priming makes the wrong ones fluent
+  rather than hedged, so they will not stand out. Extrapolated, that is **~120
+  bad entries** across the collection. The mitigations are `--only` re-runs and
+  `IconDebugView` review, not a validator — no mechanical check can see them.
+- **The blind-versus-named margin was graded by a non-blind grader on 60
+  icons.** Both limits cut against the measured 4× margin rather than for it, and
+  the blind failures were systematic rather than marginal, but the result has not
+  been independently replicated.
 - **`IconDebugView` sampling has poor power for systematic faults.** If 1 batch
   in 50 goes bad, a 24-icon random sample catches it about a third of the time.
   It judges quality; it does not detect per-batch faults.
