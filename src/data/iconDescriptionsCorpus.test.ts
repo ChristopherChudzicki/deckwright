@@ -6,14 +6,11 @@ import { validateEntry } from "./iconDescriptions";
 // Bypass the 2-icon fixture from src/test/setup.ts; every assertion here is
 // about the real collection and would pass vacuously against the stub.
 // Matches src/cards/iconRules.test.ts:16.
-const collection = async () => {
-  const real = await vi.importActual<{
-    default: { icons: Record<string, unknown>; aliases?: Record<string, unknown> };
-  }>("@iconify-json/game-icons/icons.json");
-  return {
-    generated: new Set(Object.keys(real.default.icons)),
-    aliases: new Set(Object.keys(real.default.aliases ?? {})),
-  };
+const describableIcons = async () => {
+  const real = await vi.importActual<{ default: { icons: Record<string, unknown> } }>(
+    "@iconify-json/game-icons/icons.json",
+  );
+  return new Set(Object.keys(real.default.icons));
 };
 
 describe("the shipped description corpus", () => {
@@ -31,12 +28,15 @@ describe("the shipped description corpus", () => {
     expect(problems).toEqual([]);
   });
 
-  // A description keyed to an icon that does not exist is dead weight the picker
-  // can never surface — the likely causes are a typo in a hand-written override
-  // and an icon dropped by an upstream bump.
-  test("no entry names an icon outside the collection", async () => {
-    const { generated, aliases } = await collection();
+  // The pipeline is strictly image → description, so every key must name an icon
+  // that has artwork to describe. Aliases have no `body` and are excluded
+  // deliberately: consumers resolve an alias to its parent at lookup time rather
+  // than the corpus carrying a duplicate that drifts when the parent changes.
+  // The likely causes of a stray key are a typo in a hand-written override and
+  // an icon dropped by an upstream bump.
+  test("every entry names a describable icon", async () => {
+    const describable = await describableIcons();
     const named = [...Object.keys(base), ...Object.keys(overrides)];
-    expect(named.filter((name) => !generated.has(name) && !aliases.has(name))).toEqual([]);
+    expect(named.filter((name) => !describable.has(name))).toEqual([]);
   });
 });

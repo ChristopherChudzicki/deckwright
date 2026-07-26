@@ -783,10 +783,19 @@ lines, with `const SHUFFLE_SEED = 20260725` — rather than a new dependency.
   It judges quality; it does not detect per-batch faults.
 - **The 6.4MB icons chunk** is untouched here. Once curation lands, shipping only
   curated icons could cut it substantially — out of scope.
-- **The picker enumerates 4,137 icons, the generator describes 4,134.** `listIcons`
-  includes three aliases (`eskimo`, `sattelite`, `star-sattelites`) that
-  `Object.keys(collection.icons)` does not. They need entries in the overrides
-  file, or the completeness test has to exclude them.
+- **The picker enumerates 4,137 icons, the generator describes 4,134.**
+  `IconPickerDialog` lists via `listIcons`, which includes three aliases
+  (`eskimo`, `sattelite`, `star-sattelites` — two are preserved misspellings)
+  that `Object.keys(collection.icons)` does not. All three are pure renames with
+  no transform, so each renders pixel-identical to its parent.
+
+  **The corpus stays at 4,134 and consumers resolve aliases at lookup.** Copying
+  the parent's text into the corpus was considered and rejected: it keeps the
+  pipeline strictly image → description, with one entry per thing that has
+  artwork, rather than admitting derived duplicates that drift when a regenerated
+  parent changes. Nothing consumes descriptions for search yet, so this is
+  deferred to the fuzzy-search work, where alias handling is one case of the
+  broader question of what a query matches against.
 - **`--transport api` was smoke-tested but the corpus predates it.** The 210
   entries committed before it existed were generated through `cli`, where the
   agent reads PNGs off disk; `api` sends the same bytes inline with filename
