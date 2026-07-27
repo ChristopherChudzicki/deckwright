@@ -8,7 +8,26 @@ Read every PNG file listed below and describe what each one depicts.
 
 For each icon write ONE sentence of at most 30 words:
 1. Begin with what is literally depicted, naming the primary object as specifically as the image supports.
-2. Then, ONLY IF a well-established real-world or fantasy-genre association exists, state what it conventionally symbolizes. If no such association exists, stop after the literal description. Never invent flavor text and never describe anything the image does not show.
+2. Then, ONLY IF a well-established real-world or fantasy-genre association exists, state what it conventionally symbolizes. Never invent flavor text and never describe anything the image does not show.
+
+Add the association only when it carries meaning the image does not already give:
+- a bat wing — conventionally symbolizing vampires or nocturnal creatures
+- scattered four-pointed sparkles — conventionally symbolizing magic or enchantment
+- a downward arrow above a bar — conventionally symbolizing saving or downloading
+- a laurel-crowned head in profile — conventionally symbolizing a Roman emperor or victory
+
+Omit it when it only restates the subject. These are wrong:
+- a fishing rod and reel — "symbolizing fishing"
+- a smoking pipe — "symbolizing smoking"
+- a teardrop map pin — "symbolizing a location marker"
+- a shirt of overlapping scales — "symbolizing armor"
+- a bowling pin — "symbolizing the sport of bowling"
+
+Most icons carry no such association, and a bare literal description is the expected answer:
+- "A rounded bush dotted with small berry shapes on short stems."
+- "An eight-pointed star frame enclosing a rising sun with radiating triangular rays above a solid horizontal band."
+
+Describe the subject, not the drawing style. Every icon is a flat black-and-white shape, so phrases like "depicted in bold silhouette" or "in simple line art" waste words that belong on what is shown.
 
 Reply with ONLY a JSON object mapping each filename (without the .png extension) to its description string.
 
