@@ -38,11 +38,18 @@ const SONNET: ModelEntry = {
   intro: { price: { input: 2, output: 10 }, endsOn: "2026-08-31" },
 };
 
+const OPUS: ModelEntry = { id: "claude-opus-5", price: { input: 5, output: 25 } };
+
 // The CLI takes a friendly alias and bills a subscription; the HTTP API needs a
 // concrete id and bills per token, so both spellings resolve to one entry. Only
 // models whose pricing was confirmed against the pricing page belong here — a
 // guessed rate would report a run's spend as fact while being wrong about it.
-const MODELS: Record<string, ModelEntry> = { sonnet: SONNET, "claude-sonnet-5": SONNET };
+const MODELS: Record<string, ModelEntry> = {
+  sonnet: SONNET,
+  "claude-sonnet-5": SONNET,
+  opus: OPUS,
+  "claude-opus-5": OPUS,
+};
 
 export function resolveModel(model: string, on: Date = new Date()): { id: string; price: Price } {
   const entry = MODELS[model];

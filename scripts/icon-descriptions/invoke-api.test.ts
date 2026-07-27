@@ -34,6 +34,12 @@ describe("resolveModel", () => {
     expect(resolveModel("claude-sonnet-5", new Date("2026-07-26"))).toEqual(expected);
   });
 
+  test("prices opus at its standard rate, which has no introductory period", () => {
+    const expected = { id: "claude-opus-5", price: { input: 5, output: 25 } };
+    expect(resolveModel("opus", new Date("2026-07-26"))).toEqual(expected);
+    expect(resolveModel("opus", new Date("2026-09-01"))).toEqual(expected);
+  });
+
   // The introductory rate lapses on a date, and a run afterwards would otherwise
   // keep reporting a third less than it was billed.
   test("charges the standard rate once the introductory period ends", () => {
@@ -43,7 +49,7 @@ describe("resolveModel", () => {
   // Falling back to a guessed rate would report a run's spend as fact while
   // being wrong about it, which is worse than refusing the model.
   test("refuses a model it has no confirmed pricing for", () => {
-    expect(() => resolveModel("opus")).toThrow(/no pricing for model "opus"/);
+    expect(() => resolveModel("haiku")).toThrow(/no pricing for model "haiku"/);
   });
 });
 
