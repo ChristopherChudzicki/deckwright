@@ -9,6 +9,7 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     css: true,
     restoreMocks: true,
+    unstubEnvs: true,
     include: ["src/**/*.{test,spec}.{ts,tsx}", "scripts/**/*.{test,spec}.ts"],
   },
 });

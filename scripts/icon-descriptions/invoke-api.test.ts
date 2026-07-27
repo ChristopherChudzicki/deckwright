@@ -4,19 +4,42 @@ import { join } from "node:path";
 import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { server } from "../../src/test/msw";
-import { assertApiKey, describeBatchApi, extractApiDescriptions, resolveModel } from "./invoke-api";
+import {
+  assertApiKey,
+  describeBatchApi,
+  estimateCost,
+  extractApiDescriptions,
+  resolveModel,
+} from "./invoke-api";
+import { responseSchema } from "./transport";
 
 const SONNET = { input: 2, output: 10 };
+const USAGE = { input_tokens: 12_000, output_tokens: 1_200 };
 
 const reply = (text: string, extra: Record<string, unknown> = {}) =>
   JSON.stringify({
     type: "message",
     stop_reason: "end_turn",
     content: [{ type: "text", text }],
+    usage: USAGE,
     ...extra,
   });
 
 describe("resolveModel", () => {
+  // The price table is the only thing standing between a run and reporting a
+  // real charge as $0.00, so the rate itself is pinned, not just its shape.
+  test("maps the alias and the concrete id to one priced model", () => {
+    const expected = { id: "claude-sonnet-5", price: { input: 2, output: 10 } };
+    expect(resolveModel("sonnet", new Date("2026-07-26"))).toEqual(expected);
+    expect(resolveModel("claude-sonnet-5", new Date("2026-07-26"))).toEqual(expected);
+  });
+
+  // The introductory rate lapses on a date, and a run afterwards would otherwise
+  // keep reporting a third less than it was billed.
+  test("charges the standard rate once the introductory period ends", () => {
+    expect(resolveModel("sonnet", new Date("2026-09-01")).price).toEqual({ input: 3, output: 15 });
+  });
+
   // Falling back to a guessed rate would report a run's spend as fact while
   // being wrong about it, which is worse than refusing the model.
   test("refuses a model it has no confirmed pricing for", () => {
@@ -31,12 +54,16 @@ describe("assertApiKey", () => {
   });
 });
 
+describe("estimateCost", () => {
+  test("prices a whole run from its icon count", () => {
+    expect(estimateCost(1_000, SONNET)).toBeCloseTo(1.172, 6);
+  });
+});
+
 describe("extractApiDescriptions", () => {
   test("reads the JSON text block and prices the usage", () => {
     const { descriptions, cost } = extractApiDescriptions(
-      reply(JSON.stringify({ fireball: "A ball of flame." }), {
-        usage: { input_tokens: 12_000, output_tokens: 1_200 },
-      }),
+      reply(JSON.stringify({ fireball: "A ball of flame." })),
       ["fireball"],
       SONNET,
     );
@@ -44,23 +71,55 @@ describe("extractApiDescriptions", () => {
     expect(cost).toBeCloseTo(0.036, 6);
   });
 
-  test("trims surrounding whitespace", () => {
+  // Reported so the subset measurement can see what adaptive thinking costs.
+  test("reports the thinking tokens the response used", () => {
+    const { thinkingTokens } = extractApiDescriptions(
+      reply(JSON.stringify({ fireball: "A ball of flame." }), {
+        usage: { ...USAGE, output_tokens_details: { thinking_tokens: 640 } },
+      }),
+      ["fireball"],
+      SONNET,
+    );
+    expect(thinkingTokens).toBe(640);
+  });
+
+  // Adaptive thinking puts a thinking block ahead of the answer, so reading
+  // content[0] would work against every fixture and fail against every real call.
+  test("joins the text blocks, ignoring a leading thinking block", () => {
     const { descriptions } = extractApiDescriptions(
-      reply(JSON.stringify({ fireball: "  A ball of flame.\n" })),
+      JSON.stringify({
+        stop_reason: "end_turn",
+        usage: USAGE,
+        content: [
+          { type: "thinking", thinking: "The first icon looks like a flame." },
+          { type: "text", text: '{"fireball":' },
+          { type: "text", text: ' "A ball of flame."}' },
+        ],
+      }),
       ["fireball"],
       SONNET,
     );
     expect(descriptions).toEqual({ fireball: "A ball of flame." });
   });
 
-  test("throws when the payload is an API error", () => {
+  // Silently pricing an unpriceable response at $0 spends real money and reports
+  // none of it.
+  test("throws when the response reports no usage", () => {
     expect(() =>
       extractApiDescriptions(
-        JSON.stringify({ type: "error", error: { message: "credit balance is too low" } }),
+        JSON.stringify({ stop_reason: "end_turn", content: [{ type: "text", text: "{}" }] }),
         ["fireball"],
         SONNET,
       ),
-    ).toThrow(/credit balance is too low/);
+    ).toThrow(/no token usage/);
+  });
+
+  // Everything below the pricing line runs after a billed 200, so the cost has
+  // to survive the throw or the run's total omits it.
+  test("carries the cost of a failed batch out on the error", () => {
+    expect(() =>
+      extractApiDescriptions(reply("I cannot help with that."), ["fireball"], SONNET),
+    ).toThrow(expect.objectContaining({ cost: 0.036 }));
   });
 
   // Truncation leaves valid-looking prose that is invalid JSON; naming it
@@ -75,10 +134,22 @@ describe("extractApiDescriptions", () => {
     ).toThrow(/max_tokens/);
   });
 
+  // A refusal is deterministic for these images, so the ladder would reproduce
+  // it twice at full price.
+  test("does not retry a refusal", () => {
+    expect(() =>
+      extractApiDescriptions(
+        JSON.stringify({ stop_reason: "refusal", content: [], usage: USAGE }),
+        ["fireball"],
+        SONNET,
+      ),
+    ).toThrow(expect.objectContaining({ retryable: false }));
+  });
+
   test("throws when the response carries no text block", () => {
     expect(() =>
       extractApiDescriptions(
-        JSON.stringify({ type: "message", stop_reason: "refusal", content: [] }),
+        JSON.stringify({ stop_reason: "end_turn", content: [], usage: USAGE }),
         ["fireball"],
         SONNET,
       ),
@@ -91,13 +162,10 @@ describe("extractApiDescriptions", () => {
     ).toThrow(/not JSON/);
   });
 
-  test("drops a key that names no requested icon and keeps the rest", () => {
-    const { descriptions } = extractApiDescriptions(
-      reply(JSON.stringify({ fireball: "A ball of flame.", "butter-toads": "Nonsense." })),
-      ["fireball", "butter-toast"],
-      SONNET,
-    );
-    expect(descriptions).toEqual({ fireball: "A ball of flame." });
+  test("throws when the text block is JSON but not an object", () => {
+    expect(() =>
+      extractApiDescriptions(reply('["A ball of flame."]'), ["fireball"], SONNET),
+    ).toThrow(/not a JSON object/);
   });
 });
 
@@ -126,20 +194,36 @@ describe("describeBatchApi", () => {
     return { body: () => seen };
   };
 
+  test("returns the described icons and what they cost", async () => {
+    capture();
+    const result = await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
+
+    expect(result.descriptions).toEqual({ fireball: "A ball.", broadsword: "A sword." });
+    expect(result.cost).toBeCloseTo(0.036, 6);
+  });
+
   // Nothing in an inline image carries its filename, so the label immediately
   // before it is the only thing tying a description back to an icon.
-  test("labels each image with its filename", async () => {
+  test("labels each image with its filename and closes with the prompt", async () => {
     const captured = capture();
     await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
 
     const content = (captured.body().messages as { content: Record<string, unknown>[] }[])[0]
       .content;
-    expect(content.slice(0, 4)).toEqual([
+    expect(content).toEqual([
       { type: "text", text: "fireball.png" },
       { type: "image", source: { type: "base64", media_type: "image/png", data: "AQID" } },
       { type: "text", text: "broadsword.png" },
       { type: "image", source: { type: "base64", media_type: "image/png", data: "BAUG" } },
+      { type: "text", text: expect.stringContaining("fireball.png\nbroadsword.png") },
     ]);
+  });
+
+  test("sends the alias's concrete model id", async () => {
+    const captured = capture();
+    await describeBatchApi(["fireball"], { pngDir, model: "sonnet" });
+
+    expect(captured.body().model).toBe("claude-sonnet-5");
   });
 
   test("constrains the response to the requested icons", async () => {
@@ -147,26 +231,49 @@ describe("describeBatchApi", () => {
     await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
 
     expect(captured.body().output_config).toEqual({
-      format: {
-        type: "json_schema",
-        schema: {
-          type: "object",
-          properties: { fireball: { type: "string" }, broadsword: { type: "string" } },
-          required: ["fireball", "broadsword"],
-          additionalProperties: false,
-        },
-      },
+      format: { type: "json_schema", schema: responseSchema(["fireball", "broadsword"]) },
     });
   });
 
   test("throws with the status when the API returns a non-2xx", async () => {
     server.use(
       http.post("https://api.anthropic.com/v1/messages", () =>
-        HttpResponse.text("upstream overloaded", { status: 529 }),
+        HttpResponse.text("upstream overloaded", { status: 529, headers: { "retry-after": "12" } }),
       ),
     );
-    await expect(describeBatchApi(["fireball"], { pngDir, model: "sonnet" })).rejects.toThrow(
-      /HTTP 529/,
+    await expect(describeBatchApi(["fireball"], { pngDir, model: "sonnet" })).rejects.toMatchObject(
+      {
+        message: expect.stringMatching(/HTTP 529/),
+        fatal: false,
+        retryAfterMs: 12_000,
+      },
     );
+  });
+
+  // A rejected key fails every remaining batch the same way; retrying 138 of
+  // them is 75s of backoff per batch to learn nothing.
+  test("marks an authentication failure fatal", async () => {
+    server.use(
+      http.post("https://api.anthropic.com/v1/messages", () =>
+        HttpResponse.text("invalid x-api-key", { status: 401 }),
+      ),
+    );
+    await expect(describeBatchApi(["fireball"], { pngDir, model: "sonnet" })).rejects.toMatchObject(
+      {
+        fatal: true,
+      },
+    );
+  });
+
+  // Every PNG is read and base64-encoded before the request; discovering the
+  // missing key there would mean doing that work 138 times to no purpose.
+  test("throws without issuing a request when the key is missing", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    await expect(describeBatchApi(["fireball"], { pngDir, model: "sonnet" })).rejects.toThrow(
+      /ANTHROPIC_API_KEY is not set/,
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

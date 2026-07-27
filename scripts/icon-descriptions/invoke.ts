@@ -1,20 +1,14 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { buildPrompt } from "./prompt";
+import { type BatchResult, type DescribeBatch, pickRequested, responseSchema } from "./transport";
 
 const execFileP = promisify(execFile);
 
-export const DEFAULT_MODEL = "sonnet";
 // A timeout yields nothing while still having consumed quota, so cutting off a
 // slow-but-working invocation is a guaranteed loss. Measured mean for a batch
 // of 30 is ~167s; the ceiling is deliberately far above it.
 const INVOKE_TIMEOUT_MS = 600_000;
-
-export type BatchResult = { descriptions: Record<string, string>; cost: number };
-export type DescribeBatch = (
-  names: readonly string[],
-  opts: { pngDir: string; model: string },
-) => Promise<BatchResult>;
 
 type Envelope = {
   is_error?: boolean;
@@ -23,18 +17,6 @@ type Envelope = {
   subtype?: unknown;
   total_cost_usd?: number;
 };
-
-// Naming every requested icon as a required property, with no additional ones
-// allowed, makes a short or renamed response a schema violation the CLI retries
-// on rather than a silent shortfall we would pay to re-invoke later.
-export function responseSchema(names: readonly string[]): Record<string, unknown> {
-  return {
-    type: "object",
-    properties: Object.fromEntries(names.map((name) => [name, { type: "string" }])),
-    required: [...names],
-    additionalProperties: false,
-  };
-}
 
 export function extractDescriptions(stdout: string, requested: readonly string[]): BatchResult {
   let envelope: Envelope;
@@ -57,13 +39,7 @@ export function extractDescriptions(stdout: string, requested: readonly string[]
     );
   }
 
-  const wanted = new Set(requested);
-  const descriptions: Record<string, string> = {};
-  for (const [name, value] of Object.entries(output)) {
-    if (!wanted.has(name) || typeof value !== "string") continue;
-    descriptions[name] = value.trim();
-  }
-  return { descriptions, cost: envelope.total_cost_usd ?? 0 };
+  return { descriptions: pickRequested(output, requested), cost: envelope.total_cost_usd ?? 0 };
 }
 
 // Without this, a missing binary surfaces only after every PNG has been

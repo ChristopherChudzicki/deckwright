@@ -1,33 +1,71 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { BatchResult, DescribeBatch } from "./invoke";
-import { responseSchema } from "./invoke";
 import { buildPrompt } from "./prompt";
+import {
+  type BatchResult,
+  batchFailure,
+  type DescribeBatch,
+  pickRequested,
+  responseSchema,
+} from "./transport";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const REQUEST_TIMEOUT_MS = 600_000;
-const MAX_TOKENS = 8192;
+// A ceiling, not a reservation — unused headroom is not billed. Thinking tokens
+// draw on the same budget as the ~3k tokens of JSON a 30-icon batch emits, so a
+// tight limit buys nothing and truncates the object mid-string.
+const MAX_TOKENS = 32_000;
+
+// Retrying these buys delay and nothing else: a malformed request, a rejected
+// key, or an unknown model fails identically on every attempt.
+const FATAL_STATUSES = new Set([400, 401, 403, 404]);
 
 export type Price = { input: number; output: number };
 
-// The CLI accepts a friendly alias and bills against a subscription; the HTTP
-// API needs a concrete id and bills per token, so each entry has to carry both.
-// Only models with pricing confirmed against the pricing page belong here — a
-// guessed rate would silently misreport the run's spend.
-const MODELS: Record<string, { id: string; price: Price }> = {
-  // Introductory rate through 2026-08-31, after which Sonnet 5 is 3/15.
-  sonnet: { id: "claude-sonnet-5", price: { input: 2, output: 10 } },
+type ModelEntry = {
+  id: string;
+  price: Price;
+  // Introductory rates lapse on a date rather than on a release, so without the
+  // expiry encoded here every run would keep reporting the discounted spend
+  // months after being billed the standard one.
+  intro?: { price: Price; endsOn: string };
 };
 
-export function resolveModel(model: string): { id: string; price: Price } {
+const SONNET: ModelEntry = {
+  id: "claude-sonnet-5",
+  price: { input: 3, output: 15 },
+  intro: { price: { input: 2, output: 10 }, endsOn: "2026-08-31" },
+};
+
+// The CLI takes a friendly alias and bills a subscription; the HTTP API needs a
+// concrete id and bills per token, so both spellings resolve to one entry. Only
+// models whose pricing was confirmed against the pricing page belong here — a
+// guessed rate would report a run's spend as fact while being wrong about it.
+const MODELS: Record<string, ModelEntry> = { sonnet: SONNET, "claude-sonnet-5": SONNET };
+
+export function resolveModel(model: string, on: Date = new Date()): { id: string; price: Price } {
   const entry = MODELS[model];
   if (!entry) {
     throw new Error(
       `--transport api has no pricing for model "${model}"; known: ${Object.keys(MODELS).join(", ")}`,
     );
   }
-  return entry;
+  const { intro } = entry;
+  const price = intro && on <= new Date(`${intro.endsOn}T23:59:59Z`) ? intro.price : entry.price;
+  return { id: entry.id, price };
+}
+
+// Rough, and deliberately labelled as a floor where it is printed: image tokens
+// for one 512px PNG plus a 30-word description, with nothing for thinking.
+const INPUT_TOKENS_PER_ICON = 361;
+const OUTPUT_TOKENS_PER_ICON = 45;
+
+export function estimateCost(icons: number, price: Price): number {
+  return (
+    (icons * (INPUT_TOKENS_PER_ICON * price.input + OUTPUT_TOKENS_PER_ICON * price.output)) /
+    1_000_000
+  );
 }
 
 export function assertApiKey(): string {
@@ -40,14 +78,14 @@ export function assertApiKey(): string {
 
 type ContentBlock = { type?: unknown; text?: unknown };
 type Payload = {
-  type?: unknown;
-  error?: { message?: unknown };
   content?: unknown;
   stop_reason?: unknown;
-  usage?: { input_tokens?: unknown; output_tokens?: unknown };
+  usage?: {
+    input_tokens?: unknown;
+    output_tokens?: unknown;
+    output_tokens_details?: { thinking_tokens?: unknown };
+  };
 };
-
-const asCount = (value: unknown): number => (typeof value === "number" ? value : 0);
 
 export function extractApiDescriptions(
   body: string,
@@ -58,25 +96,43 @@ export function extractApiDescriptions(
   try {
     payload = JSON.parse(body) as Payload;
   } catch {
-    throw new Error(`response body is not JSON: ${body.slice(0, 200)}`);
+    throw batchFailure(`response body is not JSON: ${body.slice(0, 200)}`);
   }
-  if (payload.type === "error") {
-    throw new Error(`API error: ${String(payload.error?.message).slice(0, 300)}`);
+
+  // Priced before anything else can throw. A 200 has already been billed, so
+  // every failure below this line still has to carry its cost out.
+  const { usage } = payload;
+  if (typeof usage?.input_tokens !== "number" || typeof usage.output_tokens !== "number") {
+    throw batchFailure(
+      `response reported no token usage, so its cost is unknown: ${body.slice(0, 200)}`,
+    );
   }
+  const cost = (usage.input_tokens * price.input + usage.output_tokens * price.output) / 1_000_000;
+  const thinking = usage.output_tokens_details?.thinking_tokens;
+  const thinkingTokens = typeof thinking === "number" ? thinking : undefined;
+  const failed = (message: string, extra: { retryable?: boolean } = {}) =>
+    batchFailure(message, { cost, ...extra });
 
   // Truncation cuts the JSON off mid-object. Reporting it as its own failure
   // beats a parse error, because the fix is a smaller batch, not a retry.
   if (payload.stop_reason === "max_tokens") {
-    throw new Error(`response hit max_tokens (${MAX_TOKENS}) before closing the JSON object`);
+    throw failed(`response hit max_tokens (${MAX_TOKENS}) before closing the JSON object`);
+  }
+  // A refusal is a decision about these exact images, so the retry ladder would
+  // reproduce it twice at full price.
+  if (payload.stop_reason === "refusal") {
+    throw failed("the model declined to describe this batch", { retryable: false });
   }
 
+  // Adaptive thinking emits a thinking block ahead of the answer, so the JSON is
+  // the joined text blocks rather than content[0].
   const blocks: ContentBlock[] = Array.isArray(payload.content) ? payload.content : [];
   const text = blocks
     .filter((block) => block.type === "text" && typeof block.text === "string")
     .map((block) => block.text as string)
     .join("");
   if (!text) {
-    throw new Error(
+    throw failed(
       `response carried no text block (stop_reason ${String(payload.stop_reason)}): ` +
         `${body.slice(0, 200)}`,
     );
@@ -86,24 +142,13 @@ export function extractApiDescriptions(
   try {
     output = JSON.parse(text);
   } catch {
-    throw new Error(`text block is not JSON: ${text.slice(0, 200)}`);
+    throw failed(`text block is not JSON: ${text.slice(0, 200)}`);
   }
   if (typeof output !== "object" || output === null || Array.isArray(output)) {
-    throw new Error(`text block is not a JSON object: ${text.slice(0, 200)}`);
+    throw failed(`text block is not a JSON object: ${text.slice(0, 200)}`);
   }
 
-  const wanted = new Set(requested);
-  const descriptions: Record<string, string> = {};
-  for (const [name, value] of Object.entries(output)) {
-    if (!wanted.has(name) || typeof value !== "string") continue;
-    descriptions[name] = value.trim();
-  }
-
-  const cost =
-    (asCount(payload.usage?.input_tokens) * price.input +
-      asCount(payload.usage?.output_tokens) * price.output) /
-    1_000_000;
-  return { descriptions, cost };
+  return { descriptions: pickRequested(output, requested), cost, thinkingTokens };
 }
 
 // The CLI reads the PNGs itself, so the pinned prompt names files rather than
@@ -124,21 +169,30 @@ async function buildContent(names: readonly string[], pngDir: string): Promise<u
   return content;
 }
 
+// `retry-after` is in seconds, and on a 429 it is the server stating exactly
+// what the fixed backoff ladder was guessing at.
+function retryAfterMs(headers: Headers): number | undefined {
+  const seconds = Number(headers.get("retry-after"));
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1_000 : undefined;
+}
+
 export const describeBatchApi: DescribeBatch = async (names, { pngDir, model }) => {
   const { id, price } = resolveModel(model);
+  const key = assertApiKey();
   const response = await fetch(API_URL, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": assertApiKey(),
+      "x-api-key": key,
       "anthropic-version": API_VERSION,
     },
     body: JSON.stringify({
       model: id,
       max_tokens: MAX_TOKENS,
       messages: [{ role: "user", content: await buildContent(names, pngDir) }],
-      // Constrained decoding, so a short or renamed response is impossible
-      // rather than a shortfall we would pay to close in a later run.
+      // Constrained decoding pins the key set and the value types. It does not
+      // pin content — structured outputs reject `minLength`, so an empty string
+      // is schema-valid — which is why validateEntry still gates every entry.
       output_config: { format: { type: "json_schema", schema: responseSchema(names) } },
     }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -146,7 +200,10 @@ export const describeBatchApi: DescribeBatch = async (names, { pngDir, model }) 
 
   const body = await response.text();
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status} ${response.statusText}: ${body.slice(0, 300)}`);
+    throw batchFailure(`HTTP ${response.status} ${response.statusText}: ${body.slice(0, 300)}`, {
+      fatal: FATAL_STATUSES.has(response.status),
+      retryAfterMs: retryAfterMs(response.headers),
+    });
   }
   return extractApiDescriptions(body, names, price);
 };

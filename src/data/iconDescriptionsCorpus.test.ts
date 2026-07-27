@@ -14,15 +14,11 @@ const describableIcons = async () => {
 };
 
 describe("the shipped description corpus", () => {
-  test("every generated entry passes the same validators the run applies", () => {
-    const problems = Object.entries(base).flatMap(
-      ([name, description]) => validateEntry(name, description) ?? [],
-    );
-    expect(problems).toEqual([]);
-  });
-
-  test("every override passes them too", () => {
-    const problems = Object.entries(overrides).flatMap(
+  test.each([
+    ["generated", base],
+    ["hand-written override", overrides],
+  ])("every %s entry passes the same validators the run applies", (_label, entries) => {
+    const problems = Object.entries(entries).flatMap(
       ([name, description]) => validateEntry(name, description) ?? [],
     );
     expect(problems).toEqual([]);

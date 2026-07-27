@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
-import type { DescribeBatch } from "./invoke";
 import { runBatches } from "./run";
+import { batchFailure, type DescribeBatch } from "./transport";
 
 const ok = (names: readonly string[]): Record<string, string> =>
   Object.fromEntries(names.map((n) => [n, `A drawing of a ${n}.`]));
@@ -161,6 +161,64 @@ describe("runBatches", () => {
 
     expect(result.aborted).toBe(false);
     expect(result.failedBatches).toBe(4);
+  });
+
+  // An HTTP 200 is billed whether or not anything usable came back, so a run
+  // that only counts successes under-reports what it spent.
+  test("charges the cost a failing batch carries out on its error", async () => {
+    const describeBatch = vi
+      .fn<DescribeBatch>()
+      .mockRejectedValue(batchFailure("truncated", { cost: 0.04 }));
+    const result = await run([["a"]], describeBatch).promise;
+
+    expect(result.totalCost).toBeCloseTo(0.12);
+  });
+
+  // Without this a revoked key at batch 3 of 138 spends 9 requests and 75s of
+  // backoff per batch discovering that it is still revoked.
+  test("aborts the whole run on a fatal failure without retrying", async () => {
+    const describeBatch = vi
+      .fn<DescribeBatch>()
+      .mockRejectedValue(batchFailure("HTTP 401", { fatal: true }));
+    const result = await run([["a"], ["b"]], describeBatch).promise;
+
+    expect(describeBatch).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ aborted: true, failedBatches: 1 });
+  });
+
+  test("gives up on an unretryable failure but continues to the next batch", async () => {
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
+      if (names[0] === "a") throw batchFailure("refused", { retryable: false });
+      return { descriptions: ok(names), cost: 0 };
+    });
+    const { promise, accepted } = run([["a"], ["b"]], describeBatch);
+    const result = await promise;
+
+    expect(describeBatch).toHaveBeenCalledTimes(2);
+    expect(accepted).toEqual({ b: "A drawing of a b." });
+    expect(result).toMatchObject({ failedBatches: 1, aborted: false });
+  });
+
+  // The fixed ladder is a guess; a 429 tells us the real answer.
+  test("prefers the server's retry-after over the backoff ladder", async () => {
+    const sleep = vi.fn<(ms: number) => Promise<void>>(async () => {});
+    const describeBatch = vi
+      .fn<DescribeBatch>()
+      .mockRejectedValue(batchFailure("rate limited", { retryAfterMs: 3_000 }));
+    await run([["a"]], describeBatch, { sleep }).promise;
+
+    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([3_000, 3_000]);
+  });
+
+  test("stops once spend reaches the cost ceiling", async () => {
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
+      descriptions: ok(names),
+      cost: 0.4,
+    }));
+    const result = await run([["a"], ["b"], ["c"]], describeBatch, { maxCost: 0.5 }).promise;
+
+    expect(describeBatch).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ described: 2, aborted: true });
   });
 
   test("a batch whose entries all fail validation counts as a failure, and is still paid for", async () => {

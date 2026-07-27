@@ -265,6 +265,7 @@ Arguments via `node:util parseArgs`.
 | `--model <name>` | `sonnet` | the measurements are Sonnet-specific; the flag exists to re-run the comparison, not for routine use |
 | `--size <n>` | 512 | render resolution; changing it invalidates the whole PNG cache |
 | `--transport <cli\|api>` | `cli` | which back end runs the batch — see "Transports" |
+| `--max-cost <usd>` | none | stop once the running total reaches this ceiling, checked after every batch |
 
 **Selection pipeline, in order:** all 4,134 → seeded shuffle → `--only` filter →
 drop already-described (unless `--force`/`--only`) → `--limit` truncate → chunk
@@ -276,6 +277,20 @@ recompose them.
 cannot destroy prior work. It is explicitly non-resumable: a restarted `--force`
 run re-describes from scratch, at full cost. Pair it with `--only` for bounded
 re-runs.
+
+### Spend rails
+
+Three, and only under `--transport api`, where a mistake costs money rather than
+quota that refills:
+
+1. **Bare `--force` is refused.** Unscoped it re-describes all 4,134 icons, one
+   keystroke away from the scoped re-run that was almost certainly meant. It has
+   to be qualified by `--only` or `--limit`.
+2. **`--max-cost <usd>`** stops the run after the batch that crosses the ceiling.
+   Everything accepted so far is already on disk, so a stopped run resumes.
+3. **A cost estimate prints before the first request**, from the icon count and
+   the resolved price. It is labelled a floor: it counts image and text tokens
+   and nothing for thinking.
 
 **Invocations are sequential.** Concurrency is out of scope: the write design
 ("read existing, merge, atomic rename") is a lost-update race under concurrent
@@ -289,9 +304,10 @@ limiting never engages.
 ## Transports
 
 Both transports implement one seam — `DescribeBatch`, in
-`scripts/icon-descriptions/invoke.ts` — so `runBatches` is unaware of which is in
-play. They send the same images under the same prompt with the same schema, and
-differ only in delivery and billing.
+`scripts/icon-descriptions/transport.ts`, alongside the schema builder, the
+response filter, and the failure type they share — so `runBatches` is unaware of
+which is in play. They send the same images under the same prompt with the same
+schema, and differ only in delivery and billing.
 
 **Shared contract.** Model pinned in a script constant, not inherited from
 operator config; the measurements below are Sonnet-specific. The literal prompt
@@ -334,9 +350,20 @@ nothing carries a filename, so **each inline image is preceded by a text block
 naming it** — that label, not position, is what ties a description back to an
 icon. `prompt.ts` is untouched.
 
-Cost is computed from `usage` against a per-model price table. Only models with
-confirmed pricing are accepted: a guessed rate would report a run's spend as fact
-while being wrong about it, which is worse than refusing the model.
+Cost is computed from `usage` against a per-model price table, keyed by both the
+friendly alias and the concrete model id. Only models with confirmed pricing are
+accepted: a guessed rate would report a run's spend as fact while being wrong
+about it, which is worse than refusing the model. An introductory rate carries
+its own expiry date, so a run after it lapses prices at the standard rate rather
+than under-reporting by a third. A response that reports no `usage` is a failure
+for the same reason — real money spent, none of it accounted for.
+
+`max_tokens` is a ceiling, not a reservation, and unused headroom is not billed.
+Thinking tokens draw on the same budget as the ~3k tokens of JSON a 30-icon batch
+emits, so it is set at 32,000: a tight limit saves nothing and truncates the
+object mid-string. Where the response reports `thinking_tokens`, the per-batch
+log line carries it, which is what makes the cost of adaptive thinking
+measurable.
 
 **Why it exists:** roughly 91% of the CLI transport's tokens are agent
 scaffolding rather than images. Purchasable usage credits bill the CLI path at
@@ -352,10 +379,25 @@ Distinguish three cases, because they need different handling:
 | transport error (non-zero exit, timeout, non-2xx, rate limit) | retry up to 2× with backoff (5s, 20s), then log and skip |
 | response unparseable, or parseable but carrying no valid entry | **retry** on the same path, then log and skip |
 | individual entry fails per-entry validation | drop **that entry**, keep the rest of the batch |
+| HTTP 400/401/403/404 | **fatal** — abort the run without retrying |
+| `stop_reason: "refusal"` | skip the batch without retrying; continue to the next |
 
 Nothing failed is written, so failures are simply still-missing keys that the
 next run picks up. That is the same mechanism as resume — no separate
 bookkeeping.
+
+The last two rows exist because the backoff ladder assumes a transient fault. A
+rejected key or a malformed request fails identically on every attempt, and would
+otherwise spend 9 requests and 75 seconds *per batch* — for 138 batches —
+confirming it; a refusal is a decision about those exact images, so retrying
+reproduces it twice at full price. Where a 429 or 529 carries `retry-after`, that
+value is preferred over the fixed ladder.
+
+**A failed batch still carries its cost.** An HTTP 200 is billed whether or not
+anything usable came back, so `usage` is priced before any other check can throw
+and the resulting cost rides out on the error for `runBatches` to add to the
+total. Without that, truncation and unparseable responses spend real money the
+run reports as $0.
 
 An unparseable response retries rather than skipping, reversing an earlier draft.
 Skipping treats a malformed reply as terminal when it is usually transient, and
@@ -695,14 +737,24 @@ That seam is also what let the API transport be added without touching
   resume packs survivors into full batches rather than preserving whole-collection
   boundaries.
 - **Response parsing, `cli`:** the `--output-format json` envelope is unwrapped
-  correctly; a success envelope carrying no `structured_output` is a failure; a
-  non-string value and a key naming no requested icon are each rejected.
+  correctly; a success envelope carrying no `structured_output` is a failure.
+- **Response filtering (shared):** a non-string value and a key naming no
+  requested icon are each rejected, and surrounding whitespace is trimmed. Tested
+  once against `pickRequested`, which both transports call.
 - **Response parsing, `api`:** the JSON text block is read and `usage` is priced;
-  an error payload, a `max_tokens` truncation, and a missing text block each
-  throw; a non-2xx surfaces its status.
+  the text blocks are joined past a leading thinking block; a `max_tokens`
+  truncation, a refusal, a missing text block, a non-object body, and absent
+  `usage` each throw, and each carries the batch's cost out on the error.
+- **Pricing:** the alias and the concrete model id resolve to the same entry at
+  the **exact** published rate, and the standard rate applies once the
+  introductory period ends. Pinning the rate is what stops a zeroed price table
+  from passing while the run prints $0.00 against real charges.
 - **Request shape, `api`:** every image is preceded by a text block naming its
-  file, and the request carries the response schema. Both are asserted through
-  MSW rather than by mocking `fetch`.
+  file, the prompt closes the array, and the request carries the resolved model
+  id and the response schema. Asserted through MSW rather than by mocking
+  `fetch`.
+- **Spend safety:** a missing key throws before any request is issued; a fatal
+  status aborts the run without retrying; `--max-cost` stops the run.
 - **Partial acceptance:** a batch with one bad entry writes the other 29.
 - **Merge semantics:** writing batch 2 does not drop batch 1; output keys are
   sorted. (Real atomicity is not unit-testable and should not be attempted.)
