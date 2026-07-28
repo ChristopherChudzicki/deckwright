@@ -1,18 +1,27 @@
 # Icon descriptions
 
-Generates a one-sentence description for each of the 4,134 icons in the `@iconify-json/game-icons` collection, by showing the rendered PNG to a Claude model. Output lands in `src/data/iconDescriptions/corpus.json`; the app reads it through `src/data/iconDescriptions/load.ts`, which merges `overrides.json` over it at read time.
+Generates a one-sentence description for each of the 4,134 icons in the `@iconify-json/game-icons` collection, by showing the rendered PNG to a Claude model.
 
-Entry point: `npm run gen:icon-descriptions -- <flags>` (`scripts/gen-icon-descriptions.ts`).
+Entry point: `npm run gen:icon-descriptions -- <flags>` (`scripts/gen-icon-descriptions.ts`). `--help` prints the flags; this file explains them.
 
 The design doc — `docs/superpowers/specs/2026-07-25-icon-descriptions-design.md` — records how the decisions were reached. This file is what you need to run the thing; prefer it.
+
+## Two corpora, and which is which
+
+A run writes to a **workbench** corpus at `corpus/<model>.json` — gitignored, one file per model, the default `--out`. Nothing a run does touches what ships.
+
+What ships is `src/data/iconDescriptions/corpus.json`, read through `src/data/iconDescriptions/load.ts`, which merges `overrides.json` over it. A workbench corpus becomes the shipped one only when you copy it there, deliberately, after curating.
+
+The split exists because the shipped file is a flat name-to-description map with no per-entry provenance. That is right for the app — which never needs to know who wrote a description — and fatal for an experiment, since two models merged into one file are indistinguishable afterwards from either alone. Deriving the default path from `--model` makes that unrepresentable rather than merely refused.
 
 ## Quick start
 
 ```sh
 # Describe 10 undescribed icons on the subscription CLI. Costs no money.
+# Lands in corpus/claude-sonnet-5.json, not in the shipped corpus.
 npm run gen:icon-descriptions -- --limit 10
 
-# Score whatever is in the corpus — regex heuristics for style words, associations
+# Score the shipped corpus — regex heuristics for style words, associations
 # that restate the subject, and entries echoing the icon name. Calls no model.
 npm run gen:icon-descriptions -- --validate
 
@@ -20,7 +29,7 @@ npm run gen:icon-descriptions -- --validate
 $EDITOR src/data/iconDescriptions/overrides.json
 ```
 
-Nothing needs a flag to be safe: the default transport spends subscription quota rather than money, and the default selection skips every icon already described.
+Nothing needs a flag to be safe: the default transport spends subscription quota rather than money, the default selection skips every icon already described, and the default destination is a workbench file.
 
 ## How a run works
 
@@ -37,18 +46,22 @@ Steps 1 and 4 are what make a run resumable: re-running after any failure picks 
 |---|---|---|
 | `--transport <cli\|api\|batch>` | `cli` | see below |
 | `--model <sonnet\|opus>` | `sonnet` | also accepts the concrete id (`claude-sonnet-5`) |
-| `--out <path>` | `src/data/iconDescriptions/corpus.json` | which corpus to read for selection and write into. Resolved against your shell, not the script |
+| `--out <path>` | `corpus/<model>.json` | which corpus to read for selection and write into. Resolved against your shell, not the script |
 | `--limit <n>` | — | describe at most n icons |
 | `--only <name>` | — | describe exactly these; repeatable |
 | `--force` | off | re-describe icons that already have entries |
 | `--batch-size <n>` | 30 | icons per request |
 | `--size <px>` | 512 | PNG render size |
 | `--max-cost <usd>` | — | spend ceiling |
-| `--validate` | — | score a corpus; writes nothing. Accepts `--out` |
+| `--validate` | — | score a corpus; writes nothing. Defaults `--out` to the shipped corpus |
 | `--fetch <batch-id>` | — | collect a submitted batch. Takes no other flags |
-| `-h`, `--help` | — | print this table as a usage message |
+| `-h`, `--help` | — | print the flags |
 
-`--validate` and `--fetch` are exclusive modes and refuse conflicting flags rather than ignoring them.
+`--out` is the one flag whose default depends on the mode: a run writes to the workbench, and `--validate` reads what ships. The model in `corpus/<model>.json` is the canonical id, so `--model opus` and `--model claude-opus-5` name the same file.
+
+`--validate` and `--fetch` are exclusive modes and refuse conflicting flags rather than ignoring them. A flag left at its default is not a conflict — only one you actually passed.
+
+Parsing, coercion, and `--help` come from `commander` (`cli.ts`). The exclusivity check is hand-written rather than commander's `.conflicts()`, which reports one offending pair at a time; here one message names them all.
 
 ## Transports
 
@@ -64,17 +77,17 @@ Steps 1 and 4 are what make a run resumable: re-running after any failure picks 
 
 ## Spend rails
 
-A **rail** is a pre-flight refusal: it stops the run with a message and a non-zero exit *before* anything is billed. Not error handling — nothing is recovering from a failure. There are five.
+A **rail** stops a run *before* anything is billed. Not error handling — nothing is recovering from a failure. There are five, and one of them asks rather than refuses.
 
-1. **Bare `--force` on a paid transport** is refused. Re-describing all 4,134 icons is one keystroke from a scoped re-run, so the scope must be explicit (`--only` or `--limit`).
+1. **Bare `--force` on a paid transport asks for confirmation.** Re-describing every already-described icon is one keystroke from a scoped re-run, so it is worth a question — but it is a thing an operator may genuinely mean, and the answer is a number they can see on a bill afterwards. The prompt comes after the count and the floor estimate are printed and before any PNG is rendered, so the question carries the figures it is about. **With no TTY it refuses**: an unanswerable prompt fails closed, because readline resolves immediately on EOF and treating that as consent would approve a spend nobody saw.
 2. **`--max-cost <usd>`** aborts a synchronous run partway once the running total reaches the ceiling.
 3. **A floor estimate is printed before every paid run**, and under `batch` the run refuses to submit if the estimate already exceeds `--max-cost`. A batch is billed only when its results come back, so refusing to submit is the only guarantee available there.
 4. **An uncollected batch blocks further runs against the same corpus.** Selection reads the corpus, which an in-flight batch has not written to yet, so running again re-describes and re-pays for the same icons. Scoped per corpus and checked on *every* transport, since the hazard belongs to the corpus.
 5. **A corpus records the model that wrote it** (a `<corpus>.model` sidecar) and refuses a write from a different one.
 
-Rails 1–3 guard money. Rails 4 and 5 guard something worse: a corpus holding two models' output is indistinguishable afterwards from one holding either, which silently voids the whole reason to generate twice.
+Rails 1–3 guard money. Rails 4 and 5 guard something worse, and that is why they refuse instead of asking: a corpus holding two models' output is indistinguishable afterwards from one holding either, so "are you sure?" would be asking an operator to approve a result they cannot inspect later to find out whether they were right. Both are also trivially satisfiable — collect the batch, or name a different `--out`. Since `--out` now defaults to `corpus/<model>.json`, rail 5 should only ever fire on an explicit `--out` that names another model's file.
 
-**Dry run.** `--max-cost 0.01` prints the selection and the estimate and exits 2 before rendering anything or calling anything. Use it to see what a run would do.
+**Dry run — `--transport batch` only.** `--transport batch --max-cost 0.01` prints the selection and the estimate and exits 2 before rendering anything or calling anything, because rail 3 refuses to submit above the ceiling. **The same flags under `api` are not a dry run**: there the ceiling is a running total (rail 2), so a run whose estimate fits under it describes the icons and bills for them. Under `cli` there is no price and no ceiling at all.
 
 ## Validation
 
@@ -141,25 +154,29 @@ The positive exemplars still name real icons, and they echo by the same mechanis
 
 Two independently generated corpora, cross-checked, is how a wrong description gets caught without a human looking at 4,134 icons.
 
+Each arm writes to its own workbench file without being told to, since `--out` defaults to `corpus/<model>.json`.
+
 ```sh
 # 1. Dry run each arm. Prints selection + estimate, spends nothing, exits 2.
-npm run gen:icon-descriptions -- --transport batch --out corpus/sonnet.json --model sonnet --max-cost 0.01
-npm run gen:icon-descriptions -- --transport batch --out corpus/opus.json  --model opus   --max-cost 0.01
+npm run gen:icon-descriptions -- --transport batch --model sonnet --max-cost 0.01
+npm run gen:icon-descriptions -- --transport batch --model opus   --max-cost 0.01
 
-# 2. Submit both. Separate --out, so rail 4 lets them fly at once.
-npm run gen:icon-descriptions -- --transport batch --out corpus/sonnet.json --model sonnet
-npm run gen:icon-descriptions -- --transport batch --out corpus/opus.json  --model opus
+# 2. Submit both. Different corpora, so rail 4 lets them fly at once.
+npm run gen:icon-descriptions -- --transport batch --model sonnet
+npm run gen:icon-descriptions -- --transport batch --model opus
 
 # 3. Collect, hours later. --fetch takes no --out; the record carries it.
 npm run gen:icon-descriptions -- --fetch <sonnet-batch-id>
 npm run gen:icon-descriptions -- --fetch <opus-batch-id>
 
 # 4. Score each arm.
-npm run gen:icon-descriptions -- --validate --out corpus/sonnet.json
-npm run gen:icon-descriptions -- --validate --out corpus/opus.json
+npm run gen:icon-descriptions -- --validate --out corpus/claude-sonnet-5.json
+npm run gen:icon-descriptions -- --validate --out corpus/claude-opus-5.json
 ```
 
-Then curate: diff the two corpora, and review the disagreements against the image. Promote the winner into `src/data/iconDescriptions/corpus.json` and delete its `.model` sidecar rather than committing it.
+Then curate: diff the two corpora, and review the disagreements against the image. Copy the winner to `src/data/iconDescriptions/corpus.json` — the promotion is a deliberate act, not something a run does — and leave its `.model` sidecar behind rather than committing it.
+
+Where the loser won on a particular icon, that description goes in `overrides.json`, which merges over the corpus at read time. That is the curation output, and it is why the shipped corpus needs no per-entry provenance: a picked description belongs to the curator, not to the model that drafted it.
 
 **Pilot the prompt before spending on step 2.** A revised prompt that has never been run is the single largest uncertainty in this pipeline, and a prompt change after a run costs a full regeneration:
 
@@ -193,15 +210,17 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 ## Known gaps
 
 - **The n=100 paired audit was measured out of band.** The claim that no icon had both models wrong (23 had at least one error; in 21 of those the other model was accurate) has no artifact in this repo and cannot be re-derived from it. Given the 67% self-agreement finding, treat it as an indication, not a result.
-- **Rail 5 is inert on the shipped corpus.** `<corpus>.model` sidecars are gitignored and deleted on promotion, so `src/data/iconDescriptions/corpus.json` carries no model stamp and the first write to it is accepted whatever the model. Exposure is one run.
+- **Rail 5 is inert on the shipped corpus.** `<corpus>.model` sidecars are gitignored and not carried across on promotion, so `src/data/iconDescriptions/corpus.json` carries no model stamp and the first write to it is accepted whatever the model. Exposure is one run, and now only reachable by pointing `--out` at the shipped corpus on purpose.
 - **`IconDebugView` is the only review surface**, and it shows only the rule icons it happens to have descriptions for, silently, in one column. Curation needs a row per rule icon with an explicit empty state and more than one description column.
-- **`gen-icon-descriptions.ts` has no tests** and holds every rail. Extracting an args→plan function would make them testable.
+- **The rails themselves have no tests.** `cli.ts` covers parsing, coercion, and mode exclusivity, but the five rails still live in `gen-icon-descriptions.ts` top-level code that only runs as a script. Extracting an args→plan function would reach them.
 
 ## Files
 
 | | |
 |---|---|
-| `../gen-icon-descriptions.ts` | entry point: flags, rails, mode dispatch |
+| `../gen-icon-descriptions.ts` | entry point: rails, mode dispatch |
+| `cli.ts` | flag definitions, coercion, mode exclusivity, corpus path defaults |
+| `confirm.ts` | y/N prompt; false when there is no TTY |
 | `prompt.ts` | the prompt. See above before editing |
 | `selection.ts` | corpus → what to describe, batched |
 | `rasterize.ts` | icon → cached PNG |
