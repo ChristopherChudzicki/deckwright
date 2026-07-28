@@ -260,7 +260,7 @@ file kept outside the readable directory.
 ## Script interface
 
 `scripts/gen-icon-descriptions.ts`, wired as `npm run gen:icon-descriptions`.
-Arguments via `node:util parseArgs`.
+Arguments via `commander` (`scripts/icon-descriptions/cli.ts`).
 
 | flag | default | effect |
 |---|---|---|
@@ -271,7 +271,7 @@ Arguments via `node:util parseArgs`.
 | `--fetch <batch-id>` | none | collect a batch submitted earlier by `--transport batch` and exit; exclusive, for the same reason as `--validate` |
 | `--limit <n>` | none | truncate the selection to n icons, for smoke-testing |
 | `--model <name>` | `sonnet` | the measurements are Sonnet-specific; the flag exists to re-run the comparison, not for routine use |
-| `--out <path>` | `src/data/iconDescriptions/corpus.json` | which corpus to read for selection and write results into; resolved against the invocation, not the script. Accepted by `--validate`; refused by `--fetch` |
+| `--out <path>` | `corpus/<model>.json` | which corpus to read for selection and write results into; resolved against the invocation, not the script. Accepted by `--validate`; refused by `--fetch` |
 | `--size <n>` | 512 | render resolution; changing it invalidates the whole PNG cache |
 | `--transport <cli\|api\|batch>` | `cli` | which back end runs the batch — see "Transports" |
 | `--max-cost <usd>` | none | under `cli`/`api`, stop once the running total reaches this ceiling, checked after every batch; under `batch`, refuse to submit when the estimate already exceeds it |
@@ -309,6 +309,14 @@ needs no `--force` at all — **rail 1 stops being an obstacle without being
 weakened** — and it resumes correctly after a crash, and it cannot touch the
 first model's corpus.
 
+The default carries this the rest of the way: `--out` defaults to
+`corpus/<canonical-model>.json`, so the fresh path is what you get by saying
+nothing, and the three failures above need an explicit flag to reach. Keying on
+the canonical id rather than the alias keeps `--model opus` and
+`--model claude-opus-5` from opening two files that each believe they hold one
+model's output. A run therefore never writes to the corpus that ships; promotion
+is a separate, deliberate copy.
+
 `--fetch` takes no `--out`. The path is written into the batch record at submit,
 beside `model` and `price`, which are frozen there for the same reason: a batch
 collected hours later must land where the submit intended, not where a flag
@@ -336,10 +344,11 @@ Run from the repo root, with `ANTHROPIC_API_KEY` exported.
 descriptions come from one `INSTRUCTIONS` string, and changing it afterwards
 means paying again. `npm test` pins it in full, in both transport wordings.
 
-The 418 entries currently in `src/data/iconDescriptions/corpus.json` were generated
-under the pre-2026-07-27 prompt and are consistent with neither arm. They are not
-an input to this process; the runbook's fresh `--out` files start empty by
-design, and what happens to the shipped file is step 7.
+The 418 entries that used to sit in `src/data/iconDescriptions/corpus.json` were
+generated under the pre-2026-07-27 prompt and are consistent with neither arm.
+They were retired rather than carried forward — the shipped corpus is now empty,
+and a run's workbench file starts empty by design. What happens to the shipped
+file is step 7.
 
 **2. Dry-run the selection for both arms.** `--max-cost 0.01` refuses to submit
 while printing what would be sent, so this costs nothing:

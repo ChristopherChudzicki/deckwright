@@ -75,9 +75,11 @@ Parsing, coercion, and `--help` come from `commander` (`cli.ts`). The exclusivit
 
 `batch` is asynchronous: submitting writes a record to `.icon-cache/batches/` and exits. Collect it later with `--fetch <id>`. Results are retained **29 days** from submission. Results come back in arbitrary order, which is why the record file — not the response — is the authority on which icon a description belongs to. Errored, canceled and expired requests are not billed.
 
+A batch is capped at 100,000 requests **or 256 MB, whichever comes first**, and an oversized submit returns 413 `request_too_large`. A full arm is 138 requests carrying the whole 79 MB PNG cache, which base64 inflates to roughly 105 MB — comfortably inside the cap, but the margin is a factor of two, not a factor of ten. Raising `--size` above 512 px would eat it.
+
 ## Spend rails
 
-A **rail** stops a run *before* anything is billed. Not error handling — nothing is recovering from a failure. There are five, and one of them asks rather than refuses.
+A **rail** keeps a run from spending more than you meant it to. Not error handling — nothing is recovering from a failure. Four of the five act pre-flight, before anything is billed; rail 2 is the exception and aborts partway through a real spend. One asks rather than refuses.
 
 1. **Bare `--force` on a paid transport asks for confirmation.** Re-describing every already-described icon is one keystroke from a scoped re-run, so it is worth a question — but it is a thing an operator may genuinely mean, and the answer is a number they can see on a bill afterwards. The prompt comes after the count and the floor estimate are printed and before any PNG is rendered, so the question carries the figures it is about. **With no TTY it refuses**: an unanswerable prompt fails closed, because readline resolves immediately on EOF and treating that as consent would approve a spend nobody saw.
 2. **`--max-cost <usd>`** aborts a synchronous run partway once the running total reaches the ceiling.
@@ -185,7 +187,7 @@ npm run gen:icon-descriptions -- --out corpus/pilot.json --limit 60
 npm run gen:icon-descriptions -- --validate --out corpus/pilot.json
 ```
 
-Pilot on whichever transport produced the baseline you are scoring against, since `cli` and `api` send different image-source wording and you want the instructions to be the only thing that moved. The recorded baseline below is `cli`, which is the one reason to reach for `cli` over `api` here. Either way the selection is a seeded shuffle, so the same `--limit` reaches the same icons and the comparison comes out paired for free.
+Pilot on whichever transport produced the baseline you are scoring against, since `cli` and `api` send different image-source wording and you want the instructions to be the only thing that moved. The recorded baseline under "Validation" above is `cli`, which is the one reason to reach for `cli` over `api` here. Either way the selection is a seeded shuffle, so the same `--limit` reaches the same icons and the comparison comes out paired for free.
 
 ### What the cross-check cannot catch
 
