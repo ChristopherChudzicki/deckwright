@@ -44,7 +44,7 @@ Add the association only when it carries meaning the image does not already give
 - "A downward arrow above a horizontal bar, the standard sign for saving or downloading."
 - "A laurel-crowned head in profile, in the manner of a Roman emperor and a mark of victory."
 
-Omit it when it only restates the subject. These patterns are wrong however the blanks are filled and however the clause is introduced:
+Omit the association when it only restates the subject. These patterns are wrong however the blanks are filled and however the clause is introduced:
 - "A <tool>, symbolizing <the activity that tool performs>."
 - "A <piece of equipment>, representing <the game or sport it belongs to>."
 - "A <object>, evoking <what that object is plainly used for>."
