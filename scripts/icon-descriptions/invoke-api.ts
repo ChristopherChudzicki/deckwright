@@ -51,16 +51,40 @@ const MODELS: Record<string, ModelEntry> = {
   "claude-opus-5": OPUS,
 };
 
+// The alias and the concrete id name one model, so a corpus stamped under one
+// must not read as a different model under the other. A model with no price
+// table entry is legal under `cli`, which bills no tokens, and keeps its name.
+export function canonicalModel(model: string): string {
+  return MODELS[model]?.id ?? model;
+}
+
 export function resolveModel(model: string, on: Date = new Date()): { id: string; price: Price } {
   const entry = MODELS[model];
   if (!entry) {
-    throw new Error(
-      `--transport api has no pricing for model "${model}"; known: ${Object.keys(MODELS).join(", ")}`,
-    );
+    throw new Error(`no pricing for model "${model}"; known: ${Object.keys(MODELS).join(", ")}`);
   }
   const { intro } = entry;
   const price = intro && on <= new Date(`${intro.endsOn}T23:59:59Z`) ? intro.price : entry.price;
   return { id: entry.id, price };
+}
+
+// The Batch API charges half the standard rate on both axes, in exchange for
+// asynchronous processing.
+export function batchPrice(price: Price): Price {
+  return { input: price.input / 2, output: price.output / 2 };
+}
+
+// The rate a run will actually be billed at. Halving under the wrong transport
+// misreports every run's spend by 2× in one direction or the other, and nothing
+// downstream can catch it, so the branch is resolved here where it is testable
+// rather than inline at the call site.
+export function pricingFor(
+  model: string,
+  transport: string,
+  on?: Date,
+): { id: string; price: Price } {
+  const resolved = resolveModel(model, on);
+  return transport === "batch" ? { ...resolved, price: batchPrice(resolved.price) } : resolved;
 }
 
 // Rough, and deliberately labelled as a floor where it is printed: image tokens
@@ -78,7 +102,7 @@ export function estimateCost(icons: number, price: Price): number {
 export function assertApiKey(): string {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
-    throw new Error("ANTHROPIC_API_KEY is not set — export a key, or pass --transport cli.");
+    throw new Error("ANTHROPIC_API_KEY is not set — export a key. The cli transport needs none.");
   }
   return key;
 }
@@ -99,20 +123,30 @@ export function extractApiDescriptions(
   requested: readonly string[],
   price: Price,
 ): BatchResult {
-  let payload: Payload;
+  let payload: unknown;
   try {
-    payload = JSON.parse(body) as Payload;
+    payload = JSON.parse(body);
   } catch {
     throw batchFailure(`response body is not JSON: ${body.slice(0, 200)}`);
   }
+  return extractMessage(payload, requested, price);
+}
+
+// Takes a parsed message rather than a response body, because the Batch API
+// delivers the same object nested inside a JSONL result line.
+export function extractMessage(
+  message: unknown,
+  requested: readonly string[],
+  price: Price,
+): BatchResult {
+  const payload = (message ?? {}) as Payload;
+  const snippet = () => JSON.stringify(message)?.slice(0, 200);
 
   // Priced before anything else can throw. A 200 has already been billed, so
   // every failure below this line still has to carry its cost out.
   const { usage } = payload;
   if (typeof usage?.input_tokens !== "number" || typeof usage.output_tokens !== "number") {
-    throw batchFailure(
-      `response reported no token usage, so its cost is unknown: ${body.slice(0, 200)}`,
-    );
+    throw batchFailure(`response reported no token usage, so its cost is unknown: ${snippet()}`);
   }
   const cost = (usage.input_tokens * price.input + usage.output_tokens * price.output) / 1_000_000;
   const thinking = usage.output_tokens_details?.thinking_tokens;
@@ -140,8 +174,7 @@ export function extractApiDescriptions(
     .join("");
   if (!text) {
     throw failed(
-      `response carried no text block (stop_reason ${String(payload.stop_reason)}): ` +
-        `${body.slice(0, 200)}`,
+      `response carried no text block (stop_reason ${String(payload.stop_reason)}): ${snippet()}`,
     );
   }
 
@@ -176,6 +209,32 @@ async function buildContent(names: readonly string[], pngDir: string): Promise<u
   return content;
 }
 
+// One request's worth of parameters. The Messages endpoint takes these as its
+// whole body; the Batch endpoint takes the same object as a request's `params`.
+export async function buildRequestParams(
+  names: readonly string[],
+  pngDir: string,
+  modelId: string,
+): Promise<Record<string, unknown>> {
+  return {
+    model: modelId,
+    max_tokens: MAX_TOKENS,
+    messages: [{ role: "user", content: await buildContent(names, pngDir) }],
+    // Constrained decoding pins the key set and the value types. It does not
+    // pin content — structured outputs reject `minLength`, so an empty string
+    // is schema-valid — which is why validateEntry still gates every entry.
+    output_config: { format: { type: "json_schema", schema: responseSchema(names) } },
+  };
+}
+
+export function apiHeaders(key: string): Record<string, string> {
+  return {
+    "content-type": "application/json",
+    "x-api-key": key,
+    "anthropic-version": API_VERSION,
+  };
+}
+
 // `retry-after` is in seconds, and on a 429 it is the server stating exactly
 // what the fixed backoff ladder was guessing at.
 function retryAfterMs(headers: Headers): number | undefined {
@@ -188,20 +247,8 @@ export const describeBatchApi: DescribeBatch = async (names, { pngDir, model }) 
   const key = assertApiKey();
   const response = await fetch(API_URL, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": API_VERSION,
-    },
-    body: JSON.stringify({
-      model: id,
-      max_tokens: MAX_TOKENS,
-      messages: [{ role: "user", content: await buildContent(names, pngDir) }],
-      // Constrained decoding pins the key set and the value types. It does not
-      // pin content — structured outputs reject `minLength`, so an empty string
-      // is schema-valid — which is why validateEntry still gates every entry.
-      output_config: { format: { type: "json_schema", schema: responseSchema(names) } },
-    }),
+    headers: apiHeaders(key),
+    body: JSON.stringify(await buildRequestParams(names, pngDir, id)),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 

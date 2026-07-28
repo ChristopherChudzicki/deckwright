@@ -6,9 +6,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { server } from "../../src/test/msw";
 import {
   assertApiKey,
+  batchPrice,
   describeBatchApi,
   estimateCost,
   extractApiDescriptions,
+  pricingFor,
   resolveModel,
 } from "./invoke-api";
 import { responseSchema } from "./transport";
@@ -50,6 +52,20 @@ describe("resolveModel", () => {
   // being wrong about it, which is worse than refusing the model.
   test("refuses a model it has no confirmed pricing for", () => {
     expect(() => resolveModel("haiku")).toThrow(/no pricing for model "haiku"/);
+  });
+});
+
+describe("pricingFor", () => {
+  test("halves both axes for the Batch API", () => {
+    expect(batchPrice({ input: 5, output: 25 })).toEqual({ input: 2.5, output: 12.5 });
+  });
+
+  // Halving under the wrong transport misreports every run's spend by 2×, in
+  // one direction or the other, and nothing downstream can catch it.
+  test("discounts the batch transport and only the batch transport", () => {
+    const on = new Date("2026-07-26");
+    expect(pricingFor("opus", "batch", on).price).toEqual({ input: 2.5, output: 12.5 });
+    expect(pricingFor("opus", "api", on).price).toEqual({ input: 5, output: 25 });
   });
 });
 
@@ -256,8 +272,8 @@ describe("describeBatchApi", () => {
     );
   });
 
-  // A rejected key fails every remaining batch the same way; retrying 138 of
-  // them is 75s of backoff per batch to learn nothing.
+  // A rejected key fails every remaining batch the same way; retrying is 25s of
+  // backoff per batch to learn nothing, until the consecutive-failure abort.
   test("marks an authentication failure fatal", async () => {
     server.use(
       http.post("https://api.anthropic.com/v1/messages", () =>

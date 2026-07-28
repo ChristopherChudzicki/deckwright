@@ -16,6 +16,13 @@ coverage
 /.icon-cache/
 src/data/iconDescriptions/*.json.tmp
 
+# Per-model description corpora from `--out`. Deliberately NOT under
+# /.icon-cache/: those are hundreds of dollars-minutes of paid LLM output, and a
+# directory called "cache" invites an rm that also takes the batch records with
+# it, making any in-flight batch uncollectable.
+/corpus/
+src/data/iconDescriptions/*.json.model
+
 # Claude Code: machine-local scratch
 .claude/settings.local.json
 .claude/worktrees/
