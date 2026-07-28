@@ -28,6 +28,10 @@ src/data/iconDescriptions/*.json.model
 .claude/worktrees/
 .claude/handoffs/
 
+# Session handoffs — notes to the next agent session, not project documentation
+docs/superpowers/handoff/
+docs/superpowers/handoffs/
+
 # Supabase
 supabase/.env
 supabase/.branches/
