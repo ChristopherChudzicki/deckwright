@@ -25,11 +25,10 @@ describe("the shipped description corpus", () => {
   });
 
   // The pipeline is strictly image → description, so every key must name an icon
-  // that has artwork to describe. Aliases have no `body` and are excluded
-  // deliberately: consumers resolve an alias to its parent at lookup time rather
-  // than the corpus carrying a duplicate that drifts when the parent changes.
-  // The likely causes of a stray key are a typo in a hand-written override and
-  // an icon dropped by an upstream bump.
+  // that has artwork to describe. The collection's three aliases have no `body`,
+  // so nothing renders for them and nothing describes them; a lookup on an alias
+  // simply finds no description. The likely causes of a stray key are a typo in a
+  // hand-written override and an icon dropped by an upstream bump.
   test("every entry names a describable icon", async () => {
     const describable = await describableIcons();
     const named = [...Object.keys(base), ...Object.keys(overrides)];
