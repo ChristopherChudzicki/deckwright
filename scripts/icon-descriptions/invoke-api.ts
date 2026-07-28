@@ -172,7 +172,7 @@ async function buildContent(names: readonly string[], pngDir: string): Promise<u
       source: { type: "base64", media_type: "image/png", data: pngs[index].toString("base64") },
     });
   }
-  content.push({ type: "text", text: buildPrompt(names) });
+  content.push({ type: "text", text: buildPrompt(names, "attached") });
   return content;
 }
 

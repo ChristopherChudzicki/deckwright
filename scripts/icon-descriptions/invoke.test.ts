@@ -1,13 +1,30 @@
 import { describe, expect, test } from "vitest";
 import { extractDescriptions } from "./invoke";
 import { buildPrompt } from "./prompt";
+import type { BatchFailure } from "./transport";
 
 const envelope = (structured_output: unknown, extra: Record<string, unknown> = {}) =>
   JSON.stringify({ is_error: false, subtype: "success", structured_output, ...extra });
 
 describe("buildPrompt", () => {
   test("lists each requested icon as a .png filename", () => {
-    expect(buildPrompt(["fireball", "broadsword"])).toContain("fireball.png\nbroadsword.png");
+    expect(buildPrompt(["fireball", "broadsword"], "on-disk")).toContain(
+      "fireball.png\nbroadsword.png",
+    );
+  });
+
+  // `api` and `batch` send this variant, so it is the text the whole paid corpus
+  // is generated under. Pinned against the full text below rather than restated:
+  // that pins it exactly while proving the transports differ in this one
+  // sentence and nothing else, so an attached-only clause cannot slip in.
+  test("differs from the pinned text only in how the images arrive", () => {
+    expect(buildPrompt(["fireball"], "attached")).toBe(
+      buildPrompt(["fireball"], "on-disk").replace(
+        "Read every PNG file listed below and describe what each one depicts.",
+        "Each icon is attached above, immediately preceded by its filename. " +
+          "Describe what each one depicts.",
+      ),
+    );
   });
 
   // Pinned in full, deliberately. Any edit here — including a reflow — changes
@@ -16,7 +33,7 @@ describe("buildPrompt", () => {
   // moment to decide whether to regenerate all 4,134 entries.
   test("pins the instruction text exactly", () => {
     expect(
-      buildPrompt(["fireball"]),
+      buildPrompt(["fireball"], "on-disk"),
     ).toBe(`These are icons from the game-icons.net collection, used in a Dungeons & Dragons spell-and-item card app.
 
 Read every PNG file listed below and describe what each one depicts.
@@ -36,18 +53,19 @@ Add the association only when it carries meaning the image does not already give
 - "A downward arrow above a horizontal bar, the standard sign for saving or downloading."
 - "A laurel-crowned head in profile, in the manner of a Roman emperor and a mark of victory."
 
-Omit it when it only restates the subject. These are wrong:
-- "A fishing rod and reel, symbolizing fishing."
-- "A smoking pipe, symbolizing smoking."
-- "A teardrop map pin, symbolizing a location marker."
-- "A shirt of overlapping scales, symbolizing armor."
-- "A bowling pin, symbolizing the sport of bowling."
+Omit it when it only restates the subject. These patterns are wrong however the blanks are filled and however the clause is introduced:
+- "A <tool>, symbolizing <the activity that tool performs>."
+- "A <piece of equipment>, representing <the game or sport it belongs to>."
+- "A <object>, evoking <what that object is plainly used for>."
+- "A <subject>, a symbol of <the same subject in other words>."
+
+The test is whether a reader who already has the literal description learns anything from the clause. If not, end the sentence at the literal description.
 
 Most icons carry no such association, and a bare literal description is the expected answer:
 - "A rounded bush dotted with small berry shapes on short stems."
 - "An eight-pointed star frame enclosing a rising sun with radiating triangular rays above a solid horizontal band."
 
-Describe the subject, not the drawing style. Every icon is a flat black-and-white shape, so phrases like "depicted in bold silhouette" or "in simple line art" waste words that belong on what is shown.
+Describe the subject, not the drawing style. Every icon is a flat black-and-white shape, so words about how a thing is drawn — its rendering, how abstract or simplified it is, its outline treatment, its line weight, its flatness — are true of all 4,134 icons and belong in none of them. Spend every word on what is shown.
 
 Reply with ONLY a JSON object mapping each filename (without the .png extension) to its description string.
 
@@ -90,6 +108,21 @@ describe("extractDescriptions", () => {
 
   test("throws when stdout is not the expected envelope", () => {
     expect(() => extractDescriptions("command not found", ["fireball"])).toThrow(/envelope/);
+  });
+
+  // The envelope only exists because the invocation ran, so these failures were
+  // billed. A bare Error drops the cost and the run under-reports its spend.
+  test.each([
+    ["the envelope reports an error", { is_error: true, result: "Overloaded" }],
+    ["the envelope carries no structured_output", {}],
+  ])("carries the cost out when %s", (_label, extra) => {
+    let thrown: BatchFailure | undefined;
+    try {
+      extractDescriptions(envelope(null, { total_cost_usd: 0.17, ...extra }), ["fireball"]);
+    } catch (err) {
+      thrown = err as BatchFailure;
+    }
+    expect(thrown?.cost).toBe(0.17);
   });
 
   // Without the ?? 0 the run's running total becomes NaN, with no other symptom.

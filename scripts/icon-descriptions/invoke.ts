@@ -1,13 +1,19 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { buildPrompt } from "./prompt";
-import { type BatchResult, type DescribeBatch, pickRequested, responseSchema } from "./transport";
+import {
+  type BatchResult,
+  batchFailure,
+  type DescribeBatch,
+  pickRequested,
+  responseSchema,
+} from "./transport";
 
 const execFileP = promisify(execFile);
 
 // A timeout yields nothing while still having consumed quota, so cutting off a
 // slow-but-working invocation is a guaranteed loss. Measured mean for a batch
-// of 30 is ~167s; the ceiling is deliberately far above it.
+// of 30 is ~84s; the ceiling is deliberately far above it.
 const INVOKE_TIMEOUT_MS = 600_000;
 
 type Envelope = {
@@ -25,21 +31,27 @@ export function extractDescriptions(stdout: string, requested: readonly string[]
   } catch {
     throw new Error(`stdout is not a claude -p JSON envelope: ${stdout.slice(0, 200)}`);
   }
+  // The envelope parsed, so quota was consumed and every failure below this line
+  // has to carry its cost out.
+  const cost = envelope.total_cost_usd ?? 0;
   if (envelope.is_error) {
-    throw new Error(`claude -p reported an error: ${String(envelope.result).slice(0, 300)}`);
+    throw batchFailure(`claude -p reported an error: ${String(envelope.result).slice(0, 300)}`, {
+      cost,
+    });
   }
 
   // A run can report subtype "success" and still carry no structured output;
   // that is a failure, not an empty batch.
   const output = envelope.structured_output;
   if (typeof output !== "object" || output === null || Array.isArray(output)) {
-    throw new Error(
+    throw batchFailure(
       `claude -p returned no structured_output (subtype ${String(envelope.subtype)}): ` +
         `${stdout.slice(0, 200)}`,
+      { cost },
     );
   }
 
-  return { descriptions: pickRequested(output, requested), cost: envelope.total_cost_usd ?? 0 };
+  return { descriptions: pickRequested(output, requested), cost };
 }
 
 // Without this, a missing binary surfaces only after every PNG has been
@@ -59,7 +71,7 @@ export const describeBatch: DescribeBatch = async (names, { pngDir, model }) => 
       "claude",
       [
         "-p",
-        buildPrompt(names),
+        buildPrompt(names, "on-disk"),
         "--allowedTools",
         "Read",
         "--output-format",
