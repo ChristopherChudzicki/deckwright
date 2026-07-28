@@ -12,7 +12,8 @@ The design doc — `docs/superpowers/specs/2026-07-25-icon-descriptions-design.m
 # Describe 10 undescribed icons on the subscription CLI. Costs no money.
 npm run gen:icon-descriptions -- --limit 10
 
-# Score whatever is in the corpus.
+# Score whatever is in the corpus — regex heuristics for style words, associations
+# that restate the subject, and entries echoing the icon name. Calls no model.
 npm run gen:icon-descriptions -- --validate
 
 # Fix a bad one by hand — never edit corpus.json.
@@ -76,7 +77,9 @@ Rails 1–3 guard money. Rails 4 and 5 guard something worse: a corpus holding t
 
 ## Validation
 
-`--validate` merges overrides over the corpus and reports three tiers:
+`--validate` is pattern matching, not judgement. It calls no model and knows nothing about whether a description is *correct* — only whether it trips one of a handful of regexes. Checking a description against its icon is a separate job with no tooling in this repo; see "Comparing model outputs" below.
+
+It merges overrides over the corpus and reports three tiers:
 
 - **FAIL** — `validateEntry` rejected the entry (length, shape, refusal text). These can never be in the corpus; the run drops them before writing.
 - **MISSING** — icons with no entry, plus the `--only` line that would close them.
