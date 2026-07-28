@@ -109,50 +109,6 @@ const { batchSize, limit, maxCost, model, size, transport } = values;
 // you get by accident.
 const paid = transport !== "cli";
 
-// Selection is driven by the corpus file, which an outstanding batch has not
-// written to yet, so running again re-describes and re-pays for exactly the same
-// icons. The hazard belongs to the corpus, not to the transport doing the
-// reading: with a batch in flight, `--transport api` bills the same icons
-// synchronously at twice the rate and `cli` burns the same quota, so this is
-// checked for every transport. Before rasterization rather than at the POST.
-{
-  const outstanding = outstandingBatches(BATCH_DIR, OUTPUT);
-  if (outstanding.length) {
-    const collectable = outstanding.filter((batch) => !batch.pending);
-    const pending = outstanding.filter((batch) => batch.pending);
-    fail(
-      [
-        `${outstanding.length} batch(es) writing to ${OUTPUT} are not collected.`,
-        ...collectable.map((batch) => `  ${batch.name} — collect with --fetch ${batch.name}`),
-        // A pending record was written before its POST, so it carries no batch
-        // id and --fetch cannot reach it. Whether the batch exists at all is
-        // only answerable at the API.
-        ...pending.map(
-          (batch) =>
-            `  ${batch.name} — submitted without a recorded id; list your batches at ` +
-            `the API to find out whether it was created`,
-        ),
-        `Delete a record in ${BATCH_DIR} to abandon it.`,
-      ].join("\n"),
-    );
-  }
-}
-
-// `mergeDescriptions` refuses a cross-model write too, but that check runs after
-// the model has answered and been billed. Checked here as well so the wrong
-// --model/--out pairing costs nothing rather than a batch.
-{
-  const wrote = corpusModel(OUTPUT);
-  const writing = canonicalModel(model);
-  if (wrote !== undefined && wrote !== writing) {
-    fail(
-      `${OUTPUT} was written by ${wrote}; refusing to add ${writing} to it.\n` +
-        `Give each model its own --out — a corpus holding both is indistinguishable ` +
-        `afterwards from one holding either.`,
-    );
-  }
-}
-
 // Concurrent runs would lose updates: each reads the file, merges, and renames
 // over the other's work.
 mkdirSync(CACHE_DIR, { recursive: true });
@@ -208,6 +164,56 @@ if (values.fetch !== undefined) {
     process.exit(collected.failures.length ? 1 : 0);
   } catch (err) {
     fail((err as Error).message);
+  }
+}
+
+// Both rails below are about a run that is *about to describe icons*, so they sit
+// after --fetch has had its turn and exited. Checking them earlier made a bare
+// --fetch answer rail 4 with an instruction to run the command it had just
+// refused, since --out and the outstanding batch resolve to the same corpus by
+// construction now. Collecting is the remedy for rail 4, not an instance of it.
+
+// Selection is driven by the corpus file, which an outstanding batch has not
+// written to yet, so running again re-describes and re-pays for exactly the same
+// icons. The hazard belongs to the corpus, not to the transport doing the
+// reading: with a batch in flight, `--transport api` bills the same icons
+// synchronously at twice the rate and `cli` burns the same quota, so this is
+// checked for every transport. Before rasterization rather than at the POST.
+{
+  const outstanding = outstandingBatches(BATCH_DIR, OUTPUT);
+  if (outstanding.length) {
+    const collectable = outstanding.filter((batch) => !batch.pending);
+    const pending = outstanding.filter((batch) => batch.pending);
+    fail(
+      [
+        `${outstanding.length} batch(es) writing to ${OUTPUT} are not collected.`,
+        ...collectable.map((batch) => `  ${batch.name} — collect with --fetch ${batch.name}`),
+        // A pending record was written before its POST, so it carries no batch
+        // id and --fetch cannot reach it. Whether the batch exists at all is
+        // only answerable at the API.
+        ...pending.map(
+          (batch) =>
+            `  ${batch.name} — submitted without a recorded id; list your batches at ` +
+            `the API to find out whether it was created`,
+        ),
+        `Delete a record in ${BATCH_DIR} to abandon it.`,
+      ].join("\n"),
+    );
+  }
+}
+
+// `mergeDescriptions` refuses a cross-model write too, but that check runs after
+// the model has answered and been billed. Checked here as well so the wrong
+// --model/--out pairing costs nothing rather than a batch.
+{
+  const wrote = corpusModel(OUTPUT);
+  const writing = canonicalModel(model);
+  if (wrote !== undefined && wrote !== writing) {
+    fail(
+      `${OUTPUT} was written by ${wrote}; refusing to add ${writing} to it.\n` +
+        `Give each model its own --out — a corpus holding both is indistinguishable ` +
+        `afterwards from one holding either.`,
+    );
   }
 }
 
