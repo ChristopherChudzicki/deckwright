@@ -1,5 +1,10 @@
 # LLM-generated descriptions for the full game-icons set
 
+> To **run** the generator, read `scripts/icon-descriptions/README.md` — flags,
+> transports, rails, the runbook, and the measured baselines all live there. This
+> document records how those decisions were reached, and is the place to look
+> when you want to know *why* rather than *how*.
+
 ## Problem
 
 Icon assignment is driven by `src/cards/iconRules.ts` — 218 lines of regex over
@@ -58,8 +63,8 @@ Three stages, one entrypoint, one committed artifact:
 ```
 game-icons icons.json
    → rasterize to PNG (cached, gitignored)
-   → describe in shuffled batches via `claude -p` (name-informed)
-   → src/data/icon-descriptions.json (committed)
+   → describe in shuffled batches (name-informed) via one of three transports
+   → src/data/iconDescriptions/corpus.json (committed)
 ```
 
 **The output file is the progress marker.** Resume is
@@ -121,7 +126,7 @@ only fixable by hand, so quality outranks a few dollars.
 **PNG, not JPEG,** for the same reason: token cost is dimensional, so JPEG saves
 zero, while its ringing artifacts degrade precisely the thin black-on-white
 strokes that already fail. At 512 the rendered collection measures **18KB
-average, 71MB total** (97MB once base64-encoded for the API transport).
+average, 71MB total** (99.4MB once base64-encoded for the HTTP transports).
 
 `sharp` is an explicit devDependency (`^0.35.3`, approved and committed). It was
 previously present only transitively via `wrangler → miniflare`, and this script
@@ -217,11 +222,12 @@ assembled from the shuffled order, not hand-grouped.
 
 | path | committed | contents |
 |---|---|---|
-| `src/data/icon-descriptions.json` | yes | `{ "<icon-name>": "<description>" }`, keys sorted |
-| `src/data/icon-descriptions-overrides.json` | yes | hand-written corrections; merged over the generated map at read time, never written by the script |
+| `src/data/iconDescriptions/corpus.json` | yes | `{ "<icon-name>": "<description>" }`, keys sorted |
+| `src/data/iconDescriptions/overrides.json` | yes | hand-written corrections; merged over the generated map at read time, never written by the script |
 | `.icon-cache/png/<icon-name>.png` | no | rendered icons, skipped when present |
 | `.icon-cache/meta.json` | no | icon-set version + render settings, for cache invalidation |
 | `.icon-cache/run.lock` | no | `wx` lockfile; released via `process.exit` on signal |
+| `.icon-cache/batches/<batch-id>.json` | no | submitted batch: the `custom_id` → icons mapping, the rate it was priced at, and `collectedAt` once merged. Written via `.tmp` + rename. Losing it strands a paid batch |
 
 `src/data/` rather than `data/` because the descriptions ship to the client once
 the picker searches them. Realistically **~600–650KB** (4,134 × ~120 chars of
@@ -244,7 +250,8 @@ files").
 **Cache invalidation:** the cache key is the icon name, which does not cover the
 artwork or the render settings. Bumping `@iconify-json/game-icons` or changing
 resolution would silently reuse stale PNGs. `meta.json` records the icon-set
-version and render settings; a mismatch invalidates the whole cache directory.
+version and render settings; a mismatch re-renders the PNGs. It removes only
+the `png/` subdirectory — batch records and any `--out` corpora are untouched.
 
 Filenames are the plain icon names. Hashing them was a blind-protocol defense and
 is now dead weight — it made the cache undebuggable and required an answer-key
@@ -260,28 +267,224 @@ Arguments via `node:util parseArgs`.
 | `--only <name>` | all | repeatable (`multiple: true`); implies `--force` for the named icons. An unknown name is a hard error listing the offenders. |
 | `--batch-size <n>` | 30 | icons per invocation; see the measured curve below |
 | `--force` | off | re-describe icons that already have entries |
-| `--validate` | off | run per-entry checks over the merged generated+overrides map and exit; exclusive — combining it with any other flag is an error (exit 2) |
+| `--validate` | off | run per-entry checks over the merged generated+overrides map, list icons with no entry at all, and exit non-zero on either; exclusive — combining it with any flag other than `--out` is an error (exit 2) |
+| `--fetch <batch-id>` | none | collect a batch submitted earlier by `--transport batch` and exit; exclusive, for the same reason as `--validate` |
 | `--limit <n>` | none | truncate the selection to n icons, for smoke-testing |
 | `--model <name>` | `sonnet` | the measurements are Sonnet-specific; the flag exists to re-run the comparison, not for routine use |
+| `--out <path>` | `src/data/iconDescriptions/corpus.json` | which corpus to read for selection and write results into; resolved against the invocation, not the script. Accepted by `--validate`; refused by `--fetch` |
 | `--size <n>` | 512 | render resolution; changing it invalidates the whole PNG cache |
-| `--transport <cli\|api>` | `cli` | which back end runs the batch — see "Transports" |
-| `--max-cost <usd>` | none | stop once the running total reaches this ceiling, checked after every batch |
+| `--transport <cli\|api\|batch>` | `cli` | which back end runs the batch — see "Transports" |
+| `--max-cost <usd>` | none | under `cli`/`api`, stop once the running total reaches this ceiling, checked after every batch; under `batch`, refuse to submit when the estimate already exceeds it |
 
 **Selection pipeline, in order:** all 4,134 → seeded shuffle → `--only` filter →
 drop already-described (unless `--force`/`--only`) → `--limit` truncate → chunk
 by `--batch-size`. A final short batch is fine. The shuffle comes first and over
-the full collection precisely so that resumes shrink batches rather than
-recompose them.
+the full collection so that batch *membership* is drawn from shuffled order;
+boundaries are recomputed on every resume, packing survivors densely.
 
 `--force` **merges into existing content and never truncates**, so a crash
 cannot destroy prior work. It is explicitly non-resumable: a restarted `--force`
 run re-describes from scratch, at full cost. Pair it with `--only` for bounded
 re-runs.
 
+### `--out` is what makes a second model possible
+
+Selection reads the corpus file to decide what is undescribed, and the results
+merge back into that same file. With one hardcoded path, describing the whole
+collection with a second model has no representable outcome:
+
+- Without `--force`, only the *undescribed* icons are selected, so the file ends
+  up a silent mixture of two models with nothing marking which wrote what — and
+  nothing to compare, because no icon has two descriptions.
+- With `--force`, the second model overwrites the first as it goes. Since the
+  merge happens per accepted batch, a run that dies at batch 90 of 138 leaves a
+  file that is part Sonnet and part Opus, again unmarked, and the next run
+  resumes from it. That destroys data rather than merely muddling it.
+- And a full second-model run is precisely the bare `--force` that spend rail 1
+  refuses, leaving `--limit 4134` as a nonsense escape hatch.
+
+Pointing `--out` at a fresh path resolves all three at once rather than patching
+any of them. An empty file means every icon is undescribed, so the second run
+needs no `--force` at all — **rail 1 stops being an obstacle without being
+weakened** — and it resumes correctly after a crash, and it cannot touch the
+first model's corpus.
+
+`--fetch` takes no `--out`. The path is written into the batch record at submit,
+beside `model` and `price`, which are frozen there for the same reason: a batch
+collected hours later must land where the submit intended, not where a flag
+typed from memory says. For the same reason the outstanding-batch guard (rail 4)
+is **scoped by corpus** — two batches writing to different files do not select
+from each other, so a Sonnet and an Opus batch can be in flight simultaneously
+instead of being needlessly serialized.
+
+Whether the shipped `src/data/iconDescriptions/corpus.json` ends up as one model's
+output promoted into place or a curated merge of both is deliberately still
+open; `--out` does not presuppose either.
+
+### Runbook: generating both models
+
+**There is deliberately no script that runs this end to end.** Two reasons. The
+batch transport is two-phase by design — the call that submits is not the call
+that returns, and adding a wrapper that waits would reintroduce the polling the
+transport exists to avoid. And a single command that spends ~$8.48 removes
+friction that is load-bearing: every rail below wants a human deciding to spend,
+not a script that already decided.
+
+Run from the repo root, with `ANTHROPIC_API_KEY` exported.
+
+**1. Confirm the prompt is the one you mean to spend on.** All 4,134 × 2
+descriptions come from one `INSTRUCTIONS` string, and changing it afterwards
+means paying again. `npm test` pins it in full, in both transport wordings.
+
+The 418 entries currently in `src/data/iconDescriptions/corpus.json` were generated
+under the pre-2026-07-27 prompt and are consistent with neither arm. They are not
+an input to this process; the runbook's fresh `--out` files start empty by
+design, and what happens to the shipped file is step 7.
+
+**2. Dry-run the selection for both arms.** `--max-cost 0.01` refuses to submit
+while printing what would be sent, so this costs nothing:
+
+```sh
+npm run gen:icon-descriptions -- --transport batch --out corpus/sonnet.json \
+  --model sonnet --max-cost 0.01
+npm run gen:icon-descriptions -- --transport batch --out corpus/opus.json \
+  --model opus --max-cost 0.01
+```
+
+Both must report `4134 icons, 0 described`. Anything else means the `--out` file
+already has content and the run would resume rather than start clean. The dry run
+exits **2** — it stops at a rail, so `set -e` will treat it as failure.
+
+**3. Submit both.** Drop `--max-cost`; each prints a batch id and exits without
+writing descriptions. They can be in flight together — rail 4 is scoped by
+corpus, so the second submit is not blocked by the first.
+
+```sh
+npm run gen:icon-descriptions -- --transport batch --out corpus/sonnet.json --model sonnet
+npm run gen:icon-descriptions -- --transport batch --out corpus/opus.json  --model opus
+```
+
+Each submit first renders 4,134 PNGs (~71 MB) into `.icon-cache/png/`, which
+takes a few minutes and prints nothing while it runs. The second submit reuses
+the cache and starts immediately.
+
+**Record both ids.** They are also on disk in `.icon-cache/batches/` — do not
+delete that directory while a batch is in flight, as its record is the only copy
+of the mapping from request id back to icon names, and a batch whose mapping is
+lost is billed and uncollectable.
+
+**If a submit fails,** read which kind it was. A rejected request (`HTTP 4xx`)
+created no batch and cleans up after itself; fix the cause and re-run. A dropped
+connection or timeout may have created one, so its record is deliberately kept
+and the next run against that corpus is refused until you either collect it or
+delete it from `.icon-cache/batches/`. The refusal message names the file and
+says which case it is.
+
+**4. Collect, once each batch has ended.** `--fetch` is safe to run early: a
+batch still `in_progress` prints its status and exits 0 without charging. It
+takes no `--out` — each batch's record carries its own, so these cannot be
+crossed:
+
+```sh
+npm run gen:icon-descriptions -- --fetch <sonnet-batch-id>
+npm run gen:icon-descriptions -- --fetch <opus-batch-id>
+```
+
+Exit 1 means some requests failed. Re-run **the same submit command as in step
+3** — repeated here because the arms differ by two tokens and pairing the wrong
+`--model` with the wrong `--out` is the one mistake this workflow cannot detect
+after the fact:
+
+```sh
+npm run gen:icon-descriptions -- --transport batch --out corpus/sonnet.json --model sonnet
+npm run gen:icon-descriptions -- --transport batch --out corpus/opus.json  --model opus
+```
+
+Selection reads the corpus file, so this describes only what is still missing.
+Should the pairing be crossed anyway, the merge is refused: each corpus records
+the model that wrote it in a `<corpus>.model` sidecar, and a second model's
+descriptions are never written into it.
+
+**5. Score each arm.** `--validate` accepts `--out`, and the warning counts are
+per-corpus, so this is the free per-model scorecard — computed with no grading,
+no auditor, and no paired-audit protocol:
+
+```sh
+npm run gen:icon-descriptions -- --validate --out corpus/sonnet.json
+npm run gen:icon-descriptions -- --validate --out corpus/opus.json
+```
+
+Both will exit 1 on `MISSING` until every icon is described; that is rail
+behaviour, not a failure of the run. Compare the three WARN rates between the two
+files, and against the pre-2026-07-27 baseline recorded under "Validation".
+
+**6. Then, and only then, curate.** The cross-model disagreement pass is the
+reason both arms exist. What it can and cannot catch is below.
+
+**7. Promote one corpus into `src/data/iconDescriptions/corpus.json`.** Nothing in the
+tool does this — it is a deliberate manual step, because it is the point at which
+$8.48 of generated text becomes the committed artifact.
+
+Whether the shipped file ends up as one arm promoted wholesale or a curated merge
+of both is still open, and this runbook does not decide it. What is *not* open:
+the 418 pre-2026-07-27 entries do not survive either way. They came from a
+different prompt, and mixing prompts inside one corpus is the thing the file
+format cannot record and the disagreement pass cannot see.
+
+Whichever corpus is promoted, delete its `.model` sidecar rather than committing
+it, then run `--validate` with **no** `--out` to check the shipped file: that is
+the run whose exit code is the release gate, and the first one that can reach 0,
+since it is the first time every icon has an entry.
+
+#### What the disagreement pass cannot catch
+
+Across 100 icons audited paired and blind, **not one icon had both models
+wrong**: 23 had at least one error, and in 21 of those the other model was
+accurate. That is what makes a free text-only pass — "do these two descriptions
+conflict about what is depicted?" — worth running over conflicts only, instead of
+image-reviewing 4,134 entries.
+
+**The cross-check controls for model, not for prompt.** Both arms share one
+`INSTRUCTIONS` string, so an error the *prompt* induces appears in both arms
+identically — and identical is exactly the signal the pass reads as "correct".
+The two map-outline entries in the current corpus split precisely along that line:
+
+| icon | shipped description | behaviour |
+|---|---|---|
+| `corsica` | "A hooded cloak or cape with a feather-like plume at its crown and a jagged, fringed hem is shown in profile silhouette." — it is the island's outline | **loud** — a second model is unlikely to invent the same cloak, so it surfaces as a conflict, as designed |
+| `colombia` | "An irregular angular landmass shape resembling a stylized country or territory outline." | **quiet** — both models follow the authority rule correctly, both hedge, they agree, and the entry reaches curation looking confident |
+
+The quiet failure is the dangerous one, and no amount of model diversity finds it,
+because nothing is wrong with either model. It is why **curation must see image +
+name + both texts, never the two texts alone.** Agreement is evidence about the
+models; it is not evidence about the image.
+
+This is also why the authority rule is *not* being loosened to let names resolve
+under-determined shapes. The affected class is small — 36 place/outline icons in
+4,134 (0.87%), and of the four described so far `egypt` and `sri-lanka` already
+name their country correctly — so amending a rule that governs all 4,134 to fix
+roughly a dozen trades a known, contained problem for an uncontained one. Fixes
+belong in `src/data/iconDescriptions/overrides.json`.
+
 ### Spend rails
 
-Three, and only under `--transport api`, where a mistake costs money rather than
-quota that refills:
+A **rail** is a pre-flight refusal: a check that stops the run with a message and
+a non-zero exit *before* anything is billed, when the flags as given would spend
+money the operator probably did not intend. They are not error handling — nothing
+here is recovering from a failure. They exist because every command in this tool
+is one keystroke away from a much more expensive one (`--only fireball` from no
+`--only` at all; `sonnet.json` from `opus.json`), the mistakes are silent, and the
+work is not idempotent: money already spent is not refunded by noticing.
+
+Two of them guard something worse than money. Rails 4 and 5 prevent a corpus that
+is *undetectably wrong* — one holding two models' work, or one being re-paid for
+while a batch is already in flight. Those cost more than the dollars, because
+nothing downstream can see them and the cross-model comparison they void is the
+whole reason to generate twice.
+
+Rails 1 and 3 apply only under `--transport api` and `--transport batch`, where a
+mistake costs money rather than quota that refills; rail 2 applies under `cli`
+too, against its API-equivalent total; rails 4 and 5 apply everywhere:
 
 1. **Bare `--force` is refused.** Unscoped it re-describes all 4,134 icons, one
    keystroke away from the scoped re-run that was almost certainly meant. It has
@@ -289,8 +492,42 @@ quota that refills:
 2. **`--max-cost <usd>`** stops the run after the batch that crosses the ceiling.
    Everything accepted so far is already on disk, so a stopped run resumes.
 3. **A cost estimate prints before the first request**, from the icon count and
-   the resolved price. It is labelled a floor: it counts image and text tokens
-   and nothing for thinking.
+   the resolved price. It is labelled a floor, and is one: it counts one image
+   and one description per icon, and nothing for the per-request prompt or for
+   thinking.
+
+Rail 2 is weaker under `batch`. A batch is priced only once its results come
+back, so there is no running total to stop against and the ceiling can do nothing
+but refuse to submit, comparing against the same floor estimate as rail 3. A
+submitted batch cannot be capped partway through.
+
+A fourth rail is raised by `batch` but enforced for **every** transport: **any
+run is refused while an earlier batch writing to the same corpus is
+uncollected.** Selection reads the corpus file, which a batch in flight has not
+written to yet, so a second run re-describes and re-pays for exactly the same
+icons — synchronously at twice the rate under `api`, or against subscription
+quota under `cli`. The hazard belongs to the corpus, not to the transport doing
+the reading, so a `cli` run can and will be stopped by an outstanding `batch`.
+Records carry `collectedAt` once merged, and the check runs before rasterization.
+Abandoning a batch means deleting its record.
+
+A fifth rail, also every-transport: **a corpus records the model that wrote it,
+and a different model is refused.** Checked before spending and again at merge.
+
+The scope is per-corpus because the hazard is: batches writing to different
+`--out` files do not select from each other. Two records get distinct treatment
+in the refusal message, because they need different remedies:
+
+- A **submitted** record carries a batch id and is closed with `--fetch <id>`.
+- A **pending** record was written before its POST and therefore has *no id*, so
+  `--fetch` cannot reach it — it would GET batch `undefined`. That is also the
+  case where the batch may already exist and be billed, so the only honest
+  instruction is to list batches at the API. An earlier draft told the operator
+  to `--fetch` these, which contradicted `submitBatch`'s own failure message.
+
+A record that cannot be parsed is a hard error naming the file, not a skip: an
+unreadable record cannot be shown to target a different corpus, so treating it
+as absent risks paying twice for whatever it was carrying.
 
 **Invocations are sequential.** Concurrency is out of scope: the write design
 ("read existing, merge, atomic rename") is a lost-update race under concurrent
@@ -301,25 +538,40 @@ invocations** for a full run — ~3.2 hours wall clock under `cli`, measured. Un
 job is ~1.5M input tokens against a 2,000,000 ITPM Start-tier limit, so rate
 limiting never engages.
 
+Under `batch` there is exactly **one** submission plus one `--fetch` per attempt,
+and wall clock is the API's processing window rather than the operator's. The
+lockfile still matters, because `--fetch` merges into the same file.
+
 ## Transports
 
-Both transports implement one seam — `DescribeBatch`, in
+All three transports put the same images in front of the model under the same
+prompt with the same schema, and differ only in delivery and billing.
+
+`cli` and `api` implement one seam — `DescribeBatch`, in
 `scripts/icon-descriptions/transport.ts`, alongside the schema builder, the
 response filter, and the failure type they share — so `runBatches` is unaware of
-which is in play. They send the same images under the same prompt with the same
-schema, and differ only in delivery and billing.
+which is in play. **`batch` does not fit that seam**, because it is two-phase:
+the call that submits work is not the call that returns it. It is a separate code
+path that skips `runBatches` entirely. It reuses `buildRequestParams` (and
+through it the response schema), `extractMessage` (and through it the response
+filter, the pricing line, and the contract that a failed but billed response
+carries its cost out on the error), the auth headers, and the shared failure
+type. The price is resolved once at submit and frozen into the record, so a
+collection days later cannot re-derive a rate that has since lapsed.
 
 **Shared contract.** Model pinned in a script constant, not inherited from
 operator config; the measurements below are Sonnet-specific. The literal prompt
-lives in one exported constant (`scripts/icon-descriptions/prompt.ts`). Prompt
+lives in `scripts/icon-descriptions/prompt.ts`, as a module-private
+`INSTRUCTIONS` constant plus the one transport-dependent sentence `buildPrompt`
+selects from `SOURCE`. Prompt
 stability is load-bearing — a change means a full regeneration — so it must be a
-reviewable constant, not a paraphrase. Both fail fast, before any PNG is
+reviewable constant, not a paraphrase. All of them fail fast, before any PNG is
 rendered, when their credential is missing.
 
 **Response shape is schema-constrained, not parsed out of prose.** Naming every
 requested icon as a required property with `additionalProperties: false` turns a
 short or renamed response into a constraint violation rather than a silent
-shortfall paid for again later. `responseSchema()` builds it once and both
+shortfall paid for again later. `responseSchema()` builds it once and all three
 transports use it unchanged. This replaced an earlier design that stripped ```
 fences and depth-counted braces out of free-form model text; that machinery is
 gone, and with it the fenced/preamble test fixtures it needed.
@@ -348,7 +600,10 @@ subscription and purchasable usage credits.
 The pinned prompt names files, because the CLI reads them itself. Over HTTP
 nothing carries a filename, so **each inline image is preceded by a text block
 naming it** — that label, not position, is what ties a description back to an
-icon. `prompt.ts` is untouched.
+icon. `prompt.ts` carries both wordings: `buildPrompt(names, "attached")` states
+that the images are already in the content block, because over HTTP there is no
+Read tool and the CLI's "read every PNG file" would name an affordance that does
+not exist. The two differ in that sentence and nothing else, pinned by test.
 
 Cost is computed from `usage` against a per-model price table, keyed by both the
 friendly alias and the concrete model id. Only models with confirmed pricing are
@@ -357,6 +612,13 @@ about it, which is worse than refusing the model. An introductory rate carries
 its own expiry date, so a run after it lapses prices at the standard rate rather
 than under-reporting by a third. A response that reports no `usage` is a failure
 for the same reason — real money spent, none of it accounted for.
+
+Every HTTP call is bounded: 600s under `api`, and 900s under `batch`, where the
+submit POST uploads ~100MB of base64. An unbounded wait would hang holding the
+run lockfile and block every later invocation with no indication why. The
+submission writes its `custom_id` → icons mapping to disk *before* the request,
+so a connection that dies after the server accepted the batch leaves the mapping
+recoverable rather than stranding a paid batch.
 
 `max_tokens` is a ceiling, not a reservation, and unused headroom is not billed.
 Thinking tokens draw on the same budget as the ~3k tokens of JSON a 30-icon batch
@@ -369,6 +631,60 @@ measurable.
 scaffolding rather than images. Purchasable usage credits bill the CLI path at
 standard API rates, which makes finishing the run on credits cost ~$65 against
 ~$4.70 direct — the same output for ~14× the money.
+
+### `--transport batch`
+
+Sends the same per-request parameters as `--transport api`, bundled into one
+Message Batch, for **half the standard rate on both axes**. Split across two
+commands, with no polling loop:
+
+1. **Submit** — `--transport batch` runs the ordinary selection and rasterization
+   pipeline, builds one request per batch of 30, `POST`s them all to
+   `/v1/messages/batches`, writes a record under `.icon-cache/batches/<id>.json`,
+   prints the id and exits without writing any descriptions.
+2. **Collect** — `--fetch <batch-id>` reads that record, `GET`s the batch once,
+   and either reports that it is still processing or downloads the results,
+   validates them, and merges them into `icon-descriptions.json`. Re-run it until
+   it lands. That is one request while the batch is still processing, and two
+   once it has ended — the status GET plus the results download.
+
+Results are retained **29 days from creation** — creation being the submit call,
+which is what the record's `submittedAt` holds. The widely-quoted 24 hours is the
+*processing* deadline, not a collection window: requests that miss it come back
+`expired` and are not billed. Under load the docs warn that more requests expire
+that way, so partial expiry on a 138-request batch is a live case, not a
+theoretical one — and it needs only a resubmission of what is still missing. There is no realistic way to lose a batch by being
+slow to collect it, which is what makes the polling loop unnecessary.
+
+**The record is the only copy of the `custom_id` → icons mapping.** `custom_id`
+is constrained to `^[a-zA-Z0-9_-]{1,64}$` and results arrive in no guaranteed
+order, so requests are keyed `icons-0001`… and the record maps each back to the
+30 icons it asked for. A batch submitted without a durable record is paid for and
+uncollectable, so it is written before the id is printed.
+
+**Requests stay at 30 icons.** One icon per request would repeat the ~600-token
+prompt 4,134 times — roughly 2.5M extra input tokens, about $6.25 at Opus batch
+rates, which cancels the ~$6.20 the discount saves on that run outright. The
+quality argument for 30 stands on its own; this is why the discount does not
+change it.
+
+Sizing is not a constraint: a batch takes 100,000 requests or 256 MB, and the
+whole corpus is 138 requests and 99.4 MB base64-encoded (measured), so it fits
+in one.
+
+**Why it exists:** one Sonnet run plus one Opus run over the full corpus costs
+roughly **$8.48 batched against $16.96 synchronously** — cheaper, batched, than
+Opus alone at the synchronous rate. The synchronous transports are unaffected and
+remain the way to iterate on small sets, where turnaround matters more than rate.
+
+Those two figures are `estimateCost` (`invoke-api.ts`) evaluated for the runbook's
+two commands, so they are exactly what step 2's dry run prints: $2.42 Sonnet plus
+$6.06 Opus, at the Sonnet introductory rate, which lapses 2026-08-31 and takes
+the total to ~$9.69. **They are a floor** — image and text tokens only, nothing
+for thinking. The measured per-icon rates further down this document project
+higher ($9.56 for both arms batched) because they are derived from observed spend
+rather than from token counts. Quote one or the other, never as if they were the
+same number.
 
 ### Failure policy
 
@@ -388,8 +704,8 @@ bookkeeping.
 
 The last two rows exist because the backoff ladder assumes a transient fault. A
 rejected key or a malformed request fails identically on every attempt, and would
-otherwise spend 9 requests and 75 seconds *per batch* — for 138 batches —
-confirming it; a refusal is a decision about those exact images, so retrying
+otherwise spend 3 requests and 25 seconds *per batch* confirming it, and 9
+requests before the consecutive-failure abort trips; a refusal is a decision about those exact images, so retrying
 reproduces it twice at full price. Where a 429 or 529 carries `retry-after`, that
 value is preferred over the fixed ladder.
 
@@ -398,6 +714,35 @@ anything usable came back, so `usage` is priced before any other check can throw
 and the resulting cost rides out on the error for `runBatches` to add to the
 total. Without that, truncation and unparseable responses spend real money the
 run reports as $0.
+
+The table describes `api` in full. `cli` has no fatal-status detection, no
+`retry-after` and no refusal path, since it reads `structured_output` rather than
+a message. And a refusal still increments the consecutive-failure counter, so
+three in a row abort the run.
+
+**`batch` has no retry ladder, and gets simpler for it.** The API handles
+per-request failure itself and reports the outcome — `succeeded`, `errored`,
+`canceled` or `expired` — as an ordinary line in the results file. Collection
+therefore reports the failures, keeps everything that succeeded, and leaves the
+rest as still-missing keys for the next submission, which is the same resume
+mechanism as everywhere else. The row above about billed-but-unusable responses
+still applies: a `succeeded` request whose message cannot be read is charged
+against the collected total.
+
+Transport-level failures are not retried at all under `batch`: a non-2xx on
+either submit or collect exits 2, and a failed collect can simply be re-run, so a
+ladder would buy nothing. A failed submit is not free of consequence: the request
+mapping is written before the POST, so a submit that dies mid-flight leaves a
+`pending-*` record that blocks the next run against that corpus until it is
+collected or deleted. A submit the server *rejects* deletes its own record on the
+way out, because a rejected request created no batch. Two cases are
+guarded because they are silent rather than loud: a recorded request that no
+result line accounts for is reported as a failure, so a short results body cannot
+read as a complete collection; and a record missing its price is refused up
+front, rather than pricing a fully billed batch at $0.00 deep inside the loop.
+
+`thinkingTokens` is reported per batch under `api` only. The results file carries
+it, but nothing aggregates it across a collection.
 
 An unparseable response retries rather than skipping, reversing an earlier draft.
 Skipping treats a malformed reply as terminal when it is usually transient, and
@@ -454,6 +799,16 @@ to find a D&D reading for irrelevant icons, and it works without any explicit
 | `card-ace-spades` | "…historically nicknamed the 'death card', associated with fate or bad luck" — genuine association surfaced |
 | `turtle-shell` | "…commonly symbolizes protection or defense" |
 | `dragon-head` | "…a classic fantasy creature symbolizing danger or power" |
+
+The `basketball-ball` row is worth re-reading now that the tautology count
+exists: "the ball used in the sport of basketball" is exactly the redundancy the
+prompt forbids, and it was sitting in the first 12-icon sample, read at the time
+as evidence the clause was working. It also shows the limit of the automated
+count — that phrasing carries no symbolism connective, so
+`isTautologicalAssociation` does not flag it. The check measures one
+construction, not every route to the same failure. Broadening it to catch "the X
+used in Y" would cost precision on legitimate functional description, which the
+section below argues is the vocabulary search needs most.
 
 **No relevance flag is added.** "Is this D&D-relevant" is the curation pass's
 judgment, and a per-icon boolean produced inside a 30-icon batch has no global
@@ -519,7 +874,7 @@ pass.
 
 ## Validation
 
-The rules live in `src/data/iconDescriptions.ts` with its test beside it, because
+The rules live in `src/data/iconDescriptions/entries.ts` with its test beside it, because
 the app reads them too — `scripts/fetch-srd.ts:5-9` already sets the precedent of
 a script importing from `src/data/`.
 
@@ -529,14 +884,14 @@ asserted nothing about them. The `include` now covers `scripts/**/*.{test,spec}.
 as well. That is a repo-wide fix, not a local one — `scripts/` already held
 untested code before this change.
 
-Two tiers, because conflating them makes `--validate` fail by construction after
-any partial run:
+Two tiers, checked in different places and answering different questions — is
+this entry usable, and is the corpus complete:
 
 **Per-entry** (run at batch acceptance, by `--validate`, and by the test):
 - Non-empty, not whitespace-only.
 - Length 15–260 **characters**. The 30-word prompt instruction is guidance; the
   character bound is the hard gate. The ceiling was raised from 200: measured max
-  across 299 generated descriptions is 191, and a reply honouring the word budget
+  across 418 generated descriptions is 203, and a reply honouring the word budget
   tops out near 210, but schema-constrained mode produced a legitimate 203. The
   headroom is deliberate — a rejected entry never enters the file, but it burns
   two retries and then re-fails identically, stranding that icon in a paid
@@ -544,12 +899,15 @@ any partial run:
 - No refusal/apology boilerplate ("I can't", "I'm unable", "Sorry") — the
   signature of a silently degraded call.
 
-**Completeness** (the vitest test only, never `--validate`):
-- All 4,134 icons present; no entries for icons no longer in the collection.
+**Completeness** (`--validate` only):
+- Icons with no entry at all are listed, together with the `--only` command that
+  closes them, and exit is non-zero.
 
-So a `--limit` smoke run or an `--only` fix-up leaves a file that passes
-`--validate`. The PR that adds the script also commits the complete file;
-otherwise CI is red from the first commit until a full run lands.
+`--validate` therefore stays red until a full run lands — with 418 of 4,134
+entries committed it exits 1 — which is what makes it a release gate rather than
+a linter. The committed-corpus test takes the opposite direction: it asserts
+every entry names an icon that still has artwork, so a shrinking icon set turns
+stale keys red without demanding a complete file on every commit.
 
 **Name/description agreement carries no signal and is not measured.** Two
 earlier drafts got this wrong in opposite directions — first failing entries that
@@ -564,11 +922,79 @@ is meant to prevent, and they are worthless to search — the name is already
 indexed. This is a reported warning, not a hard failure; some short names
 genuinely exhaust their icon (`lungs`, `infinity`).
 
+### The warning tier is a prompt-iteration metric first
+
+The two tiers are not a severity ranking. **FAIL** is the structural contract the
+app depends on, plus completeness; it exits 1 and becomes the CI gate once the
+corpus is complete. **WARN** never blocks anything, and exists for a different
+job: it is the only paired comparison available across prompt revisions that
+carries no grading noise.
+
+That matters because of what was measured under "Open experiments": two
+independent audits of the *identical* text on 30 icons agreed on only 67% of
+their grades. Every LLM-judged quality comparison therefore needs pairing,
+randomised order, and a single pass to mean anything, and even then it resolves
+only large effects. These checks are regexes. They agree with themselves always,
+so a prompt revision can be scored on them at n=418 immediately and for free —
+before spending anything on a run, and without an auditor in the loop.
+
+Two counts join `isNameEcho` in that tier, both measured over the 418 entries
+generated under the pre-2026-07-27 prompt, which is the baseline any revision is
+compared against:
+
+- **Style words** — `silhouette`, `stylized`, `line art`, `monochrome` and
+  similar. **38 entries, 9.1%.** Every icon in the collection is a flat
+  black-and-white shape, so these are true of all 4,134 and distinguish none;
+  in a search index they are noise shared by thousands of entries.
+- **Tautological associations** — a closing clause that renames something the
+  literal half or the icon's own name already named. **47 entries, 11.2%.**
+
+Both are wasted words rather than wrong facts, which is why neither can fail a
+run: the entry is usable, just worse than it should be. It also makes them the
+cheap class to repair — fixable from the text alone, with no image, unlike an
+accuracy error.
+
+`isTautologicalAssociation` deliberately over-flags the case where naming the
+referent *is* the description ("a teardrop-shaped landmass representing Sri
+Lanka"), which overlaps the ~36 place-outline icons discussed under "Risks and
+follow-ups". Read the number as a trend across revisions, not as a defect count.
+
+#### Counter-examples in the prompt must not name real icons
+
+The measurement that produced these two checks also explains one of the prompt's
+odder features. The model reproduces an example's wording when it meets that
+example's icon, and every example in the pre-2026-07-27 prompt named a real
+icon in the collection. For the positive examples this was benign — `bat-wing`
+and `sparkles` came back as better versions of their own exemplars. For the five
+counter-examples under "These are wrong" it was not: `fishing-pole`,
+`smoking-pipe`, `position-marker`, `scale-mail` and `bowling-pin` all came back
+carrying the exact clause the list forbade, with only "conventionally" spliced
+in. Five for five.
+
+The counter-examples are therefore written as patterns with the subject left
+blank — "A `<tool>`, symbolizing `<the activity that tool performs>`" — one per
+redundancy shape the corpus actually exhibited. With no subject to match an icon
+against, there is nothing for the model to copy, and the pattern states the
+relation directly rather than asking it to be induced from instances.
+
+An intermediate version used invented subjects instead (`quillrake`,
+`wayglass`), on the reasoning that a clause naming a nonexistent object has no
+icon to land on. That works, but it introduces nonsense vocabulary into a prompt
+that runs 4,134 times to buy nothing the blank form does not, so it was dropped.
+
+The style rule at the end of the prompt has no counter-examples at all. Its
+forbidden vocabulary is generic rather than icon-bound, so blanking the subject
+cannot hide it: the pre-2026-07-27 wording illustrated the rule with "depicted in
+bold silhouette", and `silhouette` then appeared in 8 entries. That rule is
+described, not demonstrated.
+
+Whether the association rule still holds without a concrete exemplar to anchor
+it is untested. It is the first thing the two counts should be pointed at.
+
 The test must call `vi.importActual` for the icon collection: `src/test/setup.ts`
 globally mocks `@iconify-json/game-icons/icons.json` down to a **2-icon**
 fixture, so completeness assertions would otherwise pass vacuously.
-`src/cards/iconRules.test.ts:16` shows the pattern. A sharp rasterization test
-needs `// @vitest-environment node`, since the suite is jsdom.
+`src/cards/iconRules.test.ts:16` shows the pattern.
 
 Neither caller needs `claude`; CI has no credentials and must never invoke the LLM.
 
@@ -619,7 +1045,7 @@ Three distinct funding sources exist and they are not interchangeable:
 |---|---|---|
 | plan usage (5-hour + weekly limits) | `cli` | included in the subscription |
 | purchasable usage credits | `cli` | claude.ai payment method, at standard API rates |
-| API key | `api` | Console organization, separate balance |
+| API key | `api`, `batch` | Console organization, separate balance (`batch` at half rate) |
 
 The middle row is the trap. Credits bill the CLI path at standard API rates while
 that path spends ~91% of its tokens on agent scaffolding, so finishing the run on
@@ -664,20 +1090,21 @@ With the agent scaffolding gone, images become nearly the entire bill, and the
 fixed per-invocation term largely disappears. At 512×512 and Sonnet 5's
 introductory $2/$10 per MTok (through 2026-08-31; $3/$15 after):
 
-| batch | input tokens/request | requests for 3,924 | total |
+| batch | input tokens/request | requests for 3,716 | total |
 |---|---|---|---|
-| 1 | ~1,100 | 3,924 | ~$12.87 |
-| **30** | ~11,600 | 131 | **~$4.73** |
-| 100 | ~37,000 | 40 | ~$4.63 |
+| 1 | ~1,100 | 3,716 | ~$9.85 |
+| **30** | ~11,600 | 124 | **~$4.55** |
+| 100 | ~37,000 | 38 | ~$4.48 |
 
-**Batching still matters, but only up to a point.** One icon per request is 2.7×
-costlier because a fixed ~740-token overhead is amortized over a single 361-token
+**Batching still matters, but only up to a point.** One icon per request is ~2.2×
+costlier because the fixed ~600-token prompt is amortized over a single 361-token
 image. Past ~30 the images already dominate and further batching buys almost
 nothing — so batch 30, chosen on quality grounds under `cli`, is also near-optimal
 under `api`. No reason to change it.
 
-Rate limits are not a constraint: the whole job is ~1.5M input tokens against a
-2,000,000 ITPM Start-tier limit.
+Rate limits are not a constraint under `api`, as noted above: ~1.5M input tokens
+against a 2,000,000 ITPM Start-tier limit. Under `batch` the whole job arrives in
+one submission and is governed by the separate batch limits instead.
 
 ## Open experiments
 
@@ -689,18 +1116,20 @@ regenerating rather than patching.
 the `claw-hammer` class (thin geometry lost to a 2× downsample), and the cost was
 acceptable in both transports. `--size` remains for re-running the comparison.
 
-**Settled — no Batch API.** It halves token price, but turnaround is
-asynchronous with a 24-hour ceiling, and the control flow inverts: submit 131
-requests, poll, download JSONL, merge. That bypasses `runBatches` entirely, whose
-retry / abort / merge-after-each-batch machinery is per-batch and sequential. The
-saving is ~$2.30 per full regeneration, and realistic lifetime full runs number
-1–3 — prompt iteration happens on 60-icon samples at ~$0.07, and an icon-set bump
-only describes the new icons. ~200 lines of async machinery to save maybe $7, on
-the use case it serves worst. Revisit only if a third full regeneration is queued.
+**Settled — Batch API adopted, alongside the synchronous transports.** An
+earlier position rejected it: the control flow does invert, it does bypass
+`runBatches` and its per-batch retry / abort / merge machinery, and the saving on
+one Sonnet regeneration is only ~$2.30. What changed the calculus is running two
+models over the corpus to cross-check them, which roughly triples the token bill
+and makes half price worth the separate code path. Splitting submit from collect
+turned out to remove the polling loop rather than add one, so the machinery is
+smaller than the ~200 lines that estimate assumed. The synchronous transports
+stay, and remain the right tool for prompt iteration on 30–60 icon samples, where
+turnaround dominates rate. See "Transports".
 
 **Settled — no off-the-shelf generation framework.** Curator, distilabel,
 DataDreamer and similar tools were considered. The decision turns on scale, not
-language or sunk cost: their value is orchestration, and at 131 requests, under
+language or sunk cost: their value is orchestration, and at 138 requests, under
 ten minutes and under $5 there is essentially nothing left to orchestrate.
 
 **Open — Haiku versus Sonnet.** All measurements to date are Sonnet. The original
@@ -726,7 +1155,10 @@ seam (`DescribeBatch`, passed into `runBatches`), and selection is a pure
 exported function (`selectBatches({ all, existing, only, force, limit,
 batchSize })`). Otherwise the tests have to mock `node:child_process` globally.
 That seam is also what let the API transport be added without touching
-`runBatches`, `selection`, `store`, `rasterize`, or `prompt`.
+`runBatches`, `selection`, `store`, `rasterize`, or `prompt`. The batch transport
+does not use the seam, so its two phases are tested as pure functions instead:
+`readResults` turns a results file into descriptions, a cost and a failure list
+without a server, and `submitBatch`/`collectBatch` are exercised through MSW.
 
 - **Rasterization:** a rendered icon is a non-empty PNG of the expected
   dimensions **and is not blank** (assert dark pixels are present via
@@ -740,15 +1172,38 @@ That seam is also what let the API transport be added without touching
   correctly; a success envelope carrying no `structured_output` is a failure.
 - **Response filtering (shared):** a non-string value and a key naming no
   requested icon are each rejected, and surrounding whitespace is trimmed. Tested
-  once against `pickRequested`, which both transports call.
+  once against `pickRequested`, which all three transports call.
 - **Response parsing, `api`:** the JSON text block is read and `usage` is priced;
   the text blocks are joined past a leading thinking block; a `max_tokens`
   truncation, a refusal, a missing text block, a non-object body, and absent
-  `usage` each throw, and each carries the batch's cost out on the error.
+  `usage` each throw. The pricing line runs first, so every failure below it
+  carries the batch's cost out on the error (asserted once); a response with no
+  `usage` is rejected precisely because it cannot be priced.
 - **Pricing:** the alias and the concrete model id resolve to the same entry at
-  the **exact** published rate, and the standard rate applies once the
-  introductory period ends. Pinning the rate is what stops a zeroed price table
-  from passing while the run prints $0.00 against real charges.
+  the **exact** published rate, the standard rate applies once the introductory
+  period ends, and batch pricing halves both axes. Pinning the rate is what stops
+  a zeroed price table from passing while the run prints $0.00 against real
+  charges.
+- **Results parsing, `batch`:** succeeded requests are merged and priced; an
+  `errored` request is reported without discarding the ones that succeeded; a
+  truncated final line is reported as one failed request without losing the
+  requests above it; a recorded request that no line accounts for is reported;
+  and a request whose message cannot be read still contributes its cost.
+- **Batch submission and collection:** a request carries byte-identical params to
+  the synchronous path; the record round-trips and is written even when the
+  submission fails; a 200 with no id is refused; collection does not download
+  results while the batch is still processing, and names the download rather than
+  the status when the results fetch fails.
+- **Spend safety, `batch`:** the discount applies to the batch transport and only
+  to it; a record with no price is refused; an uncollected batch is listed until
+  it is marked collected.
+- **Shipped corpus:** every committed generated and override entry passes the
+  same `validateEntry` a run applies, and every key names an icon that still has
+  artwork (aliases excluded).
+- **Prompt stability:** the full instruction text is pinned verbatim, so changing
+  it is a deliberate act that forces the decision about regenerating all 4,134.
+- **Cache invalidation:** an icon-set version bump, a `--size` change, and a
+  corrupt `meta.json` each re-render rather than serve stale PNGs.
 - **Request shape, `api`:** every image is preceded by a text block naming its
   file, the prompt closes the array, and the request carries the resolved model
   id and the response schema. Asserted through MSW rather than by mocking
@@ -793,7 +1248,7 @@ lines, with `const SHUFFLE_SEED = 20260725` — rather than a new dependency.
 - **Manual edits do not survive `--force`, so they live in a separate file.**
   Descriptions are data and a human may correct one, but a full `--force` run
   overwrites the generated map and a flat map has nowhere to record provenance.
-  `src/data/icon-descriptions-overrides.json` is merged over it at read time and
+  `src/data/iconDescriptions/overrides.json` is merged over it at read time and
   never written by the script. This was originally deferred as YAGNI on the
   assumption that `--only` re-runs would serve as the repair path; the determinism
   finding above undermines that assumption, so the overrides file ships.
@@ -848,7 +1303,7 @@ lines, with `const SHUFFLE_SEED = 20260725` — rather than a new dependency.
   parent changes. Nothing consumes descriptions for search yet, so this is
   deferred to the fuzzy-search work, where alias handling is one case of the
   broader question of what a query matches against.
-- **`--transport api` was smoke-tested but the corpus predates it.** The 210
+- **`--transport api` was smoke-tested but the corpus predates it.** The 418
   entries committed before it existed were generated through `cli`, where the
   agent reads PNGs off disk; `api` sends the same bytes inline with filename
   labels. Same images, same prompt, same schema, but not the same delivery path,
