@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { isNameEcho, mergeOverrides, validateEntry } from "./iconDescriptions";
+import { isNameEcho, mergeOverrides, validateEntry } from "./entries";
 
 const good = "A ball of flame, symbolizing fire magic and destructive spells.";
 

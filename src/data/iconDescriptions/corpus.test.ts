@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
-import base from "./icon-descriptions.json";
-import overrides from "./icon-descriptions-overrides.json";
-import { validateEntry } from "./iconDescriptions";
+import base from "./corpus.json";
+import { validateEntry } from "./entries";
+import overrides from "./overrides.json";
 
 // Bypass the 2-icon fixture from src/test/setup.ts; every assertion here is
 // about the real collection and would pass vacuously against the stub.

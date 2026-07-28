@@ -15,7 +15,7 @@ const FIXTURE = Object.fromEntries(
 
 // A dynamic import() of a JSON file bypasses vi.mock, so the loader module —
 // which IconDebugView imports statically — is the mockable seam.
-vi.mock("../data/loadIconDescriptions", () => ({
+vi.mock("../data/iconDescriptions/load", () => ({
   loadIconDescriptions: async () => ({
     ...FIXTURE,
     broadsword: "A large two-handed sword with a straight blade and a crossguard.",

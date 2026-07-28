@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { FALLBACK_ICON_KEY, ITEM_RULES, SCHOOL_ICONS, SPELL_NAME_RULES } from "../cards/iconRules";
-import { SHUFFLE_SEED, shuffleSeeded } from "../data/iconShuffle";
-import { loadIconDescriptions } from "../data/loadIconDescriptions";
+import { loadIconDescriptions } from "../data/iconDescriptions/load";
+import { SHUFFLE_SEED, shuffleSeeded } from "../data/iconDescriptions/shuffle";
 import { Button } from "../lib/ui/Button";
 import { IconPreview } from "../lib/ui/IconPreview";
 import { Input } from "../lib/ui/Input";

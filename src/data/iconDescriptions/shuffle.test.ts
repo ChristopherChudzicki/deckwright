@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { SHUFFLE_SEED, shuffleSeeded } from "./iconShuffle";
+import { SHUFFLE_SEED, shuffleSeeded } from "./shuffle";
 
 const alphabet = Array.from({ length: 100 }, (_, i) => `icon-${String(i).padStart(3, "0")}`);
 

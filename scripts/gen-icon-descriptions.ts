@@ -2,7 +2,7 @@ import { closeSync, existsSync, mkdirSync, openSync, unlinkSync } from "node:fs"
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { isNameEcho, mergeOverrides, validateEntry } from "../src/data/iconDescriptions";
+import { isNameEcho, mergeOverrides, validateEntry } from "../src/data/iconDescriptions/entries";
 import { assertClaudeAvailable, describeBatch } from "./icon-descriptions/invoke";
 import {
   assertApiKey,
@@ -23,8 +23,8 @@ import { mergeDescriptions, readDescriptions } from "./icon-descriptions/store";
 import { DEFAULT_MODEL } from "./icon-descriptions/transport";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUTPUT = resolve(__dirname, "../src/data/icon-descriptions.json");
-const OVERRIDES = resolve(__dirname, "../src/data/icon-descriptions-overrides.json");
+const OUTPUT = resolve(__dirname, "../src/data/iconDescriptions/corpus.json");
+const OVERRIDES = resolve(__dirname, "../src/data/iconDescriptions/overrides.json");
 const CACHE_DIR = resolve(__dirname, "../.icon-cache");
 const LOCKFILE = join(CACHE_DIR, "run.lock");
 

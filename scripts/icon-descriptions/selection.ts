@@ -1,4 +1,4 @@
-import { SHUFFLE_SEED, shuffleSeeded } from "../../src/data/iconShuffle";
+import { SHUFFLE_SEED, shuffleSeeded } from "../../src/data/iconDescriptions/shuffle";
 
 export const DEFAULT_BATCH_SIZE = 30;
 
