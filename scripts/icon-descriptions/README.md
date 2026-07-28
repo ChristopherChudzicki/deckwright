@@ -58,7 +58,7 @@ Steps 1 and 4 are what make a run resumable: re-running after any failure picks 
 | `api` | tokens, full rate | seconds | PNG bytes inline in the request |
 | `batch` | tokens, **50% off** | up to 24h | PNG bytes inline in the request |
 
-Use `cli` to iterate on the prompt, `batch` for a full run. `api` exists mainly so the HTTP path can be exercised synchronously without waiting on a batch.
+**Iterate on `api`; run on `batch`.** `cli` bills no money, which makes it look like the obvious iteration transport, and it is not: a 60-icon run draws enough subscription quota to be felt, and prompt work means running that repeatedly. The same 60 icons over `api` cost cents. `cli` is worth keeping for a handful of icons, or when you have no key to hand, but it is not where prompt iteration belongs. `batch` halves the token price and is what a full run should use.
 
 `batch` is asynchronous: submitting writes a record to `.icon-cache/batches/` and exits. Collect it later with `--fetch <id>`. Results are retained **29 days** from submission. Results come back in arbitrary order, which is why the record file — not the response — is the authority on which icon a description belongs to. Errored, canceled and expired requests are not billed.
 
@@ -168,7 +168,7 @@ npm run gen:icon-descriptions -- --out corpus/pilot.json --limit 60
 npm run gen:icon-descriptions -- --validate --out corpus/pilot.json
 ```
 
-Pilot on `cli`, not `api`. `cli` keeps the image-source wording identical to the recorded baseline, so the instructions are the only thing that moved; and the selection is a seeded shuffle, so the same `--limit` reaches the same icons and the comparison comes out paired for free.
+Pilot on whichever transport produced the baseline you are scoring against, since `cli` and `api` send different image-source wording and you want the instructions to be the only thing that moved. The recorded baseline below is `cli`, which is the one reason to reach for `cli` over `api` here. Either way the selection is a seeded shuffle, so the same `--limit` reaches the same icons and the comparison comes out paired for free.
 
 ### What the cross-check cannot catch
 
