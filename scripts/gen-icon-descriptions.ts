@@ -1,7 +1,7 @@
 import { closeSync, existsSync, mkdirSync, openSync, unlinkSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseArgs } from "node:util";
+import { CommanderError } from "@commander-js/extra-typings";
 import {
   isNameEcho,
   isTautologicalAssociation,
@@ -17,6 +17,8 @@ import {
   submitBatch,
   writeRecord,
 } from "./icon-descriptions/batch";
+import { parseCliArgs } from "./icon-descriptions/cli";
+import { confirm } from "./icon-descriptions/confirm";
 import { assertClaudeAvailable, describeBatch } from "./icon-descriptions/invoke";
 import {
   assertApiKey,
@@ -26,124 +28,35 @@ import {
   type Price,
   pricingFor,
 } from "./icon-descriptions/invoke-api";
-import {
-  DEFAULT_RENDER_SIZE,
-  ensurePngs,
-  iconNames,
-  loadCollection,
-} from "./icon-descriptions/rasterize";
+import { ensurePngs, iconNames, loadCollection } from "./icon-descriptions/rasterize";
 import { runBatches } from "./icon-descriptions/run";
-import { DEFAULT_BATCH_SIZE, selectBatches } from "./icon-descriptions/selection";
+import { selectBatches } from "./icon-descriptions/selection";
 import { corpusModel, mergeDescriptions, readDescriptions } from "./icon-descriptions/store";
-import { DEFAULT_MODEL } from "./icon-descriptions/transport";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_OUTPUT = resolve(__dirname, "../src/data/iconDescriptions/corpus.json");
 const OVERRIDES = resolve(__dirname, "../src/data/iconDescriptions/overrides.json");
 const CACHE_DIR = resolve(__dirname, "../.icon-cache");
 const LOCKFILE = join(CACHE_DIR, "run.lock");
 const BATCH_DIR = join(CACHE_DIR, "batches");
 
-const USAGE = `Usage: npm run gen:icon-descriptions -- [flags]
-
-Describes game-icons artwork with a Claude model and merges the result into a
-corpus. The defaults are the safe ones: work goes to the subscription CLI rather
-than a billed API, and icons that already have an entry are skipped.
-
-  --transport <cli|api|batch>  where to send the work (default cli)
-  --model <sonnet|opus>        model to describe with (default sonnet)
-  --out <path>                 corpus to read and write (default src/data/iconDescriptions/corpus.json)
-  --limit <n>                  describe at most n icons
-  --only <name>                describe exactly these; repeatable
-  --force                      re-describe icons that already have an entry
-  --batch-size <n>             icons per request (default 30)
-  --size <px>                  PNG render size (default 512)
-  --max-cost <usd>             spend ceiling
-  --validate                   score a corpus and exit; calls no model, writes nothing
-  --fetch <batch-id>           collect a submitted batch; takes no other flags
-  -h, --help                   show this
-
-To see what a run would do without paying for it, give it a --max-cost it cannot
-meet: --max-cost 0.01 prints the selection and the estimate, then stops before
-rendering or calling anything.
-
-Full documentation: scripts/icon-descriptions/README.md`;
-
-// No parseArgs defaults: --validate and --fetch are exclusive modes, and a
-// defaulted flag is indistinguishable from one the operator actually passed.
-// parseArgs throws an ERR_PARSE_ARGS_* stack trace on a mistyped flag, which is
-// a poor first impression from a script that can spend money on the next line.
+// Commander has already written its own message by the time it throws; this
+// only maps its exit code onto the one the rest of the script uses for a refusal.
 const values = (() => {
   try {
-    return parseArgs({
-      options: {
-        only: { type: "string", multiple: true },
-        "batch-size": { type: "string" },
-        force: { type: "boolean" },
-        help: { type: "boolean", short: "h" },
-        validate: { type: "boolean" },
-        fetch: { type: "string" },
-        limit: { type: "string" },
-        model: { type: "string" },
-        out: { type: "string" },
-        size: { type: "string" },
-        transport: { type: "string" },
-        "max-cost": { type: "string" },
-      },
-    }).values;
+    return parseCliArgs(process.argv.slice(2));
   } catch (err) {
-    console.error(`${(err as Error).message}\n\n${USAGE}`);
-    process.exit(2);
+    process.exit(err instanceof CommanderError && err.exitCode === 0 ? 0 : 2);
   }
 })();
-
-if (values.help) {
-  console.log(USAGE);
-  process.exit(0);
-}
 
 const fail = (message: string): never => {
   console.error(message);
   process.exit(2);
 };
 
-// --fetch reads everything it needs from the submitted batch's record, so a
-// selection or model flag alongside it would silently do nothing.
-const RUN_FLAGS = [
-  "only",
-  "batch-size",
-  "force",
-  "limit",
-  "model",
-  "size",
-  "transport",
-  "max-cost",
-] as const;
-
-// `--out` names which corpus to work on, so it is meaningful to a run and to
-// `--validate` — scoring a second model's file is what the warning counts exist
-// for. `--fetch` is the exception: its batch record already carries the corpus
-// the submit chose, and accepting a flag that could disagree with it would let a
-// mistyped path merge Opus descriptions into the Sonnet corpus hours later.
-const EXCLUSIVE_TO = {
-  validate: [...RUN_FLAGS, "fetch"],
-  fetch: [...RUN_FLAGS, "validate", "out"],
-} as const;
-
-const assertExclusive = (mode: "validate" | "fetch") => {
-  const conflicting = EXCLUSIVE_TO[mode].filter((flag) => values[flag] !== undefined);
-  if (conflicting.length) {
-    fail(`--${mode} is exclusive; remove: ${conflicting.map((f) => `--${f}`).join(", ")}`);
-  }
-};
-
-// Relative to the invocation, not the script, so `--out corpus/opus.json` means
-// what it looks like it means.
-const OUTPUT = values.out === undefined ? DEFAULT_OUTPUT : resolve(values.out);
+const OUTPUT = values.out;
 
 if (values.validate) {
-  assertExclusive("validate");
-
   // Validate what actually ships: an override can be hand-written too long, and
   // one supplying an icon the generated file lacks is not missing.
   const descriptions = mergeOverrides(readDescriptions(OUTPUT), readDescriptions(OVERRIDES));
@@ -189,35 +102,11 @@ if (values.validate) {
   process.exit(problems.length || missing.length ? 1 : 0);
 }
 
-if (values.fetch !== undefined) assertExclusive("fetch");
-
-const positiveInt = (raw: string | undefined, flag: string, fallback: number): number => {
-  if (raw === undefined) return fallback;
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < 1) fail(`--${flag} must be a positive integer`);
-  return value;
-};
-
-const batchSize = positiveInt(values["batch-size"], "batch-size", DEFAULT_BATCH_SIZE);
-const size = positiveInt(values.size, "size", DEFAULT_RENDER_SIZE);
-const limit = values.limit === undefined ? undefined : positiveInt(values.limit, "limit", 0);
-const model = values.model ?? DEFAULT_MODEL;
-
-const maxCost = (() => {
-  if (values["max-cost"] === undefined) return undefined;
-  const value = Number(values["max-cost"]);
-  if (!Number.isFinite(value) || value <= 0)
-    fail("--max-cost must be a positive number of dollars");
-  return value;
-})();
+const { batchSize, limit, maxCost, model, size, transport } = values;
 
 // `cli` spends subscription quota; `api` and `batch` spend money on an
 // ANTHROPIC_API_KEY. Defaulting to `cli` keeps the zero-real-money path the one
 // you get by accident.
-const TRANSPORTS = ["cli", "api", "batch"] as const;
-type Transport = (typeof TRANSPORTS)[number];
-const transport = (values.transport ?? "cli") as Transport;
-if (!TRANSPORTS.includes(transport)) fail(`--transport must be one of: ${TRANSPORTS.join(", ")}`);
 const paid = transport !== "cli";
 
 // Selection is driven by the corpus file, which an outstanding batch has not
@@ -262,15 +151,6 @@ const paid = transport !== "cli";
         `afterwards from one holding either.`,
     );
   }
-}
-
-// Bare --force re-describes all 4,134 icons. On the CLI that spends quota that
-// refills; over the API it is an unbounded charge one keystroke away from a
-// scoped re-run, so require the scope to be explicit.
-if (paid && values.force && !values.only && limit === undefined) {
-  fail(
-    `--force with --transport ${transport} re-describes every icon; scope it with --only or --limit.`,
-  );
 }
 
 // Concurrent runs would lose updates: each reads the file, merges, and renames
@@ -393,6 +273,26 @@ if (price) {
       `Estimated $${estimate.toFixed(2)} already exceeds --max-cost $${maxCost.toFixed(2)}, ` +
         `and the estimate is a floor. Nothing submitted.`,
     );
+  }
+
+  // Bare --force re-describes every icon that already has an entry. On the CLI
+  // that spends quota which refills; over the API it is an unbounded charge one
+  // keystroke away from a scoped re-run. Asked here rather than at parse time so
+  // the question carries the count and the estimate it is really about — and
+  // still before any PNG is rendered or any request sent.
+  if (values.force && !values.only && limit === undefined) {
+    const proceed = await confirm(
+      `Re-describing all ${total} icons in ${OUTPUT} over ${transport} ` +
+        `(${model}), estimated at least $${estimate.toFixed(2)}. Proceed?`,
+    );
+    if (!proceed) {
+      fail(
+        process.stdin.isTTY
+          ? "Cancelled; nothing spent."
+          : "--force needs an interactive confirmation on a paid transport. " +
+              "Scope it with --only or --limit, or re-run in a terminal.",
+      );
+    }
   }
 }
 
