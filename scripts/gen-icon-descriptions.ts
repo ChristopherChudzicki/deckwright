@@ -44,23 +44,63 @@ const CACHE_DIR = resolve(__dirname, "../.icon-cache");
 const LOCKFILE = join(CACHE_DIR, "run.lock");
 const BATCH_DIR = join(CACHE_DIR, "batches");
 
+const USAGE = `Usage: npm run gen:icon-descriptions -- [flags]
+
+Describes game-icons artwork with a Claude model and merges the result into a
+corpus. The defaults are the safe ones: work goes to the subscription CLI rather
+than a billed API, and icons that already have an entry are skipped.
+
+  --transport <cli|api|batch>  where to send the work (default cli)
+  --model <sonnet|opus>        model to describe with (default sonnet)
+  --out <path>                 corpus to read and write (default src/data/iconDescriptions/corpus.json)
+  --limit <n>                  describe at most n icons
+  --only <name>                describe exactly these; repeatable
+  --force                      re-describe icons that already have an entry
+  --batch-size <n>             icons per request (default 30)
+  --size <px>                  PNG render size (default 512)
+  --max-cost <usd>             spend ceiling
+  --validate                   score a corpus and exit; calls no model, writes nothing
+  --fetch <batch-id>           collect a submitted batch; takes no other flags
+  -h, --help                   show this
+
+To see what a run would do without paying for it, give it a --max-cost it cannot
+meet: --max-cost 0.01 prints the selection and the estimate, then stops before
+rendering or calling anything.
+
+Full documentation: scripts/icon-descriptions/README.md`;
+
 // No parseArgs defaults: --validate and --fetch are exclusive modes, and a
 // defaulted flag is indistinguishable from one the operator actually passed.
-const { values } = parseArgs({
-  options: {
-    only: { type: "string", multiple: true },
-    "batch-size": { type: "string" },
-    force: { type: "boolean" },
-    validate: { type: "boolean" },
-    fetch: { type: "string" },
-    limit: { type: "string" },
-    model: { type: "string" },
-    out: { type: "string" },
-    size: { type: "string" },
-    transport: { type: "string" },
-    "max-cost": { type: "string" },
-  },
-});
+// parseArgs throws an ERR_PARSE_ARGS_* stack trace on a mistyped flag, which is
+// a poor first impression from a script that can spend money on the next line.
+const values = (() => {
+  try {
+    return parseArgs({
+      options: {
+        only: { type: "string", multiple: true },
+        "batch-size": { type: "string" },
+        force: { type: "boolean" },
+        help: { type: "boolean", short: "h" },
+        validate: { type: "boolean" },
+        fetch: { type: "string" },
+        limit: { type: "string" },
+        model: { type: "string" },
+        out: { type: "string" },
+        size: { type: "string" },
+        transport: { type: "string" },
+        "max-cost": { type: "string" },
+      },
+    }).values;
+  } catch (err) {
+    console.error(`${(err as Error).message}\n\n${USAGE}`);
+    process.exit(2);
+  }
+})();
+
+if (values.help) {
+  console.log(USAGE);
+  process.exit(0);
+}
 
 const fail = (message: string): never => {
   console.error(message);

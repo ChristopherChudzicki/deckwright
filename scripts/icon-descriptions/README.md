@@ -46,6 +46,7 @@ Steps 1 and 4 are what make a run resumable: re-running after any failure picks 
 | `--max-cost <usd>` | — | spend ceiling |
 | `--validate` | — | score a corpus; writes nothing. Accepts `--out` |
 | `--fetch <batch-id>` | — | collect a submitted batch. Takes no other flags |
+| `-h`, `--help` | — | print this table as a usage message |
 
 `--validate` and `--fetch` are exclusive modes and refuse conflicting flags rather than ignoring them.
 
