@@ -127,7 +127,9 @@ These are regexes, so comparing a revision against them carries **zero grading n
 
 ### 2026-07-27 pilot
 
-`corpus/pilot.json` — 60 icons under the current prompt. Every one of those 60 is also in the baseline corpus, so this is a **paired** comparison: same icons, same transport, only the instructions differ.
+`corpus/pilot.json` — 60 icons under the prompt as of `d8d7aec`. Every one of those 60 is also in the baseline corpus, so this is a **paired** comparison: same icons, same transport, only the instructions differ.
+
+**These numbers are one commit behind the committed prompt.** `0a03644` landed afterwards and changed four words — "Omit it when it only restates the subject" became "Omit the association when…", because the pronoun's antecedent sat four lines away. It was judged not worth a re-measurement, and that judgement is the only thing standing between this table and the prompt actually in `prompt.ts`. A prompt edit with any semantic content is a different matter: re-pilot it.
 
 | check | old prompt | current prompt | fixed | introduced |
 |---|---|---|---|---|
