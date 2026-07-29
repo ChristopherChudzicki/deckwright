@@ -2,14 +2,14 @@ import { describe, expect, test } from "vitest";
 import { pickRequested, responseSchema } from "./transport";
 
 describe("responseSchema", () => {
-  // Requiring every name is what turns a short response into a retry instead of
-  // a silent shortfall that costs a whole extra invocation to close later.
-  test("requires every requested icon and forbids any other key", () => {
-    expect(responseSchema(["fireball", "broadsword"])).toEqual({
+  // Naming the requested icons would give every request in a batch its own
+  // schema, and one grammar compiles per distinct schema against a limit of 20
+  // per minute. Taking no arguments is the guarantee: there is no way to make
+  // two requests differ.
+  test("describes a name-to-string map without naming any icon", () => {
+    expect(responseSchema()).toEqual({
       type: "object",
-      properties: { fireball: { type: "string" }, broadsword: { type: "string" } },
-      required: ["fireball", "broadsword"],
-      additionalProperties: false,
+      additionalProperties: { type: "string" },
     });
   });
 });

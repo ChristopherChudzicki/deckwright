@@ -248,13 +248,19 @@ describe("describeBatchApi", () => {
     expect(captured.body().model).toBe("claude-sonnet-5");
   });
 
-  test("constrains the response to the requested icons", async () => {
+  // The schema must not vary with the icons requested: a batch's requests each
+  // compile their own grammar, and distinct schemas exhaust the 20-per-minute
+  // limit long before 138 requests are dispatched.
+  test("sends the same schema whatever icons are requested", async () => {
     const captured = capture();
     await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
+    const first = captured.body().output_config;
 
-    expect(captured.body().output_config).toEqual({
-      format: { type: "json_schema", schema: responseSchema(["fireball", "broadsword"]) },
-    });
+    const second = capture();
+    await describeBatchApi(["fireball"], { pngDir, model: "sonnet" });
+
+    expect(first).toEqual({ format: { type: "json_schema", schema: responseSchema() } });
+    expect(second.body().output_config).toEqual(first);
   });
 
   test("throws with the status when the API returns a non-2xx", async () => {

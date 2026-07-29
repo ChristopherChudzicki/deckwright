@@ -29,16 +29,24 @@ export function batchFailure(message: string, fields: FailureFields = {}): Batch
   return Object.assign(new Error(message), fields);
 }
 
-// Naming every requested icon as a required property, with no additional ones
-// allowed, makes a short or renamed response a schema violation to retry on
-// rather than a silent shortfall we would pay to close in a later run.
-export function responseSchema(names: readonly string[]): Record<string, unknown> {
-  return {
-    type: "object",
-    properties: Object.fromEntries(names.map((name) => [name, { type: "string" }])),
-    required: [...names],
-    additionalProperties: false,
-  };
+// Deliberately says nothing about which icons were asked for, so that every
+// request in a batch carries a byte-identical schema.
+//
+// It used to name each requested icon as a required property, which turned a
+// short or renamed response into a schema violation to retry on. That made all
+// 138 requests in a full run carry a *different* schema, and structured outputs
+// compile one grammar per distinct schema against an organisation limit of 20
+// compilations per minute. A batch is dispatched far faster than that: the first
+// live run described 1,080 of 4,134 icons and errored the other 102 requests on
+// `Grammar compilation rate limit exceeded`.
+//
+// Losing the completeness guarantee costs little, because three other things
+// already cover it: `pickRequested` drops keys that name no requested icon,
+// `validateEntry` gates every entry before it is merged, and selection reads the
+// corpus — so an icon a response omitted is simply still undescribed and is
+// picked up by the next run, at the price of those icons alone.
+export function responseSchema(): Record<string, unknown> {
+  return { type: "object", additionalProperties: { type: "string" } };
 }
 
 // Belt-and-braces behind the schema: a wrong key silently lost butter-toast in a

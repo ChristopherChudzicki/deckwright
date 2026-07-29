@@ -223,7 +223,7 @@ export async function buildRequestParams(
     // Constrained decoding pins the key set and the value types. It does not
     // pin content — structured outputs reject `minLength`, so an empty string
     // is schema-valid — which is why validateEntry still gates every entry.
-    output_config: { format: { type: "json_schema", schema: responseSchema(names) } },
+    output_config: { format: { type: "json_schema", schema: responseSchema() } },
   };
 }
 
