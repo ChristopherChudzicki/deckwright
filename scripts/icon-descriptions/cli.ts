@@ -32,6 +32,7 @@ export type CliOptions = {
   batchSize: number;
   size: number;
   maxCost?: number;
+  dryRun?: boolean;
   validate?: boolean;
   fetch?: string;
 };
@@ -65,6 +66,7 @@ const RUN_FLAGS = [
   "size",
   "transport",
   "maxCost",
+  "dryRun",
 ] as const;
 
 // `--out` names which corpus to work on, so it is meaningful to a run and to
@@ -90,10 +92,8 @@ export function buildProgram() {
           "The defaults are the safe ones: work goes to the subscription CLI rather than a billed " +
           "API, icons that already have an entry are skipped, and output lands in a per-model " +
           "workbench file rather than the corpus that ships.\n\n" +
-          "To see what a run would do without paying for it, use --transport batch with a " +
-          "--max-cost it cannot meet: it prints the selection and the estimate, then refuses to " +
-          "submit. Only batch refuses pre-flight — under api the ceiling is a running total, so a " +
-          "small enough run finishes and bills before reaching it.\n\n" +
+          "To see what a run would do without paying for it, add --dry-run: it prints the " +
+          "selection and the estimate and exits before rendering or sending anything.\n\n" +
           "Full documentation: scripts/icon-descriptions/README.md",
       )
       .option(
@@ -118,6 +118,7 @@ export function buildProgram() {
       .option("--batch-size <n>", "icons per request", positiveInt, DEFAULT_BATCH_SIZE)
       .option("--size <px>", "PNG render size", positiveInt, DEFAULT_RENDER_SIZE)
       .option("--max-cost <usd>", "spend ceiling", positiveDollars)
+      .option("--dry-run", "print the selection and the estimate, then exit without sending")
       .option("--validate", "score a corpus and exit; calls no model, writes nothing")
       .option("--fetch <batch-id>", "collect a submitted batch; takes no other flags")
   );

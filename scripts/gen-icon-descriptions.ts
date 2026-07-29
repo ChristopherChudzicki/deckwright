@@ -285,8 +285,9 @@ if (price) {
   // that spends quota which refills; over the API it is an unbounded charge one
   // keystroke away from a scoped re-run. Asked here rather than at parse time so
   // the question carries the count and the estimate it is really about — and
-  // still before any PNG is rendered or any request sent.
-  if (values.force && !values.only && limit === undefined) {
+  // still before any PNG is rendered or any request sent. Not asked under
+  // --dry-run, which reaches no spend to approve.
+  if (values.force && !values.only && limit === undefined && !values.dryRun) {
     const proceed = await confirm(
       `Re-describing all ${total} icons in ${OUTPUT} over ${transport} ` +
         `(${model}), estimated at least $${estimate.toFixed(2)}. Proceed?`,
@@ -300,6 +301,16 @@ if (price) {
       );
     }
   }
+}
+
+// After the selection and the estimate have printed and before anything is
+// rendered or sent. The old way to preview a run was a --max-cost the estimate
+// could not meet, which only ever worked by luck of magnitude: it is rail 3
+// refusing, so a selection small enough to fit under the ceiling submits instead.
+// That is how a run meant as a preview submitted a live batch.
+if (values.dryRun) {
+  console.log("Dry run; nothing rendered, nothing sent.");
+  process.exit(0);
 }
 
 console.log("Rendering PNGs…");

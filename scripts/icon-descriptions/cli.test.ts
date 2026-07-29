@@ -47,6 +47,14 @@ describe("exclusive modes", () => {
     expect(parse("--validate").validate).toBe(true);
   });
 
+  // --dry-run previews a run, and neither mode is one: --validate calls no model
+  // and --fetch collects work already submitted.
+  test("reject --dry-run, which has nothing to preview", () => {
+    expect(() => parse("--validate", "--dry-run")).toThrow(
+      "--validate is exclusive; remove: --dry-run",
+    );
+  });
+
   test("let --fetch keep the corpus its own record names", () => {
     expect(() => parse("--fetch", "msgbatch_1", "--out", "corpus/opus.json")).toThrow(
       "--fetch is exclusive; remove: --out",

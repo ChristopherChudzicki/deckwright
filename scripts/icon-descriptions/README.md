@@ -52,7 +52,8 @@ Steps 1 and 4 are what make a run resumable: re-running after any failure picks 
 | `--force` | off | re-describe icons that already have entries |
 | `--batch-size <n>` | 30 | icons per request |
 | `--size <px>` | 512 | PNG render size |
-| `--max-cost <usd>` | — | spend ceiling |
+| `--max-cost <usd>` | — | spend ceiling: aborts a running `api` total, refuses a `batch` submit pre-flight. Caps nothing once a batch is away |
+| `--dry-run` | — | print the selection and the estimate, then exit without sending |
 | `--validate` | — | score a corpus; writes nothing. Defaults `--out` to the shipped corpus |
 | `--fetch <batch-id>` | — | collect a submitted batch. Takes no other flags |
 | `-h`, `--help` | — | print the flags |
@@ -103,7 +104,9 @@ A **rail** keeps a run from spending more than you meant it to. Not error handli
 
 Rails 1–3 guard money. Rails 4 and 5 guard something worse, and that is why they refuse instead of asking: a corpus holding two models' output is indistinguishable afterwards from one holding either, so "are you sure?" would be asking an operator to approve a result they cannot inspect later to find out whether they were right. Both are also trivially satisfiable — collect the batch, or name a different `--out`. Since `--out` now defaults to `corpus/<model>.json`, rail 5 should only ever fire on an explicit `--out` that names another model's file.
 
-**Dry run — `--transport batch` only.** `--transport batch --max-cost 0.01` prints the selection and the estimate and exits 2 before rendering anything or calling anything, because rail 3 refuses to submit above the ceiling. **The same flags under `api` are not a dry run**: there the ceiling is a running total (rail 2), so a run whose estimate fits under it describes the icons and bills for them. Under `cli` there is no price and no ceiling at all.
+**Dry run — `--dry-run`, on any transport.** Prints the selection and, on a paid transport, the floor estimate, then exits 0 before rendering a PNG or opening a connection. It is the only supported way to preview a run.
+
+Do not preview a run by giving it a `--max-cost` you expect it to refuse. That was the old advice and it is a trap: the refusal is rail 3 comparing the ceiling against the estimate, so it only fires when the estimate is *larger*. A selection small enough to fit under the ceiling submits instead — which is how a command meant as a preview put a live batch in flight once the corpus was nearly full. Choosing a ceiling that refuses also requires already knowing the estimate, which is the thing a preview is for.
 
 ## Validation
 
@@ -175,9 +178,9 @@ Two independently generated corpora, cross-checked, is how a wrong description g
 Each arm writes to its own workbench file without being told to, since `--out` defaults to `corpus/<model>.json`.
 
 ```sh
-# 1. Dry run each arm. Prints selection + estimate, spends nothing, exits 2.
-npm run gen:icon-descriptions -- --transport batch --model sonnet --max-cost 0.01
-npm run gen:icon-descriptions -- --transport batch --model opus   --max-cost 0.01
+# 1. Dry run each arm. Prints selection + estimate, spends nothing, exits 0.
+npm run gen:icon-descriptions -- --transport batch --model sonnet --dry-run
+npm run gen:icon-descriptions -- --transport batch --model opus   --dry-run
 
 # 2. Submit both. Different corpora, so rail 4 lets them fly at once.
 npm run gen:icon-descriptions -- --transport batch --model sonnet
