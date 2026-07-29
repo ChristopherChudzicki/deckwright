@@ -557,7 +557,7 @@ All three transports put the same images in front of the model under the same
 prompt with the same schema, and differ only in delivery and billing.
 
 `cli` and `api` implement one seam — `DescribeBatch`, in
-`scripts/icon-descriptions/transport.ts`, alongside the schema builder, the
+`scripts/icon-descriptions/transport.ts`, alongside the shared response schema, the
 response filter, and the failure type they share — so `runBatches` is unaware of
 which is in play. **`batch` does not fit that seam**, because it is two-phase:
 the call that submits work is not the call that returns it. It is a separate code
@@ -1173,9 +1173,12 @@ without a server, and `submitBatch`/`collectBatch` are exercised through MSW.
   boundaries.
 - **Response parsing, `cli`:** the `--output-format json` envelope is unwrapped
   correctly; a success envelope carrying no `structured_output` is a failure.
-- **Response filtering (shared):** a non-string value and a key naming no
-  requested icon are each rejected, and surrounding whitespace is trimmed. Tested
-  once against `pickRequested`, which all three transports call.
+- **Response filtering (shared):** an entry naming no requested icon, an entry
+  whose description is not a string, and the second of two entries naming one
+  icon are each dropped, and surrounding whitespace is trimmed. Tested once
+  against `pickRequested`, which all three transports call. A reply carrying no
+  `descriptions` array is rejected by each transport rather than read as an empty
+  list, so a paid request cannot be banked as having described nothing.
 - **Response parsing, `api`:** the JSON text block is read and `usage` is priced;
   the text blocks are joined past a leading thinking block; a `max_tokens`
   truncation, a refusal, a missing text block, a non-object body, and absent

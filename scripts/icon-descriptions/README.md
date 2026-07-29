@@ -87,9 +87,9 @@ Keeping the map shape and letting the schema name no icons is not expressible. I
 
 Moving the names out of the keys and into values resolves both: one schema serves every request on every transport, so the grammar compiles once and the rest hit cache. Dropping the schema instead is not the cheaper option it looks like — a run with no `output_config` wrapped its reply in a markdown fence and lost **46 of 50** icons at `JSON.parse`, every one of them well formed and billed.
 
-What the schema does **not** guarantee is completeness. `minItems` accepts only 0 and 1, so it cannot require one entry per requested icon, and a request may return fewer than it was asked for. `pickRequested` drops entries naming an unrequested icon and keeps the first of any duplicate; a shortfall is reported by the run's `Described N of M` line and closed by the next run, which re-selects whatever the corpus still lacks.
+What the schema does **not** guarantee is completeness. `minItems` accepts only 0 and 1, so it cannot require one entry per requested icon, and a request may return fewer than it was asked for. `pickRequested` drops entries naming an unrequested icon and keeps the first of any duplicate. A shortfall is reported per batch as `+29, 1 missing` under `cli` and `api`, and by the `Described N of M` line under `--fetch`; either way the next run re-selects whatever the corpus still lacks. A reply carrying no `descriptions` array at all is a failure rather than an empty batch, so it cannot be banked as a silently paid-for nothing.
 
-Errored requests are not billed, so both failures cost nothing beyond what succeeded — but each one is 138 requests of latency and a re-submit.
+The grammar-limit failures cost only latency, because errored requests are not billed. The fenced-reply failure was billed in full — the requests succeeded and it was the parse that rejected them. That asymmetry is the argument for the schema over the prompt: a violated prompt still charges you.
 
 ## Spend rails
 

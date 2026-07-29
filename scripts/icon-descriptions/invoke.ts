@@ -43,7 +43,12 @@ export function extractDescriptions(stdout: string, requested: readonly string[]
   // A run can report subtype "success" and still carry no structured output;
   // that is a failure, not an empty batch.
   const output = envelope.structured_output;
-  if (typeof output !== "object" || output === null || Array.isArray(output)) {
+  if (
+    typeof output !== "object" ||
+    output === null ||
+    Array.isArray(output) ||
+    !Array.isArray((output as { descriptions?: unknown }).descriptions)
+  ) {
     throw batchFailure(
       `claude -p returned no structured_output (subtype ${String(envelope.subtype)}): ` +
         `${stdout.slice(0, 200)}`,

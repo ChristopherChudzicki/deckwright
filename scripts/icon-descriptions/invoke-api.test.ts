@@ -191,6 +191,14 @@ describe("extractApiDescriptions", () => {
     ).toThrow(/not JSON/);
   });
 
+  // Returning {} instead would leave `batch` recording a succeeded request that
+  // merged nothing and reported no failure — the paid request lost in silence.
+  test("throws when the object carries no descriptions array", () => {
+    expect(() =>
+      extractApiDescriptions(reply('{"fireball": "A ball of flame."}'), ["fireball"], SONNET),
+    ).toThrow(/no "descriptions" array/);
+  });
+
   test("throws when the text block is JSON but not an object", () => {
     expect(() =>
       extractApiDescriptions(reply('["A ball of flame."]'), ["fireball"], SONNET),
@@ -258,7 +266,7 @@ describe("describeBatchApi", () => {
   // Grammars are cached per schema structure against a limit of 20 compilations
   // a minute, so a request carrying a schema that named its own icons would put
   // the run back where it errored 102 of 138 requests.
-  test("constrains the response with the schema shared by every request", async () => {
+  test("constrains the response with the shared schema", async () => {
     const captured = capture();
     await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
 

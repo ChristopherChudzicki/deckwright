@@ -4,10 +4,11 @@ import { pickRequested, RESPONSE_SCHEMA } from "./transport";
 const described = (entries: unknown[]) => ({ descriptions: entries });
 
 describe("RESPONSE_SCHEMA", () => {
-  // The whole point of the array shape is that the schema names no icon, so one
-  // compiled grammar serves every request. A schema that varied per request cost
-  // a live arm 102 of its 138 requests.
-  test("names no icon, so every request shares one schema", () => {
+  // Two properties this pins, both of which a live run has already broken:
+  // the schema names no icon, so it is the same schema every request, and
+  // `additionalProperties` is false on both objects, which structured outputs
+  // reject any other value for.
+  test("names no icon and forbids additional properties throughout", () => {
     expect(RESPONSE_SCHEMA).toEqual({
       type: "object",
       properties: {
@@ -51,14 +52,17 @@ describe("pickRequested", () => {
     ).toEqual({ fireball: "A ball of flame." });
   });
 
-  // `minItems` accepts only 0 and 1, so the schema cannot require one entry per
-  // icon. A short response is reported and re-described, not treated as a failure.
-  test("returns only what came back when the response is short", () => {
+  // `.trim()` on a non-string throws, which would lose the whole billed request
+  // over one bad entry.
+  test("drops an entry whose description is not a string and keeps the rest", () => {
     expect(
-      pickRequested(described([{ name: "fireball", description: "A ball of flame." }]), [
-        "fireball",
-        "broadsword",
-      ]),
+      pickRequested(
+        described([
+          { name: "fireball", description: "A ball of flame." },
+          { name: "broadsword", description: null },
+        ]),
+        ["fireball", "broadsword"],
+      ),
     ).toEqual({ fireball: "A ball of flame." });
   });
 

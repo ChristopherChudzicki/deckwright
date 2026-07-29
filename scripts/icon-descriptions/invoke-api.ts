@@ -187,6 +187,13 @@ export function extractMessage(
   if (typeof output !== "object" || output === null || Array.isArray(output)) {
     throw failed(`text block is not a JSON object: ${text.slice(0, 200)}`);
   }
+  // Without this a reply carrying no `descriptions` array is indistinguishable
+  // from one carrying an empty list, and under `batch` that is recorded as a
+  // succeeded request with nothing merged and nothing in `failures` — a paid
+  // request lost silently, which is what the schema exists to prevent.
+  if (!Array.isArray((output as { descriptions?: unknown }).descriptions)) {
+    throw failed(`text block carries no "descriptions" array: ${text.slice(0, 200)}`);
+  }
 
   return { descriptions: pickRequested(output, requested), cost, thinkingTokens };
 }
@@ -216,10 +223,12 @@ export async function buildRequestParams(
   pngDir: string,
   modelId: string,
 ): Promise<Record<string, unknown>> {
-  // Constrained decoding is what makes a malformed reply impossible rather than
-  // merely discouraged. Asking for it in the prompt alone is not enough: with the
-  // schema removed, a live batch wrapped its object in a markdown fence and lost
-  // 46 of its 50 icons at the parse, all of them well formed and paid for.
+  // Constrained decoding is what makes a fenced or prose-wrapped reply
+  // impossible rather than merely discouraged — truncation and refusals still
+  // reach the parse, which is why extractMessage names them. Asking in the prompt
+  // alone is not enough: with the schema removed, a live batch wrapped its object
+  // in a markdown fence and lost 46 of its 50 icons at the parse, all of them
+  // well formed and paid for.
   return {
     model: modelId,
     max_tokens: MAX_TOKENS,

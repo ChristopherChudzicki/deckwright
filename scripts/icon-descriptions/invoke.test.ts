@@ -98,7 +98,12 @@ describe("extractDescriptions", () => {
   });
 
   test("throws when structured_output is an array rather than an object", () => {
-    expect(() => extractDescriptions(envelope([{ fireball: "A ball." }]), ["fireball"])).toThrow(
+    expect(() => extractDescriptions(envelope([]), ["fireball"])).toThrow(/no structured_output/);
+  });
+
+  // Returning nothing instead would bank a paid invocation as an empty batch.
+  test("throws when structured_output carries no descriptions array", () => {
+    expect(() => extractDescriptions(envelope({ fireball: "A ball." }), ["fireball"])).toThrow(
       /no structured_output/,
     );
   });
