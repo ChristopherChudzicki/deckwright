@@ -13,7 +13,6 @@ import {
   pricingFor,
   resolveModel,
 } from "./invoke-api";
-import { responseSchema } from "./transport";
 
 const SONNET = { input: 2, output: 10 };
 const USAGE = { input_tokens: 12_000, output_tokens: 1_200 };
@@ -248,19 +247,15 @@ describe("describeBatchApi", () => {
     expect(captured.body().model).toBe("claude-sonnet-5");
   });
 
-  // The schema must not vary with the icons requested: a batch's requests each
-  // compile their own grammar, and distinct schemas exhaust the 20-per-minute
-  // limit long before 138 requests are dispatched.
-  test("sends the same schema whatever icons are requested", async () => {
+  // A per-request schema compiles a grammar per request against a limit of 20 a
+  // minute, and a schema naming no icons is rejected outright because
+  // additionalProperties must be false. Constrained decoding is therefore
+  // unusable over HTTP; extractMessage parses the text block itself.
+  test("sends no output_config, whose schema could not be shared across requests", async () => {
     const captured = capture();
     await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
-    const first = captured.body().output_config;
 
-    const second = capture();
-    await describeBatchApi(["fireball"], { pngDir, model: "sonnet" });
-
-    expect(first).toEqual({ format: { type: "json_schema", schema: responseSchema() } });
-    expect(second.body().output_config).toEqual(first);
+    expect(captured.body()).not.toHaveProperty("output_config");
   });
 
   test("throws with the status when the API returns a non-2xx", async () => {

@@ -1,13 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildPrompt } from "./prompt";
-import {
-  type BatchResult,
-  batchFailure,
-  type DescribeBatch,
-  pickRequested,
-  responseSchema,
-} from "./transport";
+import { type BatchResult, batchFailure, type DescribeBatch, pickRequested } from "./transport";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -216,14 +210,24 @@ export async function buildRequestParams(
   pngDir: string,
   modelId: string,
 ): Promise<Record<string, unknown>> {
+  // No output_config, deliberately. Constrained decoding is unusable here: a
+  // schema naming the requested icons differs per request, and structured
+  // outputs compile one grammar per distinct schema against an organisation
+  // limit of 20 compilations per minute — a 138-request batch is dispatched far
+  // faster than that, and the first live run errored 102 of its requests on
+  // `Grammar compilation rate limit exceeded`. A schema that names no icons is
+  // not expressible either: `additionalProperties` must be `false`, so an
+  // open-ended name-to-string map is rejected outright.
+  //
+  // Nothing downstream needed it. The prompt already asks for a bare JSON
+  // object, extractMessage parses the text block itself, pickRequested drops
+  // keys naming no requested icon, and validateEntry gates every entry before
+  // merge. A reply that is not JSON fails its request, leaving those icons
+  // undescribed for the next run to pick up at their own cost.
   return {
     model: modelId,
     max_tokens: MAX_TOKENS,
     messages: [{ role: "user", content: await buildContent(names, pngDir) }],
-    // Constrained decoding pins the key set and the value types. It does not
-    // pin content — structured outputs reject `minLength`, so an empty string
-    // is schema-valid — which is why validateEntry still gates every entry.
-    output_config: { format: { type: "json_schema", schema: responseSchema() } },
   };
 }
 

@@ -77,7 +77,7 @@ export const describeBatch: DescribeBatch = async (names, { pngDir, model }) => 
         "--output-format",
         "json",
         "--json-schema",
-        JSON.stringify(responseSchema()),
+        JSON.stringify(responseSchema(names)),
         "--model",
         model,
       ],
