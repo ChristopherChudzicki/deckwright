@@ -45,7 +45,17 @@ const succeeded = (customId: string, descriptions: Record<string, string>) =>
       type: "succeeded",
       message: {
         stop_reason: "end_turn",
-        content: [{ type: "text", text: JSON.stringify(descriptions) }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              descriptions: Object.entries(descriptions).map(([name, description]) => ({
+                name,
+                description,
+              })),
+            }),
+          },
+        ],
         usage: USAGE,
       },
     },
@@ -139,7 +149,9 @@ describe("readResults", () => {
             type: "succeeded",
             message: {
               stop_reason: "max_tokens",
-              content: [{ type: "text", text: '{"fireball": "A ball of fla' }],
+              content: [
+                { type: "text", text: '{"descriptions":[{"name":"fireball","description":"A ba' },
+              ],
               usage: USAGE,
             },
           },

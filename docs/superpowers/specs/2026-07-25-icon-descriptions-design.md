@@ -577,13 +577,7 @@ stability is load-bearing — a change means a full regeneration — so it must 
 reviewable constant, not a paraphrase. All of them fail fast, before any PNG is
 rendered, when their credential is missing.
 
-**Response shape is schema-constrained, not parsed out of prose.** Naming every
-requested icon as a required property with `additionalProperties: false` turns a
-short or renamed response into a constraint violation rather than a silent
-shortfall paid for again later. `responseSchema()` builds it once and all three
-transports use it unchanged. This replaced an earlier design that stripped ```
-fences and depth-counted braces out of free-form model text; that machinery is
-gone, and with it the fenced/preamble test fixtures it needed.
+**Response shape is schema-constrained, not parsed out of prose.** `RESPONSE_SCHEMA` asks for `{"descriptions": [{"name", "description"}, …]}` — a list rather than the obvious object keyed by icon name, because an object keyed by icon name embeds the request's own data in its keys and so is a different schema every request. Grammars are compiled and cached per schema structure, against an organisation limit of 20 compilations per minute, and a 138-request arm dispatches far faster than that. Moving the names into values makes one schema serve every request, and all three transports send it unchanged. The cost of the list shape is that `minItems` accepts only 0 and 1, so the schema cannot require one entry per requested icon; a short response is reported and re-described rather than rejected. This replaced an earlier design that stripped ``` fences and depth-counted braces out of free-form model text; that machinery is gone, and with it the fenced/preamble test fixtures it needed.
 
 ### `--transport cli` (default)
 

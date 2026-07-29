@@ -6,7 +6,7 @@ import {
   batchFailure,
   type DescribeBatch,
   pickRequested,
-  responseSchema,
+  RESPONSE_SCHEMA,
 } from "./transport";
 
 const execFileP = promisify(execFile);
@@ -77,7 +77,7 @@ export const describeBatch: DescribeBatch = async (names, { pngDir, model }) => 
         "--output-format",
         "json",
         "--json-schema",
-        JSON.stringify(responseSchema(names)),
+        JSON.stringify(RESPONSE_SCHEMA),
         "--model",
         model,
       ],

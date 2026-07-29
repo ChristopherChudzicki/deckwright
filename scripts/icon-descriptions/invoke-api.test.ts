@@ -13,6 +13,7 @@ import {
   pricingFor,
   resolveModel,
 } from "./invoke-api";
+import { RESPONSE_SCHEMA } from "./transport";
 
 const SONNET = { input: 2, output: 10 };
 const USAGE = { input_tokens: 12_000, output_tokens: 1_200 };
@@ -24,6 +25,11 @@ const reply = (text: string, extra: Record<string, unknown> = {}) =>
     content: [{ type: "text", text }],
     usage: USAGE,
     ...extra,
+  });
+
+const described = (entries: Record<string, string>): string =>
+  JSON.stringify({
+    descriptions: Object.entries(entries).map(([name, description]) => ({ name, description })),
   });
 
 describe("resolveModel", () => {
@@ -84,7 +90,7 @@ describe("estimateCost", () => {
 describe("extractApiDescriptions", () => {
   test("reads the JSON text block and prices the usage", () => {
     const { descriptions, cost } = extractApiDescriptions(
-      reply(JSON.stringify({ fireball: "A ball of flame." })),
+      reply(described({ fireball: "A ball of flame." })),
       ["fireball"],
       SONNET,
     );
@@ -95,7 +101,7 @@ describe("extractApiDescriptions", () => {
   // Reported so the subset measurement can see what adaptive thinking costs.
   test("reports the thinking tokens the response used", () => {
     const { thinkingTokens } = extractApiDescriptions(
-      reply(JSON.stringify({ fireball: "A ball of flame." }), {
+      reply(described({ fireball: "A ball of flame." }), {
         usage: { ...USAGE, output_tokens_details: { thinking_tokens: 640 } },
       }),
       ["fireball"],
@@ -113,8 +119,8 @@ describe("extractApiDescriptions", () => {
         usage: USAGE,
         content: [
           { type: "thinking", thinking: "The first icon looks like a flame." },
-          { type: "text", text: '{"fireball":' },
-          { type: "text", text: ' "A ball of flame."}' },
+          { type: "text", text: '{"descriptions":[{"name":"fireball",' },
+          { type: "text", text: '"description":"A ball of flame."}]}' },
         ],
       }),
       ["fireball"],
@@ -148,7 +154,9 @@ describe("extractApiDescriptions", () => {
   test("throws when the response was cut off at max_tokens", () => {
     expect(() =>
       extractApiDescriptions(
-        reply('{"fireball": "A ball of fla', { stop_reason: "max_tokens" }),
+        reply('{"descriptions":[{"name":"fireball","description":"A ball of fla', {
+          stop_reason: "max_tokens",
+        }),
         ["fireball"],
         SONNET,
       ),
@@ -208,7 +216,7 @@ describe("describeBatchApi", () => {
       http.post("https://api.anthropic.com/v1/messages", async ({ request }) => {
         seen = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(
-          JSON.parse(reply(JSON.stringify({ fireball: "A ball.", broadsword: "A sword." }))),
+          JSON.parse(reply(described({ fireball: "A ball.", broadsword: "A sword." }))),
         );
       }),
     );
@@ -247,15 +255,16 @@ describe("describeBatchApi", () => {
     expect(captured.body().model).toBe("claude-sonnet-5");
   });
 
-  // A per-request schema compiles a grammar per request against a limit of 20 a
-  // minute, and a schema naming no icons is rejected outright because
-  // additionalProperties must be false. Constrained decoding is therefore
-  // unusable over HTTP; extractMessage parses the text block itself.
-  test("sends no output_config, whose schema could not be shared across requests", async () => {
+  // Grammars are cached per schema structure against a limit of 20 compilations
+  // a minute, so a request carrying a schema that named its own icons would put
+  // the run back where it errored 102 of 138 requests.
+  test("constrains the response with the schema shared by every request", async () => {
     const captured = capture();
     await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
 
-    expect(captured.body()).not.toHaveProperty("output_config");
+    expect(captured.body().output_config).toEqual({
+      format: { type: "json_schema", schema: RESPONSE_SCHEMA },
+    });
   });
 
   test("throws with the status when the API returns a non-2xx", async () => {

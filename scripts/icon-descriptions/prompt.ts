@@ -58,7 +58,7 @@ Most icons carry no such association, and a bare literal description is the expe
 
 Describe the subject, not the drawing style. Every icon is a flat black-and-white shape, so words about how a thing is drawn — its rendering, how abstract or simplified it is, its outline treatment, its line weight, its flatness — are true of all 4,134 icons and belong in none of them. Spend every word on what is shown.
 
-Reply with ONLY a JSON object mapping each filename (without the .png extension) to its description string.`;
+Reply with ONLY a JSON object with a "descriptions" array, holding one entry per icon: {"name": the filename without the .png extension, "description": your sentence}.`;
 
 export function buildPrompt(filenames: readonly string[], images: ImageSource): string {
   return `These are icons from the game-icons.net collection, used in a Dungeons & Dragons spell-and-item card app.

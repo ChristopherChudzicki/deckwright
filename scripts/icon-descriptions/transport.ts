@@ -29,33 +29,53 @@ export function batchFailure(message: string, fields: FailureFields = {}): Batch
   return Object.assign(new Error(message), fields);
 }
 
-// Naming every requested icon as a required property, with no additional ones
-// allowed, makes a short or renamed response a schema violation to retry on
-// rather than a silent shortfall we would pay to close in a later run.
+// A list of name/description pairs rather than the obvious object keyed by icon
+// name, because the keys of that object are the request's own data: it is a
+// different schema every request, and compiled grammars are cached per schema
+// structure, against an organisation limit of 20 compilations a minute. A live
+// 138-request arm errored 102 of its requests on that limit. Names moved into
+// values make one schema serve every request and every transport, so the grammar
+// compiles once and the rest hit cache.
 //
-// Only the `cli` transport uses this. Over HTTP the same schema costs more than
-// it buys, because it varies per request — see the note on `output_config` in
-// invoke-api.ts.
-export function responseSchema(names: readonly string[]): Record<string, unknown> {
-  return {
-    type: "object",
-    properties: Object.fromEntries(names.map((name) => [name, { type: "string" }])),
-    required: [...names],
-    additionalProperties: false,
-  };
-}
+// An open-ended map is not expressible anyway: structured outputs require
+// `additionalProperties: false`, so there is no way to say "arbitrary string
+// keys".
+export const RESPONSE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    descriptions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { name: { type: "string" }, description: { type: "string" } },
+        required: ["name", "description"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["descriptions"],
+  additionalProperties: false,
+};
 
-// Belt-and-braces behind the schema: a wrong key silently lost butter-toast in a
-// measured run, back when nothing constrained the response shape.
+type Described = { name?: unknown; description?: unknown };
+
+// The schema guarantees the shape but not the contents: `minItems` accepts only
+// 0 and 1, so it cannot require all 30 icons, and nothing stops the model
+// returning a name nobody asked for. A wrong name silently lost butter-toast in
+// a measured run. Unrequested and duplicate names are dropped here; a shortfall
+// is left to the caller, which reports it and re-describes what is missing.
 export function pickRequested(
   output: object,
   requested: readonly string[],
 ): Record<string, string> {
   const wanted = new Set(requested);
+  const { descriptions: listed } = output as { descriptions?: unknown };
   const descriptions: Record<string, string> = {};
-  for (const [name, value] of Object.entries(output)) {
-    if (!wanted.has(name) || typeof value !== "string") continue;
-    descriptions[name] = value.trim();
+  for (const entry of Array.isArray(listed) ? (listed as Described[]) : []) {
+    const { name, description } = entry ?? {};
+    if (typeof name !== "string" || typeof description !== "string") continue;
+    if (!wanted.has(name) || name in descriptions) continue;
+    descriptions[name] = description.trim();
   }
   return descriptions;
 }

@@ -67,7 +67,7 @@ Most icons carry no such association, and a bare literal description is the expe
 
 Describe the subject, not the drawing style. Every icon is a flat black-and-white shape, so words about how a thing is drawn — its rendering, how abstract or simplified it is, its outline treatment, its line weight, its flatness — are true of all 4,134 icons and belong in none of them. Spend every word on what is shown.
 
-Reply with ONLY a JSON object mapping each filename (without the .png extension) to its description string.
+Reply with ONLY a JSON object with a "descriptions" array, holding one entry per icon: {"name": the filename without the .png extension, "description": your sentence}.
 
 Files:
 fireball.png`);
@@ -77,7 +77,12 @@ fireball.png`);
 describe("extractDescriptions", () => {
   test("reads structured_output and the cost", () => {
     const { descriptions, cost } = extractDescriptions(
-      envelope({ fireball: "A ball of flame." }, { total_cost_usd: 0.31 }),
+      envelope(
+        { descriptions: [{ name: "fireball", description: "A ball of flame." }] },
+        {
+          total_cost_usd: 0.31,
+        },
+      ),
       ["fireball"],
     );
     expect(descriptions).toEqual({ fireball: "A ball of flame." });
@@ -127,8 +132,11 @@ describe("extractDescriptions", () => {
 
   // Without the ?? 0 the run's running total becomes NaN, with no other symptom.
   test("reports zero cost when the envelope omits total_cost_usd", () => {
-    expect(extractDescriptions(envelope({ fireball: "A ball of flame." }), ["fireball"]).cost).toBe(
-      0,
-    );
+    expect(
+      extractDescriptions(
+        envelope({ descriptions: [{ name: "fireball", description: "A ball of flame." }] }),
+        ["fireball"],
+      ).cost,
+    ).toBe(0);
   });
 });

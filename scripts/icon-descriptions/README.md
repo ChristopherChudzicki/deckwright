@@ -35,7 +35,7 @@ Nothing needs a flag to be safe: the default transport spends subscription quota
 
 1. **Select.** Read the corpus at `--out`, subtract it from the collection, apply `--only` / `--limit`, chunk into batches of `--batch-size` (30).
 2. **Rasterize.** Render each icon to a 512px PNG under `.icon-cache/png/`, cached across runs. `.icon-cache/meta.json` records the icon-set version and render size; a change to either wipes the cache wholesale, since the cache key is the icon name and covers neither.
-3. **Describe.** Send each batch to the model and parse a JSON object out of the reply. Under `cli` a JSON schema constrains the reply; under `api` and `batch` it cannot — see "Why `api` and `batch` send no response schema" below.
+3. **Describe.** Send each batch to the model, constraining the reply with a JSON schema — `--json-schema` under `cli`, `output_config` under `api` and `batch`. All three share one schema; see "Why the response is a list, not an object keyed by icon" below.
 4. **Validate, then write.** Each entry is checked before it is merged. The corpus is written by rename, so a crash cannot leave it half-written.
 
 Steps 1 and 4 are what make a run resumable: re-running after any failure picks up exactly the icons that have no entry yet. `.icon-cache/run.lock` prevents two runs from clobbering each other's merges.
@@ -77,17 +77,17 @@ Parsing, coercion, and `--help` come from `commander` (`cli.ts`). The exclusivit
 
 A batch is capped at 100,000 requests **or 256 MB, whichever comes first**, and an oversized submit returns 413 `request_too_large`. A full arm is 138 requests carrying the whole 79 MB PNG cache, which base64 inflates to roughly 105 MB — comfortably inside the cap, but the margin is a factor of two, not a factor of ten. Raising `--size` above 512 px would eat it.
 
-### Why `api` and `batch` send no response schema
+### Why the response is a list, not an object keyed by icon
 
-`cli` constrains its reply with `--json-schema`; `api` and `batch` send no `output_config` at all. That asymmetry is forced, and both halves of the reasoning were learned by paying for them.
+The obvious shape for 30 descriptions is an object mapping each icon's name to its sentence. `RESPONSE_SCHEMA` instead asks for `{"descriptions": [{"name", "description"}, …]}`, and the reason is that the obvious shape cannot be constrained. Both halves of this were learned by paying for them.
 
-Structured outputs compile **one grammar per distinct schema**, against an organisation limit of **20 compilations per minute**. `responseSchema(names)` names each requested icon, so a 138-request arm carries 138 distinct schemas — dispatched far faster than 20 a minute. The first live batch described **1,080 of 4,134** icons and errored the other 102 requests with `Grammar compilation rate limit exceeded`. The concurrent Opus arm reached 1,770: the limit is org-wide, so two arms in flight compete for one budget. Under `cli` this never bites, because invocations are serial.
+Structured outputs compile **one grammar per distinct schema**, cached 24 hours and invalidated by any change to the schema's structure, against an organisation limit of **20 compilations per minute**. A schema keyed by icon name embeds the request's own data in its keys, so a 138-request arm carries 138 distinct schemas — dispatched far faster than 20 a minute. The first live batch described **1,080 of 4,134** icons and errored the other 102 requests with `Grammar compilation rate limit exceeded`. The concurrent Opus arm reached 1,770: the limit is org-wide, so two arms in flight compete for one budget.
 
-Sharing one schema across requests is not available either. A schema naming no icons needs `additionalProperties` to be a type, and structured outputs reject that outright — *"For 'object' type, 'additionalProperties: object' is not supported. Please set 'additionalProperties' to false."* So over HTTP the choice is a per-request grammar or no grammar.
+Keeping the map shape and letting the schema name no icons is not expressible. It needs `additionalProperties` to be a type, and structured outputs reject that outright — *"For 'object' type, 'additionalProperties: object' is not supported. Please set 'additionalProperties' to false."*
 
-No grammar costs nothing, because the reply was never parsed by the schema anyway. The prompt already ends *"Reply with ONLY a JSON object…"*, `extractMessage` runs `JSON.parse` on the joined text blocks itself, `pickRequested` drops any key naming no requested icon and any non-string value, and `validateEntry` gates every entry before merge. A reply that is not JSON fails its own request, leaving those icons undescribed for the next run to close at their own cost — which is the ordinary resumption path.
+Moving the names out of the keys and into values resolves both: one schema serves every request on every transport, so the grammar compiles once and the rest hit cache. Dropping the schema instead is not the cheaper option it looks like — a run with no `output_config` wrapped its reply in a markdown fence and lost **46 of 50** icons at `JSON.parse`, every one of them well formed and billed.
 
-**Do not add `output_config` back to the HTTP path.** `invoke-api.test.ts` pins its absence.
+What the schema does **not** guarantee is completeness. `minItems` accepts only 0 and 1, so it cannot require one entry per requested icon, and a request may return fewer than it was asked for. `pickRequested` drops entries naming an unrequested icon and keeps the first of any duplicate; a shortfall is reported by the run's `Described N of M` line and closed by the next run, which re-selects whatever the corpus still lacks.
 
 Errored requests are not billed, so both failures cost nothing beyond what succeeded — but each one is 138 requests of latency and a re-submit.
 
