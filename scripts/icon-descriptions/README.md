@@ -8,7 +8,7 @@ The design doc — `docs/superpowers/specs/2026-07-25-icon-descriptions-design.m
 
 ## Two corpora, and which is which
 
-A run writes to a **workbench** corpus at `corpus/<model>.json` — gitignored, one file per model, the default `--out`. Nothing a run does touches what ships.
+A run writes to a **workbench** corpus at `corpus/<model>.json` — one file per model, the default `--out`. Nothing a run does touches what ships. Those files are committed: they are paid output, and the audit that compares two models is only re-derivable if the arms it graded are in the history. Scratch belongs in `corpus/tmp/`, which is gitignored — probes, superseded runs, anything you would not mind losing.
 
 What ships is `src/data/iconDescriptions/corpus.json`, read through `src/data/iconDescriptions/load.ts`, which merges `overrides.json` over it. A workbench corpus becomes the shipped one only when you copy it there, deliberately, after curating.
 

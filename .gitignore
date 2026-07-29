@@ -16,11 +16,13 @@ coverage
 /.icon-cache/
 src/data/iconDescriptions/*.json.tmp
 
-# Per-model description corpora from `--out`. Deliberately NOT under
-# /.icon-cache/: those are hundreds of dollars-minutes of paid LLM output, and a
-# directory called "cache" invites an rm that also takes the batch records with
-# it, making any in-flight batch uncollectable.
-/corpus/
+# Per-model description corpora from `--out` are committed: they are paid LLM
+# output that no amount of re-running restores for free, and the audit comparing
+# them is only re-derivable if the arms it graded are in the history. Scratch
+# goes in /corpus/tmp/ — probes, superseded runs, anything an `rm` should be
+# free to take. Kept as a subdirectory rather than a re-include rule, because git
+# does not descend into an excluded directory and `!` would not work here.
+/corpus/tmp/
 src/data/iconDescriptions/*.json.model
 
 # Claude Code: machine-local scratch
