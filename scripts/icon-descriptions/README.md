@@ -10,9 +10,9 @@ The design doc — `docs/superpowers/specs/2026-07-25-icon-descriptions-design.m
 
 A run writes to a **workbench** corpus at `corpus/<model>.json` — one file per model, the default `--out`. Nothing a run does touches what ships. Those files are committed: they are paid output, and the audit that compares two models is only re-derivable if the arms it graded are in the history. Scratch belongs in `corpus/tmp/`, which is gitignored — probes, superseded runs, anything you would not mind losing.
 
-What ships is `src/data/iconDescriptions/corpus.json`, read through `src/data/iconDescriptions/load.ts`, which merges `overrides.json` over it. A workbench corpus becomes the shipped one only when you copy it there, deliberately, after curating.
+What ships is `src/data/iconDescriptions/corpus.json`, read through `src/data/iconDescriptions/load.ts`, which merges `overrides.json` over it. It is a derived file: `npm run promote:icon-descriptions` assembles it from the workbench corpora and `corpus/choices.json`. No run writes it, and nothing is hand-edited into it.
 
-The split exists because the shipped file is a flat name-to-description map with no per-entry provenance. That is right for the app — which never needs to know who wrote a description — and fatal for an experiment, since two models merged into one file are indistinguishable afterwards from either alone. Deriving the default path from `--model` makes that unrepresentable rather than merely refused.
+The split exists because the shipped file is a flat name-to-description map: the app never needs to know who wrote a description. That is fatal for an experiment, since two models merged into one file are indistinguishable afterwards from either alone. Deriving the default path from `--model` makes that unrepresentable rather than merely refused. Provenance for what ships lives beside it in `choices.json` instead of inside it.
 
 ## Quick start
 
@@ -171,42 +171,135 @@ The positive exemplars still name real icons, and they echo by the same mechanis
 
 **The name is a hint; the image is authoritative.** This rule is deliberately not loosened for the 36 place-outline icons (0.87%) where the name carries information the shape does not. Of the four described so far, `egypt` and `sri-lanka` name their country correctly and `corsica` and `colombia` do not — amending a rule governing 4,134 icons to fix roughly a dozen trades a contained problem for an uncontained one. Those go in `overrides.json`.
 
-## Generating two models and comparing them
+## Runbook: empty corpus to shipped corpus
 
-Two independently generated corpora, cross-checked, is how a wrong description gets caught without a human looking at 4,134 icons.
+Two independently generated corpora, cross-checked, is how a wrong description gets caught without a human looking at 4,134 icons. This is the whole pipeline on `batch`, which is what a full run should use.
+
+Budget the calendar, not just the money. There are **three batch waits** below — smoke, full, shortfall — and each is up to 24 hours. Cost is under "Cost"; steps 0–2 are cents.
 
 Each arm writes to its own workbench file without being told to, since `--out` defaults to `corpus/<model>.json`.
 
+### 0. Preflight — free
+
 ```sh
-# 1. Dry run each arm. Prints selection + estimate, spends nothing, exits 0.
+ls .icon-cache/batches/       # a record with no collectedAt is a batch you still owe a --fetch
+```
+
+`ANTHROPIC_API_KEY` must be exported; the run refuses before rendering if it is not. **Freeze the prompt here.** The corpus carries no marker separating entries written under one wording from another, so editing `prompt.ts` after step 4 costs a full regeneration.
+
+### 1. Pilot the prompt — 60 icons
+
+A revised prompt that has never been run is the single largest uncertainty in this pipeline.
+
+```sh
+npm run gen:icon-descriptions -- --out corpus/tmp/pilot.json --limit 60
+npm run gen:icon-descriptions -- --validate --out corpus/tmp/pilot.json
+```
+
+Pilot on whichever transport produced the baseline you are scoring against, since `cli` and `api` send different image-source wording and you want the instructions to be the only thing that moved. The recorded baseline under "Validation" above is `cli` — hence the default transport here, and the one place `cli` beats `api`. Scoring against anything else, add `--transport api`. Either way the selection is a seeded shuffle, so the same `--limit` reaches the same icons and the comparison comes out paired for free. If you record the numbers, move the file to `corpus/pilot-<date>.json` and commit it — a measurement is only re-derivable if the text it graded is in the history.
+
+### 2. One small batch, end to end — 30 icons, one request
+
+Do not skip this because step 1 passed. `batch` fails in ways `api` does not, and the failures are only visible after you have paid for a day of latency: the first full submit on this branch errored 102 of its 138 requests against an org-wide grammar-compilation limit. One request exercises the entire path — schema compiles, PNGs inline under the 256 MB cap, record round-trips, parse accepts.
+
+```sh
+npm run gen:icon-descriptions -- --transport batch --model sonnet --limit 30 --out corpus/tmp/smoke.json --dry-run
+npm run gen:icon-descriptions -- --transport batch --model sonnet --limit 30 --out corpus/tmp/smoke.json
+# then, once it ends:
+npm run gen:icon-descriptions -- --fetch <smoke-batch-id>
+```
+
+**Pass condition: `Described 30 of 30`, with no `dropped` and no failure lines.** Anything less is a finding — read it before spending on step 4.
+
+Into `corpus/tmp/` on purpose. A smoke test you may want to throw away does not belong in an arm, where clearing it would need `--force`, and a separate corpus keeps rail 4 from blocking the full submit. The cost is re-describing those same 30 icons in step 4, which the seeded shuffle guarantees are the first 30 either way.
+
+### 3. Dry-run both arms — free
+
+```sh
 npm run gen:icon-descriptions -- --transport batch --model sonnet --dry-run
 npm run gen:icon-descriptions -- --transport batch --model opus   --dry-run
+```
 
-# 2. Submit both. Different corpora, so rail 4 lets them fly at once.
+Check the count and the floor estimate against what you expect. This is the last free look.
+
+### 4. Submit both
+
+```sh
 npm run gen:icon-descriptions -- --transport batch --model sonnet
 npm run gen:icon-descriptions -- --transport batch --model opus
+```
 
-# 3. Collect, hours later. --fetch takes no --out; the record carries it.
+Rail 4 is scoped per corpus, so two arms writing to different files fly at once rather than being needlessly serialized.
+
+### 5. Collect — hours later
+
+```sh
 npm run gen:icon-descriptions -- --fetch <sonnet-batch-id>
 npm run gen:icon-descriptions -- --fetch <opus-batch-id>
+```
 
-# 4. Score each arm.
+`--fetch` takes no other flags; the record carries the corpus and the model. A batch that has not ended yet prints its status and exits 0 — re-run later. Results are retained 29 days from submission.
+
+### 6. Close the shortfall
+
+**Expect one.** The schema cannot require completeness, so a request may return fewer icons than it was asked for and both arms came back short with *zero* failed requests — 4,124 and 4,123 of 4,134, a 0.24% residue. Re-run the step-4 command verbatim: selection subtracts what the corpus already holds, so it picks up only the missing icons in one small request. Collect it, and repeat until step 7 reports 0 missing.
+
+### 7. Score each arm — free
+
+```sh
 npm run gen:icon-descriptions -- --validate --out corpus/claude-sonnet-5.json
 npm run gen:icon-descriptions -- --validate --out corpus/claude-opus-5.json
 ```
 
-Then curate: diff the two corpora, and review the disagreements against the image. Copy the winner to `src/data/iconDescriptions/corpus.json` — the promotion is a deliberate act, not something a run does — and leave its `.model` sidecar behind rather than committing it.
+FAIL and MISSING block; WARN does not. This is regex pattern matching and says nothing about whether a description is *correct* — that is steps 8 and 9.
 
-Where the loser won on a particular icon, that description goes in `overrides.json`, which merges over the corpus at read time. That is the curation output, and it is why the shipped corpus needs no per-entry provenance: a picked description belongs to the curator, not to the model that drafted it.
-
-**Pilot the prompt before spending on step 2.** A revised prompt that has never been run is the single largest uncertainty in this pipeline, and a prompt change after a run costs a full regeneration:
+### 8. Flag the disagreements — ~$4.50
 
 ```sh
-npm run gen:icon-descriptions -- --out corpus/pilot.json --limit 60
-npm run gen:icon-descriptions -- --validate --out corpus/pilot.json
+npm run flag:icon-descriptions -- --limit 50   # one chunk first, about $0.05
+npm run flag:icon-descriptions                 # the rest
 ```
 
-Pilot on whichever transport produced the baseline you are scoring against, since `cli` and `api` send different image-source wording and you want the instructions to be the only thing that moved. The recorded baseline under "Validation" above is `cli`, which is the one reason to reach for `cli` over `api` here. Either way the selection is a seeded shuffle, so the same `--limit` reaches the same icons and the comparison comes out paired for free.
+Asks a model, per icon, whether the two arms disagree about what the artwork depicts (`conflict`) and whether the shipped description contradicts the icon's name (`nameConflict`). It sends **no images** — it is a text pass over descriptions already paid for, which is why it costs a fraction of a generation arm. The judge is not told which arm is which, and is not asked which is better.
+
+It flags; it does not resolve. Neither text is authoritative and the judge cannot see the artwork, so its output is a queue for step 9, never an input to promotion. `corpus/flags.json` holds one entry per judged icon, written per chunk so an abort keeps what it paid for and a re-run skips it; a clean icon stores as `{}`, so everything with content in it wants a human.
+
+Expect to flag around a quarter of the collection. Measured over a seeded 50-icon sample: 13 flagged at `--effort medium`, ~$0.054, which extrapolates to **~1,000 icons and ~$4.50** for the full run. That independently corroborates the out-of-band n=100 audit's 23% error rate by a different method — and it means step 9 is a long queue, not a short one.
+
+`--effort` trades cost against recall, but less than it looks: `high` and `medium` flagged 13 each and agreed on only **10** of them, each catching three the other missed. That is the same ~70% agreement as the two-auditor finding below, so treat the marginal flags as noise and the overlap as the real signal. `low` costs a third less and missed two substantive conflicts. `medium` is the default for that reason, not because it dominates.
+
+### 9. Curate — free, and the only step with judgement in it
+
+Work `corpus/flags.json` against the image. **Read "What the cross-check cannot catch" and "Comparing model outputs" below first** — agreement between the arms is not evidence about the image, and an unpaired comparison at n≈30 is noise. Each flag resolves three ways: the shipped arm is right and nothing changes; the other arm is right, which is an entry in `choices.json`; or both are wrong, which is a hand-written entry in `overrides.json`.
+
+The output is `corpus/choices.json`, which records which model won:
+
+```json
+{ "default": "claude-opus-5", "choices": { "fireball": "claude-sonnet-5" } }
+```
+
+`default` is mandatory and `choices` lists only the icons that go the other way, so the file cannot be incomplete — an icon nobody graded still resolves to a model. Listing all 4,134 icons would say the same thing at 4,134 times the length and bury the real decisions among entries that merely restate the default.
+
+### 10. Promote — free
+
+```sh
+npm run promote:icon-descriptions
+```
+
+Promotion refuses rather than drops: an icon whose winning model never described it, a choice naming an icon no arm has, and an entry failing the validators in `entries.ts` each abort the write with nothing partial left behind. A run can re-describe what it drops; here the inputs are fixed, so a drop would quietly ship fewer icons than the arms hold.
+
+`promote.test.ts` asserts the committed corpus is exactly what the committed arms and choices produce. That is what makes it a derived artifact rather than a file that happens to be checked in — an edit made straight to `corpus.json` fails the suite.
+
+`overrides.json` is a different thing: a description **neither** model produced, written by hand. It merges over the corpus at read time in `load.ts` and is never baked in. `choices.json` picks between the models; `overrides.json` overrules both.
+
+### 11. Gate, then commit
+
+```sh
+npm run gen:icon-descriptions -- --validate   # no --out: scores what ships. Exit 0 is the gate
+npm test
+```
+
+Commit both arms **and their `.model` sidecars**, `choices.json`, `flags.json`, and `corpus.json`. The sidecars are what rail 5 reads, so an arm without one is a corpus any model may later be merged into. `flags.json` is committed because curation is incremental and the queue is worth resuming across sessions. `.icon-cache/` and `corpus/tmp/` are gitignored and stay that way.
 
 ### What the cross-check cannot catch
 
@@ -226,12 +319,15 @@ A full run of both arms is estimated at **$8.48** — $2.42 Sonnet + $6.06 Opus.
 
 A separate projection from measured per-icon spend gives **$9.56**. The two are different methods; do not quote them as one number. Sonnet's introductory rate lapses **2026-08-31**, after which the floor is roughly $9.69.
 
+The cross-arm flag pass (step 8) adds **~$4.50** on top, from a measured chunk rather than a projection. It reads text the arms already produced and sends no images, so its cost is dominated by the judge's thinking tokens, not by the corpus.
+
 Prices live in `invoke-api.ts` and only models whose rates were confirmed against the pricing page belong there — a guessed rate would report a run's spend as fact while being wrong about it.
 
 ## Known gaps
 
 - **The n=100 paired audit was measured out of band.** The claim that no icon had both models wrong (23 had at least one error; in 21 of those the other model was accurate) has no artifact in this repo and cannot be re-derived from it. Given the 67% self-agreement finding, treat it as an indication, not a result.
-- **Rail 5 is inert on the shipped corpus.** `<corpus>.model` sidecars are gitignored and not carried across on promotion, so `src/data/iconDescriptions/corpus.json` carries no model stamp and the first write to it is accepted whatever the model. Exposure is one run, and now only reachable by pointing `--out` at the shipped corpus on purpose.
+- **`choices.json` has not been audited yet.** It currently says `default: claude-opus-5` with no exceptions, so what ships is the Opus arm wholesale. Opus is the standing guess from the out-of-band n=100 result above, not a finding of this repo. Re-run `promote` once the audit fills in `choices`.
+- **Rail 5 does not apply to the shipped corpus, by design.** It refuses a run that would mix two models in one file — which is exactly what promotion does on purpose. The shipped corpus carries no `.model` sidecar and should not: it is not a run target, and a run that wrote to it would be overwritten wholesale by the next `promote` anyway.
 - **`IconDebugView` is the only review surface**, and it shows only the rule icons it happens to have descriptions for, silently, in one column. Curation needs a row per rule icon with an explicit empty state and more than one description column.
 - **The rails themselves have no tests.** `cli.ts` covers parsing, coercion, and mode exclusivity, but the five rails still live in `gen-icon-descriptions.ts` top-level code that only runs as a script. Extracting an args→plan function would reach them.
 
@@ -240,6 +336,8 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 | | |
 |---|---|
 | `../gen-icon-descriptions.ts` | entry point: rails, mode dispatch |
+| `../promote-icon-descriptions.ts` | entry point: arms + choices → the shipped corpus |
+| `../flag-icon-descriptions.ts` | entry point: both arms → a queue of suspect icons |
 | `cli.ts` | flag definitions, coercion, mode exclusivity, corpus path defaults |
 | `confirm.ts` | y/N prompt; false when there is no TTY |
 | `prompt.ts` | the prompt. See above before editing |
@@ -250,5 +348,7 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 | `batch.ts` | `batch` transport: submit, record, collect |
 | `run.ts` | batch loop, retries, running cost, `--max-cost` abort |
 | `store.ts` | corpus read/merge/write, model sidecar |
+| `promote.ts` | `choices.json` → which model's description each icon ships |
+| `flag.ts` | cross-arm conflict pass: prompt, schema, verdict parsing |
 | `transport.ts` | shared types, `batchFailure`, response schema |
 | `../../src/data/iconDescriptions/entries.ts` | validators + override merge — shared with the app |

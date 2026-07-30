@@ -22,7 +22,9 @@
     "check:db-types": "npm run gen:db-types && git diff --ignore-blank-lines --exit-code src/api/database.types.ts",
     "fetch:srd": "tsx scripts/fetch-srd.ts",
     "gen:og": "tsx scripts/generate-og.ts",
-    "gen:icon-descriptions": "tsx scripts/gen-icon-descriptions.ts"
+    "gen:icon-descriptions": "tsx scripts/gen-icon-descriptions.ts",
+    "promote:icon-descriptions": "tsx scripts/promote-icon-descriptions.ts",
+    "flag:icon-descriptions": "tsx scripts/flag-icon-descriptions.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

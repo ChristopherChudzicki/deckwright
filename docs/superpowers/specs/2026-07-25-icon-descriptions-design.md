@@ -222,8 +222,11 @@ assembled from the shuffled order, not hand-grouped.
 
 | path | committed | contents |
 |---|---|---|
-| `src/data/iconDescriptions/corpus.json` | yes | `{ "<icon-name>": "<description>" }`, keys sorted |
+| `src/data/iconDescriptions/corpus.json` | yes | `{ "<icon-name>": "<description>" }`, keys sorted. Derived — written only by `promote:icon-descriptions` |
 | `src/data/iconDescriptions/overrides.json` | yes | hand-written corrections; merged over the generated map at read time, never written by the script |
+| `corpus/<canonical-model>.json` | yes | one model's raw output, the default `--out`. Paid, and the only thing an audit can be re-derived from |
+| `corpus/choices.json` | yes | `{ "default": "<model>", "choices": { "<icon>": "<model>" } }` — which model won each icon |
+| `corpus/flags.json` | yes | one entry per icon the cross-arm pass judged; `{}` when clean. A curation queue, never an input to promotion |
 | `.icon-cache/png/<icon-name>.png` | no | rendered icons, skipped when present |
 | `.icon-cache/meta.json` | no | icon-set version + render settings, for cache invalidation |
 | `.icon-cache/run.lock` | no | `wx` lockfile; released via `process.exit` on signal |
@@ -315,7 +318,7 @@ nothing, and the three failures above need an explicit flag to reach. Keying on
 the canonical id rather than the alias keeps `--model opus` and
 `--model claude-opus-5` from opening two files that each believe they hold one
 model's output. A run therefore never writes to the corpus that ships; promotion
-is a separate, deliberate copy.
+is a separate, deliberate command.
 
 `--fetch` takes no `--out`. The path is written into the batch record at submit,
 beside `model` and `price`, which are frozen there for the same reason: a batch
@@ -325,125 +328,54 @@ is **scoped by corpus** — two batches writing to different files do not select
 from each other, so a Sonnet and an Opus batch can be in flight simultaneously
 instead of being needlessly serialized.
 
-Whether the shipped `src/data/iconDescriptions/corpus.json` ends up as one model's
-output promoted into place or a curated merge of both is deliberately still
-open; `--out` does not presuppose either.
+The shipped `src/data/iconDescriptions/corpus.json` is a derived file, assembled
+by `npm run promote:icon-descriptions` from the workbench corpora and
+`corpus/choices.json` — a mandatory `default` model plus the icons that go the
+other way. One arm wholesale and a per-icon blend are therefore the same
+mechanism, differing only in how many exceptions the file lists, and `--out`
+presupposes neither.
 
-### Runbook: generating both models
+### Runbook
 
-**There is deliberately no script that runs this end to end.** Two reasons. The
+The procedure lives in `scripts/icon-descriptions/README.md`, under "Runbook:
+empty corpus to shipped corpus", and is deliberately not repeated here. It was
+duplicated once and the copy drifted into something worse than stale: this
+section went on teaching a preview idiom — pass a `--max-cost` you expect to be
+refused — that only refuses when the estimate exceeds the ceiling, and so
+submitted a live batch once the corpus was nearly full. `--dry-run` replaced it.
+One copy, in the file you reach for when you are about to run the thing.
+
+What belongs here is why the shape is what it is.
+
+**There is deliberately no script that runs it end to end.** Two reasons. The
 batch transport is two-phase by design — the call that submits is not the call
 that returns, and adding a wrapper that waits would reintroduce the polling the
 transport exists to avoid. And a single command that spends ~$8.48 removes
-friction that is load-bearing: every rail below wants a human deciding to spend,
-not a script that already decided.
+friction that is load-bearing: every rail wants a human deciding to spend, not a
+script that already decided.
 
-Run from the repo root, with `ANTHROPIC_API_KEY` exported.
+**One small batch precedes the full one.** `batch` can fail in ways the
+synchronous transports cannot, and the bill for finding out is a day of latency
+plus whatever succeeded — which is how a full submit came to error 102 of its 138
+requests against an org-wide grammar-compilation limit. A single 30-icon request
+exercises the whole path for cents.
 
-**1. Confirm the prompt is the one you mean to spend on.** All 4,134 × 2
-descriptions come from one `INSTRUCTIONS` string, and changing it afterwards
-means paying again. `npm test` pins it in full, in both transport wordings.
+**Completeness is not guaranteed, so a shortfall pass is part of the procedure
+rather than an incident.** `minItems` accepts only 0 and 1, so the schema cannot
+require one entry per requested icon. Both arms returned short with zero failed
+requests. Because selection subtracts the corpus, re-running the submit verbatim
+describes only what is missing.
 
-The 418 entries that used to sit in `src/data/iconDescriptions/corpus.json` were
-generated under the pre-2026-07-27 prompt and are consistent with neither arm.
-They were retired rather than carried forward — the shipped corpus is now empty,
-and a run's workbench file starts empty by design. What happens to the shipped
-file is step 7.
+**The 418 pre-2026-07-27 entries were retired, not carried forward.** They came
+from a different prompt, and the corpus format cannot record which wording an
+entry was written under — so mixing them in is the one contamination neither the
+validators nor the disagreement pass can see. That holds however the shipped file
+is assembled.
 
-**2. Dry-run the selection for both arms.** `--max-cost 0.01` refuses to submit
-while printing what would be sent, so this costs nothing:
-
-```sh
-npm run gen:icon-descriptions -- --transport batch --out corpus/sonnet.json \
-  --model sonnet --max-cost 0.01
-npm run gen:icon-descriptions -- --transport batch --out corpus/opus.json \
-  --model opus --max-cost 0.01
-```
-
-Both must report `4134 icons, 0 described`. Anything else means the `--out` file
-already has content and the run would resume rather than start clean. The dry run
-exits **2** — it stops at a rail, so `set -e` will treat it as failure.
-
-**3. Submit both.** Drop `--max-cost`; each prints a batch id and exits without
-writing descriptions. They can be in flight together — rail 4 is scoped by
-corpus, so the second submit is not blocked by the first.
-
-```sh
-npm run gen:icon-descriptions -- --transport batch --out corpus/sonnet.json --model sonnet
-npm run gen:icon-descriptions -- --transport batch --out corpus/opus.json  --model opus
-```
-
-Each submit first renders 4,134 PNGs (~71 MB) into `.icon-cache/png/`, which
-takes a few minutes and prints nothing while it runs. The second submit reuses
-the cache and starts immediately.
-
-**Record both ids.** They are also on disk in `.icon-cache/batches/` — do not
-delete that directory while a batch is in flight, as its record is the only copy
-of the mapping from request id back to icon names, and a batch whose mapping is
-lost is billed and uncollectable.
-
-**If a submit fails,** read which kind it was. A rejected request (`HTTP 4xx`)
-created no batch and cleans up after itself; fix the cause and re-run. A dropped
-connection or timeout may have created one, so its record is deliberately kept
-and the next run against that corpus is refused until you either collect it or
-delete it from `.icon-cache/batches/`. The refusal message names the file and
-says which case it is.
-
-**4. Collect, once each batch has ended.** `--fetch` is safe to run early: a
-batch still `in_progress` prints its status and exits 0 without charging. It
-takes no `--out` — each batch's record carries its own, so these cannot be
-crossed:
-
-```sh
-npm run gen:icon-descriptions -- --fetch <sonnet-batch-id>
-npm run gen:icon-descriptions -- --fetch <opus-batch-id>
-```
-
-Exit 1 means some requests failed. Re-run **the same submit command as in step
-3** — repeated here because the arms differ by two tokens and pairing the wrong
-`--model` with the wrong `--out` is the one mistake this workflow cannot detect
-after the fact:
-
-```sh
-npm run gen:icon-descriptions -- --transport batch --out corpus/sonnet.json --model sonnet
-npm run gen:icon-descriptions -- --transport batch --out corpus/opus.json  --model opus
-```
-
-Selection reads the corpus file, so this describes only what is still missing.
-Should the pairing be crossed anyway, the merge is refused: each corpus records
-the model that wrote it in a `<corpus>.model` sidecar, and a second model's
-descriptions are never written into it.
-
-**5. Score each arm.** `--validate` accepts `--out`, and the warning counts are
-per-corpus, so this is the free per-model scorecard — computed with no grading,
-no auditor, and no paired-audit protocol:
-
-```sh
-npm run gen:icon-descriptions -- --validate --out corpus/sonnet.json
-npm run gen:icon-descriptions -- --validate --out corpus/opus.json
-```
-
-Both will exit 1 on `MISSING` until every icon is described; that is rail
-behaviour, not a failure of the run. Compare the three WARN rates between the two
-files, and against the pre-2026-07-27 baseline recorded under "Validation".
-
-**6. Then, and only then, curate.** The cross-model disagreement pass is the
-reason both arms exist. What it can and cannot catch is below.
-
-**7. Promote one corpus into `src/data/iconDescriptions/corpus.json`.** Nothing in the
-tool does this — it is a deliberate manual step, because it is the point at which
-$8.48 of generated text becomes the committed artifact.
-
-Whether the shipped file ends up as one arm promoted wholesale or a curated merge
-of both is still open, and this runbook does not decide it. What is *not* open:
-the 418 pre-2026-07-27 entries do not survive either way. They came from a
-different prompt, and mixing prompts inside one corpus is the thing the file
-format cannot record and the disagreement pass cannot see.
-
-Whichever corpus is promoted, delete its `.model` sidecar rather than committing
-it, then run `--validate` with **no** `--out` to check the shipped file: that is
-the run whose exit code is the release gate, and the first one that can reach 0,
-since it is the first time every icon has an entry.
+**Promotion is a separate command from generation.** It calls no model and needs
+no rails, and it is the point at which generated text becomes the committed
+artifact. It refuses on an icon it cannot resolve rather than shipping a partial
+corpus. The release gate is `--validate` with no `--out`.
 
 #### What the disagreement pass cannot catch
 
@@ -680,8 +612,8 @@ roughly **$8.48 batched against $16.96 synchronously** — cheaper, batched, tha
 Opus alone at the synchronous rate. The synchronous transports are unaffected and
 remain the way to iterate on small sets, where turnaround matters more than rate.
 
-Those two figures are `estimateCost` (`invoke-api.ts`) evaluated for the runbook's
-two commands, so they are exactly what step 2's dry run prints: $2.42 Sonnet plus
+Those two figures are `estimateCost` (`invoke-api.ts`) evaluated for a full run of
+each arm, so they are exactly what `--dry-run` prints: $2.42 Sonnet plus
 $6.06 Opus, at the Sonnet introductory rate, which lapses 2026-08-31 and takes
 the total to ~$9.69. **They are a floor** — image and text tokens only, nothing
 for thinking. The measured per-icon rates further down this document project
