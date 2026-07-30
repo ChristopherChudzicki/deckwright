@@ -16,10 +16,6 @@ export const SHIPPED_CORPUS = resolve(REPO, "src/data/iconDescriptions/corpus.js
 // pipeline resolves in one place.
 export const CHOICES = resolve(REPO, "corpus/choices.json");
 
-// Where the cross-arm conflict pass writes what it found. A queue for a human,
-// not an input to promotion.
-export const FLAGS = resolve(REPO, "corpus/flags.json");
-
 // Runs write to a per-model workbench file rather than to the corpus that ships.
 // Keyed on the canonical id so `--model opus` and `--model claude-opus-5` name
 // the same file: a corpus holding two models' output is indistinguishable

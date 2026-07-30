@@ -226,7 +226,6 @@ assembled from the shuffled order, not hand-grouped.
 | `src/data/iconDescriptions/overrides.json` | yes | hand-written corrections; merged over the generated map at read time, never written by the script |
 | `corpus/<canonical-model>.json` | yes | one model's raw output, the default `--out`. Paid, and the only thing an audit can be re-derived from |
 | `corpus/choices.json` | yes | `{ "default": "<model>", "choices": { "<icon>": "<model>" } }` — which model won each icon |
-| `corpus/flags.json` | yes | one entry per icon the cross-arm pass judged; `{}` when clean. A curation queue, never an input to promotion |
 | `.icon-cache/png/<icon-name>.png` | no | rendered icons, skipped when present |
 | `.icon-cache/meta.json` | no | icon-set version + render settings, for cache invalidation |
 | `.icon-cache/run.lock` | no | `wx` lockfile; released via `process.exit` on signal |

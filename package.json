@@ -23,8 +23,7 @@
     "fetch:srd": "tsx scripts/fetch-srd.ts",
     "gen:og": "tsx scripts/generate-og.ts",
     "gen:icon-descriptions": "tsx scripts/gen-icon-descriptions.ts",
-    "promote:icon-descriptions": "tsx scripts/promote-icon-descriptions.ts",
-    "flag:icon-descriptions": "tsx scripts/flag-icon-descriptions.ts"
+    "promote:icon-descriptions": "tsx scripts/promote-icon-descriptions.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
