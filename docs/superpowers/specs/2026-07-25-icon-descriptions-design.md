@@ -278,6 +278,7 @@ Arguments via `commander` (`scripts/icon-descriptions/cli.ts`).
 | `--size <n>` | 512 | render resolution; changing it invalidates the whole PNG cache |
 | `--transport <cli\|api\|batch>` | `cli` | which back end runs the batch — see "Transports" |
 | `--max-cost <usd>` | none | under `cli`/`api`, stop once the running total reaches this ceiling, checked after every batch; under `batch`, refuse to submit when the estimate already exceeds it |
+| `--dry-run` | — | print the selection and the cost estimate, then exit without sending. **This is the preview mechanism** — never use a deliberately low `--max-cost` for that, which is the idiom that put an unintended live batch in flight |
 
 **Selection pipeline, in order:** all 4,134 → seeded shuffle → `--only` filter →
 drop already-described (unless `--force`/`--only`) → `--limit` truncate → chunk
@@ -427,9 +428,11 @@ Rails 1 and 3 apply only under `--transport api` and `--transport batch`, where 
 mistake costs money rather than quota that refills; rail 2 applies under `cli`
 too, against its API-equivalent total; rails 4 and 5 apply everywhere:
 
-1. **Bare `--force` is refused.** Unscoped it re-describes all 4,134 icons, one
-   keystroke away from the scoped re-run that was almost certainly meant. It has
-   to be qualified by `--only` or `--limit`.
+1. **Bare `--force` has to be confirmed.** Unscoped it re-describes all 4,134
+   icons, one keystroke away from the scoped re-run that was almost certainly
+   meant, so it prompts for an interactive y/N naming the count. Qualifying it
+   with `--only` or `--limit` skips the prompt. This is the one rail that asks
+   rather than refuses; with no TTY the prompt is false and the run stops.
 2. **`--max-cost <usd>`** stops the run after the batch that crosses the ceiling.
    Everything accepted so far is already on disk, so a stopped run resumes.
 3. **A cost estimate prints before the first request**, from the icon count and
@@ -579,7 +582,8 @@ commands, with no polling loop:
    prints the id and exits without writing any descriptions.
 2. **Collect** — `--fetch <batch-id>` reads that record, `GET`s the batch once,
    and either reports that it is still processing or downloads the results,
-   validates them, and merges them into `icon-descriptions.json`. Re-run it until
+   validates them, and merges them into the corpus the record was frozen with at
+   submit — not whatever `--out` currently says. Re-run it until
    it lands. That is one request while the batch is still processing, and two
    once it has ended — the status GET plus the results download.
 
@@ -838,9 +842,10 @@ this entry usable, and is the corpus complete:
 - Icons with no entry at all are listed, together with the `--only` command that
   closes them, and exit is non-zero.
 
-`--validate` therefore stays red until a full run lands — with 418 of 4,134
-entries committed it exits 1 — which is what makes it a release gate rather than
-a linter. The committed-corpus test takes the opposite direction: it asserts
+`--validate` therefore stayed red until a full run landed, which is what makes it
+a release gate rather than a linter. It now exits 0: all 4,134 icons are
+described, with no FAIL and no MISSING. The committed-corpus test takes the
+opposite direction: it asserts
 every entry names an icon that still has artwork, so a shrinking icon set turns
 stale keys red without demanding a complete file on every commit.
 

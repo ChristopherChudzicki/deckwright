@@ -39,9 +39,9 @@ const program = new Command()
       "human's job, and the fix lands in corpus/choices.json or overrides.json.",
   )
   .option("--model <name>", "which model judges", "sonnet")
-  // The API defaults this to `high`, which on a mechanical comparison buys
-  // deliberation nobody asked for: a measured chunk spent four times more
-  // output tokens on thinking than on the verdicts themselves.
+  // Set explicitly rather than left to the API's own default, which on a
+  // mechanical comparison buys deliberation nobody asked for: `high` cost 11%
+  // more than `medium` and flagged the same 13 icons out of 50.
   .option("--effort <low|medium|high|xhigh|max>", "how hard the judge thinks", "medium")
   .option("--chunk <n>", "icons per request", positiveInt, 50)
   .option("--limit <n>", "judge at most n unjudged icons")

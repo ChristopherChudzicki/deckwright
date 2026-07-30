@@ -33,8 +33,8 @@ Nothing needs a flag to be safe: the default transport spends subscription quota
 
 ## How a run works
 
-1. **Select.** Read the corpus at `--out`, subtract it from the collection, apply `--only` / `--limit`, chunk into batches of `--batch-size` (30).
-2. **Rasterize.** Render each icon to a 512px PNG under `.icon-cache/png/`, cached across runs. `.icon-cache/meta.json` records the icon-set version and render size; a change to either wipes the cache wholesale, since the cache key is the icon name and covers neither.
+1. **Select.** Read the corpus at `--out`. `--only` wins outright: the named icons are described whether or not they already have entries, so **it implies `--force` for them and re-pays**. Otherwise subtract the corpus from the collection, then apply `--limit`. Either way, chunk into batches of `--batch-size` (30).
+2. **Rasterize.** Render each icon to a 512px PNG under `.icon-cache/png/`, cached across runs. `.icon-cache/meta.json` records the icon-set version and render size; a change to either clears the rendered PNGs, since the cache key is the icon name and covers neither. Corpora and batch records are untouched.
 3. **Describe.** Send each batch to the model, constraining the reply with a JSON schema — `--json-schema` under `cli`, `output_config` under `api` and `batch`. All three share one schema; see "Why the response is a list, not an object keyed by icon" below.
 4. **Validate, then write.** Each entry is checked before it is merged. The corpus is written by rename, so a crash cannot leave it half-written.
 
@@ -45,14 +45,14 @@ Steps 1 and 4 are what make a run resumable: re-running after any failure picks 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--transport <cli\|api\|batch>` | `cli` | see below |
-| `--model <sonnet\|opus>` | `sonnet` | also accepts the concrete id (`claude-sonnet-5`) |
+| `--model <name>` | `sonnet` | `sonnet` or `opus`, or the concrete id (`claude-sonnet-5`). Under `cli` any string is accepted and names its own corpus |
 | `--out <path>` | `corpus/<model>.json` | which corpus to read for selection and write into. Resolved against your shell, not the script |
 | `--limit <n>` | — | describe at most n icons |
-| `--only <name>` | — | describe exactly these; repeatable |
+| `--only <name>` | — | describe exactly these; repeatable. Implies `--force` for them, so a name that already has an entry is described again and billed again |
 | `--force` | off | re-describe icons that already have entries |
 | `--batch-size <n>` | 30 | icons per request |
 | `--size <px>` | 512 | PNG render size |
-| `--max-cost <usd>` | — | spend ceiling: aborts a running `api` total, refuses a `batch` submit pre-flight. Caps nothing once a batch is away |
+| `--max-cost <usd>` | — | spend ceiling: aborts a running `cli`/`api` total, refuses a `batch` submit pre-flight. Caps nothing once a batch is away |
 | `--dry-run` | — | print the selection and the estimate, then exit without sending |
 | `--validate` | — | score a corpus; writes nothing. Defaults `--out` to the shipped corpus |
 | `--fetch <batch-id>` | — | collect a submitted batch. Takes no other flags |
@@ -169,7 +169,9 @@ McNemar exact, two-sided: tautology **p = 0.016**, style **p = 0.07**. The tauto
 
 The positive exemplars still name real icons, and they echo by the same mechanism. Mostly this is fine — `bat-wing` and `sparkles` came back as faithful echoes. But it is not uniformly benign: `berry-bush` came back *worse* than its own exemplar, having gained a style word. Their icons are not excluded from the residue counts above.
 
-**The name is a hint; the image is authoritative.** This rule is deliberately not loosened for the 36 place-outline icons (0.87%) where the name carries information the shape does not. Of the four described so far, `egypt` and `sri-lanka` name their country correctly and `corsica` and `colombia` do not — amending a rule governing 4,134 icons to fix roughly a dozen trades a contained problem for an uncontained one. Those go in `overrides.json`.
+**The name is a hint; the image is authoritative.** This rule is deliberately not loosened for the 36 place-outline icons (0.87%) where the name carries information the shape does not — amending a rule governing 4,134 icons to fix roughly a dozen trades a contained problem for an uncontained one, and `overrides.json` exists for the residue.
+
+In the event the rule cost nothing on the arm that ships. Opus names the place in all four of the icons this section was written about — `colombia`, `corsica`, `egypt`, `sri-lanka` — reading the outline and supplying the name the shape alone does not carry. Sonnet manages only `sri-lanka`, calling `corsica` "a jagged, layered cloak or cape shape". It is the sharpest single illustration of why the Opus arm ships.
 
 ## Runbook: empty corpus to shipped corpus
 
@@ -255,10 +257,24 @@ FAIL and MISSING block; WARN does not. This is regex pattern matching and says n
 
 ### 8. Flag the disagreements — ~$4.50
 
+**Read the known gaps before running this — it has unfixed defects, and the audit below is the cheaper measurement.**
+
 ```sh
+npm run flag:icon-descriptions -- --dry-run    # selection + estimate, sends nothing
 npm run flag:icon-descriptions -- --limit 50   # one chunk first, about $0.05
-npm run flag:icon-descriptions                 # the rest
+npm run flag:icon-descriptions -- --max-cost 5 # the rest, under a ceiling
 ```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--model <name>` | `sonnet` | which model judges |
+| `--effort <low\|medium\|high\|xhigh\|max>` | `medium` | how hard the judge thinks; see below |
+| `--chunk <n>` | 50 | icons per request |
+| `--limit <n>` | — | judge at most n unjudged icons |
+| `--out <path>` | `corpus/flags.json` | where the verdicts land, and what a re-run reads to skip |
+| `--max-cost <usd>` | — | stop once the running total reaches this. Not honoured on a failed chunk — see known gaps |
+| `--force` | off | re-judge icons that already have a verdict |
+| `--dry-run` | — | print the selection and the estimate, then exit without sending |
 
 Asks a model, per icon, whether the two arms disagree about what the artwork depicts (`conflict`) and whether the shipped description contradicts the icon's name (`nameConflict`). It sends **no images** — it is a text pass over descriptions already paid for, which is why it costs a fraction of a generation arm. The judge is not told which arm is which, and is not asked which is better.
 
@@ -303,7 +319,9 @@ Commit both arms **and their `.model` sidecars**, `choices.json`, `flags.json`, 
 
 ### What the cross-check cannot catch
 
-Both arms share one prompt. A failure the *prompt* induces shows up as **agreement**, and agreement is the confidence signal. `colombia` — where both models describe the shape correctly and neither names the country — is a quiet failure that looks like consensus. `corsica`, where they disagree, is a loud one that the pass will surface. Curation must therefore see **image + name + both texts**, never the two texts alone.
+Both arms share one prompt, so a failure the *prompt* induces shows up as **agreement** — and agreement is the confidence signal. Any cross-arm method is structurally blind to the case where both models are wrong the same way, which is the case a shared prompt makes likeliest. Curation must therefore see **image + name + both texts**, never the two texts alone.
+
+The fix is not a better cross-check. It is to audit a **random** sample against the artwork, which is unconditioned on agreement and so has no blind spot — see "Auditing the shipped corpus" below. That pass is free and catches the class the flag pass cannot; run it first.
 
 ## Comparing model outputs — read this before running any comparison
 
@@ -313,23 +331,34 @@ Compare **paired**: same auditor, same image, both candidates unlabelled, order 
 
 The regex counters above are the exception — deterministic, zero grading noise.
 
+## Auditing the shipped corpus
+
+The cheapest useful measurement in this pipeline, and the only one with no blind spot: draw a random sample of icons, open the PNGs under `.icon-cache/png/`, and read each description against its artwork. It costs no tokens. Unlike the flag pass it is unconditioned on the two arms disagreeing, so it is the only method here that can catch both models being wrong the same way.
+
+Grade against what the corpus is *for*. It backs fuzzy search in the icon picker, so the failure that matters is **naming the wrong object** — that is what makes an icon unfindable or surfaces the wrong one. A miscount or a wrong orientation on a correctly identified subject costs nothing on either axis, and should be recorded as a detail error rather than inflating the headline rate.
+
+**2026-07-29, n=20, seeded random draw over the shipped corpus.** 20 of 20 substantively correct; **zero wrong-object errors**; one cosmetic blemish (`medal-skull` reads "a horned-less skull"). With no errors observed the true rate is under roughly 15% at 95% confidence — this rules out a bad corpus, not a flawless one. A second, deliberately adversarial sample of 9 icons drawn from the flag pass's *conflicts* found exactly one shipped error, `kitchen-knives` ("two broad chef's knives and two slender blades … all pointing to the upper right" — there are three knives, and one points down-left). Both samples were graded by a single reader, which the 67% finding above says to discount accordingly.
+
+Across all 29 icons checked there was no wrong-object error. That, not the cross-arm pass, is the evidence the Opus arm ships on.
+
 ## Cost
 
 A full run of both arms is estimated at **$8.48** — $2.42 Sonnet + $6.06 Opus. That is a **floor**: image and text tokens only, nothing for thinking tokens.
 
 A separate projection from measured per-icon spend gives **$9.56**. The two are different methods; do not quote them as one number. Sonnet's introductory rate lapses **2026-08-31**, after which the floor is roughly $9.69.
 
-The cross-arm flag pass (step 8) adds **~$4.50** on top, from a measured chunk rather than a projection. It reads text the arms already produced and sends no images, so its cost is dominated by the judge's thinking tokens, not by the corpus.
+The cross-arm flag pass (step 8) would add **~$4.45** on top, from a measured chunk rather than a projection, rising to roughly **$6.67** once Sonnet's introductory rate lapses on 2026-08-31. It reads text the arms already produced and sends no images, so its cost is dominated by the judge's thinking tokens, not by the corpus. It has not been run at full scale, and the random audit below is the cheaper way to reach the same question.
 
 Prices live in `invoke-api.ts` and only models whose rates were confirmed against the pricing page belong there — a guessed rate would report a run's spend as fact while being wrong about it.
 
 ## Known gaps
 
-- **The n=100 paired audit was measured out of band.** The claim that no icon had both models wrong (23 had at least one error; in 21 of those the other model was accurate) has no artifact in this repo and cannot be re-derived from it. Given the 67% self-agreement finding, treat it as an indication, not a result.
-- **`choices.json` has not been audited yet.** It currently says `default: claude-opus-5` with no exceptions, so what ships is the Opus arm wholesale. Opus is the standing guess from the out-of-band n=100 result above, not a finding of this repo. Re-run `promote` once the audit fills in `choices`.
+- **The n=100 paired audit was measured out of band.** The claim that no icon had both models wrong (23 had at least one error; in 21 of those the other model was accurate) has no artifact in this repo and cannot be re-derived from it. Given the 67% self-agreement finding, treat it as an indication, not a result. It is no longer the only evidence for the Opus pick — see "Auditing the shipped corpus".
+- **`choices.json` ships the Opus arm wholesale, and that is a decision rather than a placeholder.** It says `default: claude-opus-5` with no exceptions. The grounds are in-repo now: a 20-icon random audit with no wrong-object errors, 9 adjudicated cross-arm conflicts going 7–1 to Opus with one wash, and Opus naming the place in all four place-outline icons where Sonnet manages one. What has *not* been done is a systematic pass over all 4,134; `choices` stays empty until some icon earns an exception.
+- **The cross-arm flag pass has known defects and was never run at full scale.** `--max-cost` is skipped for a failed chunk (`flag-icon-descriptions.ts` continues past the ceiling check), there is no consecutive-failure brake like `run.ts`'s, and `pickVerdicts` type-checks only `name` — so a reply whose verdict fields are not booleans banks every icon as clean, permanently, since resumption keys on presence. Reuse `runBatches` rather than patching the copy. Nothing in the shipping path calls this code; it survives as the instrument that measured the disagreement rate.
 - **Rail 5 does not apply to the shipped corpus, by design.** It refuses a run that would mix two models in one file — which is exactly what promotion does on purpose. The shipped corpus carries no `.model` sidecar and should not: it is not a run target, and a run that wrote to it would be overwritten wholesale by the next `promote` anyway.
 - **`IconDebugView` is the only review surface**, and it shows only the rule icons it happens to have descriptions for, silently, in one column. Curation needs a row per rule icon with an explicit empty state and more than one description column.
-- **The rails themselves have no tests.** `cli.ts` covers parsing, coercion, and mode exclusivity, but the five rails still live in `gen-icon-descriptions.ts` top-level code that only runs as a script. Extracting an args→plan function would reach them.
+- **The rails' wiring has no tests.** Their mechanisms do: rail 1's fail-closed in `confirm.test.ts`, rail 2's ceiling in `run.test.ts`, rail 4's outstanding-batch check in `batch.test.ts`, rail 5's model guard in `store.test.ts`. What is untested is the top-level code in `gen-icon-descriptions.ts` that decides when each fires, because it only runs as a script. Extracting an args→plan function would reach it.
 
 ## Files
 

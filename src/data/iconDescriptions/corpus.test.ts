@@ -34,4 +34,15 @@ describe("the shipped description corpus", () => {
     const named = [...Object.keys(base), ...Object.keys(overrides)];
     expect(named.filter((name) => !describable.has(name))).toEqual([]);
   });
+
+  // The floor the other assertions lack: they all hold vacuously on an empty
+  // corpus. Promotion writes this file wholesale from the arms, so an arm that
+  // is truncated, half-merged, or stale produces a short corpus and a green
+  // suite — 4,134 icons silently becoming 2,134, with the picker quietly losing
+  // search coverage for the rest.
+  test("every describable icon has a description", async () => {
+    const describable = await describableIcons();
+    const described = new Set([...Object.keys(base), ...Object.keys(overrides)]);
+    expect([...describable].filter((name) => !described.has(name))).toEqual([]);
+  });
 });

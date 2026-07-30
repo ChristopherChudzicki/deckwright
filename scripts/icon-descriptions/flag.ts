@@ -171,20 +171,19 @@ export function extractVerdicts(
     cost,
     inputTokens: usage.input_tokens,
     outputTokens: usage.output_tokens,
-    // Billed inside output_tokens, not alongside them. Reported because a
-    // verdict is ~25 tokens of JSON and a measured run spent four times that
-    // per icon — without the split there is no way to tell an expensive
-    // response from an expensive deliberation.
+    // Billed inside output_tokens, not alongside them. Reported because the
+    // measured chunk spent 53 tokens per icon thinking against 35 emitting the
+    // verdict — without the split there is no way to tell an expensive response
+    // from an expensive deliberation.
     thinkingTokens: typeof thinking === "number" ? thinking : undefined,
   };
 }
 
-// Measured over a 50-icon chunk at the default --effort, not derived from
-// character counts: an estimate built from the text alone came in at a quarter
-// of the bill, because the judge thinks before it answers and thinking is billed
-// inside output_tokens. Two thirds of the output below is deliberation, so the
-// estimate tracks effort — `low` runs about a third cheaper, `high` about 10%
-// dearer.
+// Measured over a 50-icon chunk at --effort medium, not derived from character
+// counts: an estimate built from the text alone came in at a quarter of the
+// bill, because the judge thinks before it answers and thinking is billed inside
+// output_tokens. 60% of the output is deliberation, so the estimate tracks
+// effort — measured at $0.038 on `low` and $0.060 on `high` against $0.054 here.
 const INPUT_TOKENS_PER_ICON = 98;
 const OUTPUT_TOKENS_PER_ICON = 88;
 
