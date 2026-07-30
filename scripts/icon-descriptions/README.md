@@ -259,11 +259,11 @@ FAIL and MISSING block; WARN does not. This is regex pattern matching and says n
 
 Draw a random sample, open the PNGs, and read each description against its icon. This is the measurement that decides whether an arm is good enough to ship, and it costs nothing. See "Auditing the shipped corpus" below for how to draw the sample and what to count as an error.
 
-Do this **before** reaching for any automated check. An earlier version of this pipeline included a cross-arm pass that asked a model to flag icons where the two arms disagreed; it was abandoned. "What the cross-check cannot catch" below explains why, and it is the more useful half of the finding.
+Do this **before** reaching for any automated check. An earlier version of this pipeline included a cross-arm pass that asked a model to flag icons where the two arms disagreed; it was abandoned. "Two arms are required" below explains why, and it is the more useful half of the finding.
 
 ### 9. Curate — free, and the only step with judgement in it
 
-Work the audit's findings against the image. **Read "What the cross-check cannot catch" and "Comparing model outputs" below first** — agreement between the arms is not evidence about the image, and an unpaired comparison at n≈30 is noise. Each finding resolves three ways: the shipped arm is right and nothing changes; the other arm is right, which is an entry in `choices.json`; or both are wrong, which is a hand-written entry in `overrides.json`.
+Work the audit's findings against the image. **Read "Two arms are required" and "Comparing model outputs" below first** — agreement between the arms is not evidence about the image, and an unpaired comparison at n≈30 is noise. Each finding resolves three ways: the shipped arm is right and nothing changes; the other arm is right, which is an entry in `choices.json`; or both are wrong, which is a hand-written entry in `overrides.json`.
 
 The output is `corpus/choices.json`, which records which model won:
 
@@ -276,10 +276,16 @@ The output is `corpus/choices.json`, which records which model won:
 ### 10. Promote — free
 
 ```sh
-npm run promote:icon-descriptions
+npm run promote:icon-descriptions -- --reference claude-sonnet-5
 ```
 
 Promotion refuses rather than drops: an icon whose winning model never described it, a choice naming an icon no arm has, and an entry failing the validators in `entries.ts` each abort the write with nothing partial left behind. A run can re-describe what it drops; here the inputs are fixed, so a drop would quietly ship fewer icons than the arms hold.
+
+`--reference` names a second arm and is **required** — omitting it exits 2 rather than promoting unchecked. It buys the alignment gate: a model can lose track of which image it is describing partway through a request and label every description after that with the *following* icon's name. Nothing about a single arm reveals it, because the names are all present and the prose is all valid. Scored against an arm that described the same icons in the same order, a displaced description resembles the reference text of the icon before it; a contiguous run of those aborts the write and names every icon in it. The thresholds are constants at the top of `alignment.ts`.
+
+The reference must describe at least 90% of what is being promoted. A missing file reads as an empty corpus, so without that floor a mistyped `--reference` would skip every icon and report a clean corpus — the check would pass by having nothing to say.
+
+`--skip-alignment-check` promotes without a reference and says so in the log. It exists for a genuinely single-arm situation, which is now a thing to avoid rather than a supported mode.
 
 `promote.test.ts` asserts the committed corpus is exactly what the committed arms and choices produce. That is what makes it a derived artifact rather than a file that happens to be checked in — an edit made straight to `corpus.json` fails the suite.
 
@@ -294,13 +300,19 @@ npm test
 
 Commit both arms **and their `.model` sidecars**, `choices.json`, and `corpus.json`. The sidecars are what rail 5 reads, so an arm without one is a corpus any model may later be merged into. `.icon-cache/` and `corpus/tmp/` are gitignored and stay that way.
 
-### What the cross-check cannot catch
+### Two arms are required, and each method sees what the other cannot
 
-Both arms share one prompt, so a failure the *prompt* induces shows up as **agreement** — and agreement is the confidence signal. Any cross-arm method is structurally blind to the case where both models are wrong the same way, which is the case a shared prompt makes likeliest. Curation must therefore see **image + name + both texts**, never the two texts alone.
+**Run at least two models.** This is not a comparison luxury; the alignment gate in step 10 is a cross-arm check and cannot run without a second arm.
 
-This is why the cross-arm flag pass was abandoned rather than fixed. It worked as specified — a seeded 50-icon sample flagged 13 icons at ~$0.054, extrapolating to ~1,000 icons and ~$4.50 for the full collection, which corroborated the out-of-band n=100 audit's 23% error rate by a different method. But conditioning on disagreement cannot reach the failure mode that matters most here, and no amount of tuning changes that. Its verdict files were never committed, so the 13-of-50 figure is an out-of-band measurement like the n=100 audit: an indication, not something this repo can re-derive.
+Neither available method is sufficient alone, and their blind spots are complements.
 
-The fix is not a better cross-check. It is to audit a **random** sample against the artwork, which is unconditioned on agreement and so has no blind spot — see "Auditing the shipped corpus" below. That pass is free and catches the class a cross-arm pass cannot.
+**A random audit against the artwork** is unconditioned on the arms agreeing, so it is the only method that catches **both models wrong the same way** — the failure a shared prompt makes likeliest, since a prompt-induced error shows up as agreement and agreement is the confidence signal. It costs nothing but reading time. Its weakness is statistical power: a 20-icon sample expects 0.18 errors against a 0.9% defect rate, so it can miss a real defect entirely and did.
+
+**A cross-arm check** is blind to correlated error by construction, but it is the only thing that catches **one arm diverging mechanically** — and that is not hypothetical. It is what found the displacement described in the known gaps below, 36 icons a random audit of 29 had already passed over.
+
+So: run the random audit for judgement about the artwork, and the alignment gate for mechanical divergence. Curation still needs **image + name + both texts**, never the two texts alone.
+
+A separate cross-arm *flag* pass — an LLM judging whether the arms disagree — was built and removed. It worked as specified: a seeded 50-icon sample flagged 13 icons at ~$0.054, extrapolating to ~1,000 icons and ~$4.50, corroborating the out-of-band n=100 audit's 23% error rate by a different method. It went because it cost $4.45 to answer a question a deterministic lexical comparison answers for free and more precisely — the gate in `alignment.ts` found both displaced runs exactly, with no model call and no false positives. Its verdict files were never committed, so the 13-of-50 figure is an out-of-band measurement like the n=100 audit: an indication, not something this repo can re-derive.
 
 ## Comparing model outputs — read this before running any comparison
 
@@ -312,13 +324,17 @@ The regex counters above are the exception — deterministic, zero grading noise
 
 ## Auditing the shipped corpus
 
-The cheapest useful measurement in this pipeline, and the only one with no blind spot: draw a random sample of icons, open the PNGs under `.icon-cache/png/`, and read each description against its artwork. It costs no tokens. Unlike any cross-arm check it is unconditioned on the two arms disagreeing, so it is the only method here that can catch both models being wrong the same way.
+The cheapest useful measurement in this pipeline: draw a random sample of icons, open the PNGs under `.icon-cache/png/`, and read each description against its artwork. It costs no tokens. Unlike any cross-arm check it is unconditioned on the two arms disagreeing, so it is the only method here that can catch both models being wrong the same way.
+
+It is not, however, without a blind spot — it has a *statistical* one. Read the power calculation below before quoting a clean sample as evidence of a clean corpus.
 
 Grade against what the corpus is *for*. It backs fuzzy search in the icon picker, so the failure that matters is **naming the wrong object** — that is what makes an icon unfindable or surfaces the wrong one. A miscount or a wrong orientation on a correctly identified subject costs nothing on either axis, and should be recorded as a detail error rather than inflating the headline rate.
 
 **2026-07-29, n=20, seeded random draw over the shipped corpus.** 20 of 20 substantively correct; **zero wrong-object errors**; one cosmetic blemish (`medal-skull` reads "a horned-less skull"). With no errors observed the true rate is under roughly 15% at 95% confidence — this rules out a bad corpus, not a flawless one. A second, deliberately adversarial sample of 9 icons drawn from the cross-arm pass's *conflicts* found exactly one shipped error, `kitchen-knives` ("two broad chef's knives and two slender blades … all pointing to the upper right" — there are three knives, and one points down-left). Both samples were graded by a single reader, which the 67% finding above says to discount accordingly.
 
-Across all 29 icons checked there was no wrong-object error. That, not the cross-arm pass, is the evidence the Opus arm ships on.
+**Those 29 icons contained no wrong-object error, and the corpus contained at least 36.** The alignment gate later found two runs of displaced descriptions the sampling had simply missed. This is the lesson worth keeping from the whole exercise: at a 0.9% defect rate a 20-icon sample expects 0.18 errors, so observing zero was never evidence of a clean corpus — it was the expected result either way. "Rules out a bad corpus, not a flawless one" was the right caveat and still understated how little the sample could see.
+
+A random audit measures whether the *model* understands the artwork. It is close to useless for finding a *mechanical* defect that touches under 1% of entries. Use the alignment gate for that, and do not let a clean sample stand in for a check that would actually have found the problem.
 
 ## Cost
 
@@ -330,9 +346,10 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 
 ## Known gaps
 
+- **Opus displaced 36 descriptions by one, in two of its 138 requests.** Partway through a request it stopped tracking which image went with which name and labelled every remaining description with the *following* icon's name — `xylophone` got the necktie, `yin-yang` got the xylophone, `amphora` got the yin-yang. Both runs began mid-request and continued to its end: 26 icons from index 3304 and 10 from 3950. Sonnet received byte-identical requests in the same order and was unaffected, and `invoke-api.ts` pairs each image with its own filename from one array, so this is the model losing the thread rather than a pipeline defect. Nothing in the pipeline could see it — the names were all present and the prose was all valid — which is why the alignment gate in step 10 now exists. Re-describing the affected icons with `--only` is the fix; `choices.json` is not, because it would pin good-but-displaced Opus text to Sonnet permanently.
 - **The n=100 paired audit was measured out of band.** The claim that no icon had both models wrong (23 had at least one error; in 21 of those the other model was accurate) has no artifact in this repo and cannot be re-derived from it. Given the 67% self-agreement finding, treat it as an indication, not a result. It is no longer the only evidence for the Opus pick — see "Auditing the shipped corpus".
-- **`choices.json` ships the Opus arm wholesale, and that is a decision rather than a placeholder.** It says `default: claude-opus-5` with no exceptions. The grounds are in-repo now: a 20-icon random audit with no wrong-object errors, 9 adjudicated cross-arm conflicts going 7–1 to Opus with one wash, and Opus naming the place in all four place-outline icons where Sonnet manages one. What has *not* been done is a systematic pass over all 4,134; `choices` stays empty until some icon earns an exception.
-- **The cross-arm flag pass was removed, not kept as dead code.** It ran only at 50-icon scale, its verdict files were gitignored, and it had unfixed defects — `--max-cost` skipped on a failed chunk, no consecutive-failure brake, and a verdict parser that type-checked only `name`, so a reply with non-boolean fields banked every icon as clean permanently. None of that is why it went: conditioning on disagreement cannot see correlated error, which is the failure a shared prompt makes likeliest. Anyone rebuilding it should make `runBatches` generic and reuse it rather than copying it, and should read "What the cross-check cannot catch" first.
+- **`choices.json` ships the Opus arm wholesale, and that is a decision rather than a placeholder.** It says `default: claude-opus-5` with no exceptions. The grounds: 9 adjudicated cross-arm conflicts going 7–1 to Opus with one wash, and Opus naming the place in all four place-outline icons where Sonnet manages one. The 20-icon random audit is weaker evidence than it looked — see "Auditing the shipped corpus" — and the displacement above is a point against Opus that Sonnet does not share, though it is a mechanical failure rather than a comprehension one. What has *not* been done is a systematic pass over all 4,134; `choices` stays empty until some icon earns an exception.
+- **The cross-arm flag pass was removed, not kept as dead code.** It ran only at 50-icon scale, its verdict files were gitignored, and it had unfixed defects — `--max-cost` skipped on a failed chunk, no consecutive-failure brake, and a verdict parser that type-checked only `name`, so a reply with non-boolean fields banked every icon as clean permanently. None of that is why it went: conditioning on disagreement cannot see correlated error, which is the failure a shared prompt makes likeliest. Anyone rebuilding it should make `runBatches` generic and reuse it rather than copying it, and should read "Two arms are required" first.
 - **Rail 5 does not apply to the shipped corpus, by design.** It refuses a run that would mix two models in one file — which is exactly what promotion does on purpose. The shipped corpus carries no `.model` sidecar and should not: it is not a run target, and a run that wrote to it would be overwritten wholesale by the next `promote` anyway.
 - **`IconDebugView` is the only review surface**, and it shows only the rule icons it happens to have descriptions for, silently, in one column. Curation needs a row per rule icon with an explicit empty state and more than one description column.
 - **The rails' wiring has no tests.** Their mechanisms do: rail 1's fail-closed in `confirm.test.ts`, rail 2's ceiling in `run.test.ts`, rail 4's outstanding-batch check in `batch.test.ts`, rail 5's model guard in `store.test.ts`. What is untested is the top-level code in `gen-icon-descriptions.ts` that decides when each fires, because it only runs as a script. Extracting an args→plan function would reach it.
@@ -354,5 +371,6 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 | `run.ts` | batch loop, retries, running cost, `--max-cost` abort |
 | `store.ts` | corpus read/merge/write, model sidecar |
 | `promote.ts` | `choices.json` → which model's description each icon ships |
+| `alignment.ts` | cross-arm displacement gate: is a description on the right icon at all |
 | `transport.ts` | shared types, `batchFailure`, response schema |
 | `../../src/data/iconDescriptions/entries.ts` | validators + override merge — shared with the app |
