@@ -76,7 +76,7 @@ export const describeBatch: DescribeBatch = async (names, { pngDir, model }) => 
       "claude",
       [
         "-p",
-        buildPrompt(names, "on-disk"),
+        buildPrompt(names),
         "--allowedTools",
         "Read",
         "--output-format",

@@ -17,6 +17,7 @@ import {
   writeRecord,
 } from "./batch";
 import { buildRequestParams } from "./invoke-api";
+import type { CacheTtl } from "./transport";
 
 const BATCHES_URL = "https://api.anthropic.com/v1/messages/batches";
 const RESULTS_URL = "https://api.anthropic.com/v1/messages/batches/msgbatch_01/results";
@@ -27,8 +28,10 @@ const PRICE = { input: 1, output: 5 };
 const USAGE = { input_tokens: 12_000, output_tokens: 1_200 };
 const COST_PER_REQUEST = 0.018;
 
-// Only `price` and `requests` are read when collecting; a real model id here
-// would imply a dependency that isn't there.
+// Only `price`, `cacheTtl` and `requests` are read when collecting, and a
+// record written before caching existed carries no ttl — which is the shape
+// this default stands in for. A real model id would imply a dependency that
+// isn't there.
 const record = (requests: Record<string, string[]>): BatchRecord => ({
   id: "msgbatch_01",
   model: "stub-model",
@@ -38,7 +41,11 @@ const record = (requests: Record<string, string[]>): BatchRecord => ({
   requests,
 });
 
-const succeeded = (customId: string, descriptions: Record<string, string>) =>
+const succeeded = (
+  customId: string,
+  descriptions: Record<string, string>,
+  usage: Record<string, unknown> = USAGE,
+) =>
   JSON.stringify({
     custom_id: customId,
     result: {
@@ -56,7 +63,7 @@ const succeeded = (customId: string, descriptions: Record<string, string>) =>
             }),
           },
         ],
-        usage: USAGE,
+        usage,
       },
     },
   });
@@ -136,6 +143,41 @@ describe("readResults", () => {
 
     expect(collected.descriptions).toEqual({ fireball: "A ball of flame." });
     expect(collected.failures).toEqual([expect.stringContaining("line 2")]);
+  });
+
+  // The window a request was sent under is not re-derivable at collection: it is
+  // whatever `--cache-ttl` said hours earlier, and pricing a 1h write at the 5m
+  // rate under-reports the batch by a third of its prefix cost. The hit rate is
+  // the number this whole one-image-per-request design turns on, and the results
+  // file is the only place it is observable.
+  test("sums the cached tokens and prices them at the record's frozen window", () => {
+    const collected = readResults(
+      jsonl(
+        succeeded(
+          "icons-0001",
+          { fireball: "A ball of flame." },
+          {
+            ...USAGE,
+            cache_creation_input_tokens: 800,
+          },
+        ),
+        succeeded(
+          "icons-0002",
+          { broadsword: "A straight blade." },
+          {
+            ...USAGE,
+            cache_read_input_tokens: 800,
+          },
+        ),
+      ),
+      {
+        ...record({ "icons-0001": ["fireball"], "icons-0002": ["broadsword"] }),
+        cacheTtl: "1h",
+      },
+    );
+
+    expect(collected.cache).toEqual({ created: 800, read: 800 });
+    expect(collected.cost).toBeCloseTo(COST_PER_REQUEST * 2 + 0.0016 + 0.00008, 6);
   });
 
   // The response was billed whether or not anything usable came back, so its
@@ -284,36 +326,40 @@ describe("submitBatch", () => {
     return () => seen.requests ?? [];
   };
 
-  const submit = (batches: string[][]) =>
+  const submit = (batches: string[][], cacheTtl: CacheTtl = "5m") =>
     submitBatch({
       batches,
       pngDir,
       modelId: "claude-sonnet-5",
       price: PRICE,
+      cacheTtl,
       out: "/corpus/icons.json",
       key: "sk-test",
       recordDir,
     });
 
   // The batch path must not drift from the synchronous one: they have to put the
-  // same images, prompt and schema in front of the model.
+  // same images, prompt, cache marker and schema in front of the model.
   test("sends one request per batch, carrying exactly the synchronous params", async () => {
     const requests = capture();
-    await submit([["fireball"], ["broadsword"]]);
+    await submit([["fireball"], ["broadsword"]], "1h");
 
     expect(requests().map((request) => request.custom_id)).toEqual(["icons-0001", "icons-0002"]);
     expect(requests()[0].params).toEqual(
-      await buildRequestParams(["fireball"], pngDir, "claude-sonnet-5"),
+      await buildRequestParams(["fireball"], pngDir, "claude-sonnet-5", "1h"),
     );
   });
 
-  test("records what each request asked for before returning", async () => {
+  // Frozen alongside the price, and for the same reason: the collection runs
+  // hours later, under whatever flags that invocation happens to carry.
+  test("records what each request asked for, and what it was priced under", async () => {
     capture();
-    const submitted = await submit([["fireball", "broadsword"]]);
+    const submitted = await submit([["fireball", "broadsword"]], "1h");
 
     expect(readRecord(recordDir, "msgbatch_01")).toEqual(submitted);
     expect(submitted.requests).toEqual({ "icons-0001": ["fireball", "broadsword"] });
     expect(submitted.price).toEqual(PRICE);
+    expect(submitted.cacheTtl).toBe("1h");
   });
 
   // A 200 carrying no id would otherwise write `undefined.json` and print

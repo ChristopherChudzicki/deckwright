@@ -1,9 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { buildPrompt } from "./prompt";
+import { ATTACHED_INSTRUCTIONS } from "./prompt";
 import {
   type BatchResult,
   batchFailure,
+  type CacheTtl,
+  type CacheUsage,
   type DescribeBatch,
   pickRequested,
   RESPONSE_SCHEMA,
@@ -22,6 +24,12 @@ const MAX_TOKENS = 32_000;
 const FATAL_STATUSES = new Set([400, 401, 403, 404]);
 
 export type Price = { input: number; output: number };
+
+export const CACHE_READ_MULTIPLIER = 0.1;
+export const CACHE_WRITE_MULTIPLIER: Record<Exclude<CacheTtl, "off">, number> = {
+  "5m": 1.25,
+  "1h": 2,
+};
 
 type ModelEntry = {
   id: string;
@@ -91,12 +99,34 @@ export function pricingFor(
 // for one 512px PNG plus a 30-word description, with nothing for thinking.
 const INPUT_TOKENS_PER_ICON = 361;
 const OUTPUT_TOKENS_PER_ICON = 45;
+// The invariant prefix, ~2,900 characters. Billed once per request rather than
+// once per icon, which is what makes the group size a term in the estimate: at
+// one icon per request it is the largest input the run sends.
+const INSTRUCTION_TOKENS = 793;
 
-export function estimateCost(icons: number, price: Price): number {
-  return (
-    (icons * (INPUT_TOKENS_PER_ICON * price.input + OUTPUT_TOKENS_PER_ICON * price.output)) /
-    1_000_000
-  );
+// Two numbers, because a cached run's cost is not knowable before it runs. Every
+// request after the first either re-reads the prefix at a tenth of an input
+// token or writes it again at the ttl's premium, and which of those happens is
+// what the run reports afterwards. The bounds coincide when no prefix is sent.
+export type CostEstimate = { floor: number; ceiling: number };
+
+export function estimateCost(
+  icons: number,
+  price: Price,
+  opts: { batchSize: number; cacheTtl: CacheTtl },
+): CostEstimate {
+  const { batchSize, cacheTtl } = opts;
+  const requests = Math.ceil(icons / batchSize);
+  const perIcon =
+    icons * (INPUT_TOKENS_PER_ICON * price.input + OUTPUT_TOKENS_PER_ICON * price.output);
+  const prefix = INSTRUCTION_TOKENS * price.input;
+  const write = cacheTtl === "off" ? 1 : CACHE_WRITE_MULTIPLIER[cacheTtl];
+  const ceiling = perIcon + requests * prefix * write;
+  const floor =
+    cacheTtl === "off"
+      ? ceiling
+      : perIcon + prefix * write + (requests - 1) * prefix * CACHE_READ_MULTIPLIER;
+  return { floor: floor / 1_000_000, ceiling: ceiling / 1_000_000 };
 }
 
 export function assertApiKey(): string {
@@ -114,14 +144,22 @@ type Payload = {
   usage?: {
     input_tokens?: unknown;
     output_tokens?: unknown;
+    cache_creation_input_tokens?: unknown;
+    cache_read_input_tokens?: unknown;
     output_tokens_details?: { thinking_tokens?: unknown };
   };
 };
+
+// Cached tokens are reported outside `input_tokens`, so a run that ignores these
+// bills itself for the uncached remainder and reads as far cheaper than it was —
+// which would put the --max-cost rail under the real spend.
+const tokenCount = (value: unknown): number => (typeof value === "number" ? value : 0);
 
 export function extractApiDescriptions(
   body: string,
   requested: readonly string[],
   price: Price,
+  cacheTtl: CacheTtl,
 ): BatchResult {
   let payload: unknown;
   try {
@@ -129,15 +167,19 @@ export function extractApiDescriptions(
   } catch {
     throw batchFailure(`response body is not JSON: ${body.slice(0, 200)}`);
   }
-  return extractMessage(payload, requested, price);
+  return extractMessage(payload, requested, price, cacheTtl);
 }
 
 // Takes a parsed message rather than a response body, because the Batch API
 // delivers the same object nested inside a JSONL result line.
+//
+// `cacheTtl` has no default on purpose: it has to be the ttl the request was
+// actually sent with, and a wrong one silently reprices every cached token.
 export function extractMessage(
   message: unknown,
   requested: readonly string[],
   price: Price,
+  cacheTtl: CacheTtl,
 ): BatchResult {
   const payload = (message ?? {}) as Payload;
   const snippet = () => JSON.stringify(message)?.slice(0, 200);
@@ -148,7 +190,17 @@ export function extractMessage(
   if (typeof usage?.input_tokens !== "number" || typeof usage.output_tokens !== "number") {
     throw batchFailure(`response reported no token usage, so its cost is unknown: ${snippet()}`);
   }
-  const cost = (usage.input_tokens * price.input + usage.output_tokens * price.output) / 1_000_000;
+  const cache: CacheUsage = {
+    created: tokenCount(usage.cache_creation_input_tokens),
+    read: tokenCount(usage.cache_read_input_tokens),
+  };
+  const writeMultiplier = cacheTtl === "off" ? 1 : CACHE_WRITE_MULTIPLIER[cacheTtl];
+  const cost =
+    (usage.input_tokens * price.input +
+      cache.created * price.input * writeMultiplier +
+      cache.read * price.input * CACHE_READ_MULTIPLIER +
+      usage.output_tokens * price.output) /
+    1_000_000;
   const thinking = usage.output_tokens_details?.thinking_tokens;
   const thinkingTokens = typeof thinking === "number" ? thinking : undefined;
   const failed = (message: string, extra: { retryable?: boolean } = {}) =>
@@ -195,16 +247,38 @@ export function extractMessage(
     throw failed(`text block carries no "descriptions" array: ${text.slice(0, 200)}`);
   }
 
-  return { descriptions: pickRequested(output, requested), cost, thinkingTokens };
+  const descriptions = pickRequested(output, requested);
+  // At one image per request the harness already knows which icon the reply is
+  // about, so a name it did not ask for is not a shortfall to re-describe later
+  // — it is a paid answer that would otherwise be dropped without a word.
+  // Ambiguous above one image, where the same reply may be a partial answer.
+  if (requested.length === 1 && Object.keys(descriptions).length === 0) {
+    throw failed(`response named no requested icon (${requested.join()}): ${text.slice(0, 200)}`);
+  }
+
+  return { descriptions, cost, thinkingTokens, cache };
 }
 
-// The CLI reads the PNGs itself, so the pinned prompt names files rather than
-// images. Over HTTP the bytes are inline and nothing carries a filename, so
-// each image is preceded by its own name — that label, not position, is what
-// ties a description back to an icon.
-async function buildContent(names: readonly string[], pngDir: string): Promise<unknown[]> {
+// Over HTTP the bytes are inline and nothing carries a filename, so each image
+// is preceded by its own name. With one image per request that label is
+// redundant with the request itself, which is the point: the harness owns the
+// correspondence rather than asking the model to keep track of it.
+//
+// The instructions lead so they can be cached. That inverts the order the first
+// arms ran under, where the prompt trailed the images and no two requests shared
+// a prefix.
+async function buildContent(
+  names: readonly string[],
+  pngDir: string,
+  cache: CacheTtl,
+): Promise<unknown[]> {
   const pngs = await Promise.all(names.map((name) => readFile(join(pngDir, `${name}.png`))));
-  const content: unknown[] = [];
+  const instructions: Record<string, unknown> = { type: "text", text: ATTACHED_INSTRUCTIONS };
+  if (cache !== "off") {
+    instructions.cache_control =
+      cache === "1h" ? { type: "ephemeral", ttl: "1h" } : { type: "ephemeral" };
+  }
+  const content: unknown[] = [instructions];
   for (const [index, name] of names.entries()) {
     content.push({ type: "text", text: `${name}.png` });
     content.push({
@@ -212,7 +286,6 @@ async function buildContent(names: readonly string[], pngDir: string): Promise<u
       source: { type: "base64", media_type: "image/png", data: pngs[index].toString("base64") },
     });
   }
-  content.push({ type: "text", text: buildPrompt(names, "attached") });
   return content;
 }
 
@@ -222,6 +295,7 @@ export async function buildRequestParams(
   names: readonly string[],
   pngDir: string,
   modelId: string,
+  cache: CacheTtl,
 ): Promise<Record<string, unknown>> {
   // Constrained decoding is what makes a fenced or prose-wrapped reply
   // impossible rather than merely discouraged — truncation and refusals still
@@ -232,7 +306,7 @@ export async function buildRequestParams(
   return {
     model: modelId,
     max_tokens: MAX_TOKENS,
-    messages: [{ role: "user", content: await buildContent(names, pngDir) }],
+    messages: [{ role: "user", content: await buildContent(names, pngDir, cache) }],
     output_config: { format: { type: "json_schema", schema: RESPONSE_SCHEMA } },
   };
 }
@@ -252,13 +326,16 @@ function retryAfterMs(headers: Headers): number | undefined {
   return Number.isFinite(seconds) && seconds > 0 ? seconds * 1_000 : undefined;
 }
 
-export const describeBatchApi: DescribeBatch = async (names, { pngDir, model }) => {
+// The one place `cache` may default, because here the same value both decides
+// what is sent and prices what comes back — a caller that omits it gets a
+// consistent 5m run rather than a mispriced one.
+export const describeBatchApi: DescribeBatch = async (names, { pngDir, model, cache = "5m" }) => {
   const { id, price } = resolveModel(model);
   const key = assertApiKey();
   const response = await fetch(API_URL, {
     method: "POST",
     headers: apiHeaders(key),
-    body: JSON.stringify(await buildRequestParams(names, pngDir, id)),
+    body: JSON.stringify(await buildRequestParams(names, pngDir, id, cache)),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
@@ -269,5 +346,5 @@ export const describeBatchApi: DescribeBatch = async (names, { pngDir, model }) 
       retryAfterMs: retryAfterMs(response.headers),
     });
   }
-  return extractApiDescriptions(body, names, price);
+  return extractApiDescriptions(body, names, price, cache);
 };

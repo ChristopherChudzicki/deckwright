@@ -1,4 +1,10 @@
-import type { BatchFailure, DescribeBatch } from "./transport";
+import {
+  addCacheUsage,
+  type BatchFailure,
+  type CacheTtl,
+  type CacheUsage,
+  type DescribeBatch,
+} from "./transport";
 
 const MAX_CONSECUTIVE_FAILURES = 3;
 const RETRY_DELAYS_MS = [5_000, 20_000];
@@ -10,6 +16,7 @@ export async function runBatches(opts: {
   describeBatch: DescribeBatch;
   pngDir: string;
   model: string;
+  cache: CacheTtl;
   onAccept: (accepted: Record<string, string>) => void;
   validateEntry: (name: string, description: string) => string | null;
   maxCost?: number;
@@ -20,6 +27,7 @@ export async function runBatches(opts: {
   succeededBatches: number;
   failedBatches: number;
   totalCost: number;
+  cache: CacheUsage;
   aborted: boolean;
 }> {
   const {
@@ -27,6 +35,7 @@ export async function runBatches(opts: {
     describeBatch,
     pngDir,
     model,
+    cache,
     onAccept,
     validateEntry,
     maxCost,
@@ -39,6 +48,7 @@ export async function runBatches(opts: {
   let failedBatches = 0;
   let totalCost = 0;
   let consecutiveFailures = 0;
+  let cacheTotal: CacheUsage = { created: 0, read: 0 };
 
   for (const [index, names] of batches.entries()) {
     const label = `batch ${index + 1}/${batches.length} (${names.length})`;
@@ -50,9 +60,10 @@ export async function runBatches(opts: {
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
       if (attempt > 0) await sleep(nextDelayMs ?? RETRY_DELAYS_MS[attempt - 1]);
       try {
-        const result = await describeBatch(names, { pngDir, model });
+        const result = await describeBatch(names, { pngDir, model, cache });
         totalCost += result.cost;
         batchCost += result.cost;
+        cacheTotal = addCacheUsage(cacheTotal, result.cache);
         thinkingTokens = result.thinkingTokens;
         const good: Record<string, string> = {};
         for (const [name, description] of Object.entries(result.descriptions)) {
@@ -77,6 +88,7 @@ export async function runBatches(opts: {
             succeededBatches,
             failedBatches: failedBatches + 1,
             totalCost,
+            cache: cacheTotal,
             aborted: true,
           };
         }
@@ -96,7 +108,14 @@ export async function runBatches(opts: {
           `Aborting after ${consecutiveFailures} consecutive batch failures. ` +
             `If those read as usage or rate limits, re-run to resume once the window resets.`,
         );
-        return { described, succeededBatches, failedBatches, totalCost, aborted: true };
+        return {
+          described,
+          succeededBatches,
+          failedBatches,
+          totalCost,
+          cache: cacheTotal,
+          aborted: true,
+        };
       }
     } else {
       consecutiveFailures = 0;
@@ -119,9 +138,23 @@ export async function runBatches(opts: {
         `Stopping: $${totalCost.toFixed(3)} spent reaches the --max-cost ceiling of ` +
           `$${maxCost.toFixed(2)}. Re-run with a higher ceiling to continue.`,
       );
-      return { described, succeededBatches, failedBatches, totalCost, aborted: true };
+      return {
+        described,
+        succeededBatches,
+        failedBatches,
+        totalCost,
+        cache: cacheTotal,
+        aborted: true,
+      };
     }
   }
 
-  return { described, succeededBatches, failedBatches, totalCost, aborted: false };
+  return {
+    described,
+    succeededBatches,
+    failedBatches,
+    totalCost,
+    cache: cacheTotal,
+    aborted: false,
+  };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { extractDescriptions } from "./invoke";
-import { buildPrompt } from "./prompt";
+import { ATTACHED_INSTRUCTIONS, buildPrompt } from "./prompt";
 import type { BatchFailure } from "./transport";
 
 const envelope = (structured_output: unknown, extra: Record<string, unknown> = {}) =>
@@ -8,35 +8,34 @@ const envelope = (structured_output: unknown, extra: Record<string, unknown> = {
 
 describe("buildPrompt", () => {
   test("lists each requested icon as a .png filename", () => {
-    expect(buildPrompt(["fireball", "broadsword"], "on-disk")).toContain(
-      "fireball.png\nbroadsword.png",
-    );
+    expect(buildPrompt(["fireball", "broadsword"])).toContain("fireball.png\nbroadsword.png");
   });
 
-  // `api` and `batch` send this variant, so it is the text the whole paid corpus
-  // is generated under. Pinned against the full text below rather than restated:
-  // that pins it exactly while proving the transports differ in this one
-  // sentence and nothing else, so an attached-only clause cannot slip in.
+  // The CLI transport is the one that still needs a file list, and its wording
+  // differs in the one sentence about where the images are. Expressed as that
+  // substitution rather than restated, so a clause that belongs to only one
+  // transport cannot slip into the other.
   test("differs from the pinned text only in how the images arrive", () => {
-    expect(buildPrompt(["fireball"], "attached")).toBe(
-      buildPrompt(["fireball"], "on-disk").replace(
-        "Read every PNG file listed below and describe what each one depicts.",
-        "Each icon is attached above, immediately preceded by its filename. " +
+    expect(buildPrompt(["fireball"])).toBe(
+      `${ATTACHED_INSTRUCTIONS.replace(
+        "Each icon is attached below, immediately preceded by its filename. " +
           "Describe what each one depicts.",
-      ),
+        "Read every PNG file listed below and describe what each one depicts.",
+      )}\n\nFiles:\nfireball.png`,
     );
   });
 
-  // Pinned in full, deliberately. Any edit here — including a reflow — changes
-  // what the descriptions mean, and the corpus carries no marker separating
-  // entries written under one wording from another. Updating this test is the
-  // moment to decide whether to regenerate all 4,134 entries.
+  // Pinned in full, deliberately: `api` and `batch` send exactly this, so it is
+  // the text the whole paid corpus is generated under. Any edit here — including
+  // a reflow — changes what the descriptions mean, and the corpus carries no
+  // marker separating entries written under one wording from another. Updating
+  // this test is the moment to decide whether to regenerate all 4,134 entries.
   test("pins the instruction text exactly", () => {
     expect(
-      buildPrompt(["fireball"], "on-disk"),
+      ATTACHED_INSTRUCTIONS,
     ).toBe(`These are icons from the game-icons.net collection, used in a Dungeons & Dragons spell-and-item card app.
 
-Read every PNG file listed below and describe what each one depicts.
+Each icon is attached below, immediately preceded by its filename. Describe what each one depicts.
 
 Each filename is the icon's name in the collection. The name is a hint, but the image is authoritative — where they disagree, describe the image. Describe the shape actually drawn, not the object the name brings to mind. Do not say whether something is open or closed, count its parts, or place one element inside another unless the image shows it:
 - a book drawn with its covers together is closed, however often books are drawn open
@@ -67,10 +66,7 @@ Most icons carry no such association, and a bare literal description is the expe
 
 Describe the subject, not the drawing style. Every icon is a flat black-and-white shape, so words about how a thing is drawn — its rendering, how abstract or simplified it is, its outline treatment, its line weight, its flatness — are true of all 4,134 icons and belong in none of them. Spend every word on what is shown.
 
-Reply with ONLY a JSON object with a "descriptions" array, holding one entry per icon: {"name": the filename without the .png extension, "description": your sentence}.
-
-Files:
-fireball.png`);
+Reply with ONLY a JSON object with a "descriptions" array, holding one entry per icon: {"name": the filename without the .png extension, "description": your sentence}.`);
   });
 });
 

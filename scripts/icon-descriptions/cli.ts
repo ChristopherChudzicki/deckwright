@@ -4,7 +4,7 @@ import { Command, InvalidArgumentError } from "@commander-js/extra-typings";
 import { canonicalModel } from "./invoke-api";
 import { DEFAULT_RENDER_SIZE } from "./rasterize";
 import { DEFAULT_BATCH_SIZE } from "./selection";
-import { DEFAULT_MODEL } from "./transport";
+import { type CacheTtl, DEFAULT_MODEL } from "./transport";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(__dirname, "../..");
@@ -27,6 +27,8 @@ export const workbenchCorpus = (model: string): string =>
 export const TRANSPORTS = ["cli", "api", "batch"] as const;
 export type Transport = (typeof TRANSPORTS)[number];
 
+export const CACHE_TTLS = ["5m", "1h", "off"] as const satisfies readonly CacheTtl[];
+
 export type CliOptions = {
   transport: Transport;
   model: string;
@@ -35,6 +37,7 @@ export type CliOptions = {
   only?: string[];
   force?: boolean;
   batchSize: number;
+  cacheTtl: CacheTtl;
   size: number;
   maxCost?: number;
   dryRun?: boolean;
@@ -65,6 +68,7 @@ const collect = (value: string, previous: string[] = []): string[] => [...previo
 const RUN_FLAGS = [
   "only",
   "batchSize",
+  "cacheTtl",
   "force",
   "limit",
   "model",
@@ -121,6 +125,17 @@ export function buildProgram() {
       .option("--only <name>", "describe exactly these; repeatable", collect)
       .option("--force", "re-describe icons that already have an entry")
       .option("--batch-size <n>", "icons per request", positiveInt, DEFAULT_BATCH_SIZE)
+      .option(
+        "--cache-ttl <5m|1h|off>",
+        "how long the API caches the invariant instruction prefix",
+        (raw) => {
+          if (!CACHE_TTLS.includes(raw as CacheTtl)) {
+            throw new InvalidArgumentError(`must be one of: ${CACHE_TTLS.join(", ")}`);
+          }
+          return raw as CacheTtl;
+        },
+        "5m" as CacheTtl,
+      )
       .option("--size <px>", "PNG render size", positiveInt, DEFAULT_RENDER_SIZE)
       .option("--max-cost <usd>", "spend ceiling", positiveDollars)
       .option("--dry-run", "print the selection and the estimate, then exit without sending")

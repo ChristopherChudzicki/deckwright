@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { apiHeaders, buildRequestParams, extractMessage, type Price } from "./invoke-api";
-import { batchFailure } from "./transport";
+import { addCacheUsage, batchFailure, type CacheTtl, type CacheUsage } from "./transport";
 
 const BATCHES_URL = "https://api.anthropic.com/v1/messages/batches";
 // The submit POST uploads ~100MB of base64, so this is far longer than the
@@ -28,6 +28,11 @@ export type BatchRecord = {
   // Frozen at submit rather than re-derived at collection: an introductory rate
   // that lapses between the two would otherwise be reported as the billed one.
   price: Price;
+  // Frozen for the same reason. The multiplier that prices a cached prefix is a
+  // property of the request that was sent, and a run collected under a different
+  // --cache-ttl hours later would report every cached token at the wrong rate.
+  // Absent on records written before caching existed, which sent no prefix.
+  cacheTtl?: CacheTtl;
   // Where this batch's descriptions belong. Carried on the record rather than
   // passed to `--fetch`, so collecting an Opus batch into the Sonnet corpus is
   // not something an operator can do by mistyping a flag hours later.
@@ -129,11 +134,12 @@ export async function submitBatch(opts: {
   pngDir: string;
   modelId: string;
   price: Price;
+  cacheTtl: CacheTtl;
   out: string;
   key: string;
   recordDir: string;
 }): Promise<BatchRecord> {
-  const { batches, pngDir, modelId, price, out, key, recordDir } = opts;
+  const { batches, pngDir, modelId, price, cacheTtl, out, key, recordDir } = opts;
 
   // Built one at a time: each request reads and base64-encodes its own PNGs, and
   // resolving them all concurrently would hold 4,134 file descriptors open.
@@ -141,7 +147,7 @@ export async function submitBatch(opts: {
   for (const [index, names] of batches.entries()) {
     requests.push({
       custom_id: requestId(index),
-      params: await buildRequestParams(names, pngDir, modelId),
+      params: await buildRequestParams(names, pngDir, modelId, cacheTtl),
     });
   }
 
@@ -151,7 +157,7 @@ export async function submitBatch(opts: {
   // drops once the server has accepted the batch, this file is the only copy of
   // it, and a batch whose mapping is lost is billed and uncollectable.
   const pendingPath = join(recordDir, `pending-${submittedAt.replaceAll(/[:.]/g, "-")}.json`);
-  writeJson(pendingPath, { model: modelId, price, out, submittedAt, requests: mapping });
+  writeJson(pendingPath, { model: modelId, price, cacheTtl, out, submittedAt, requests: mapping });
 
   // Only the transport failure is caught here. A request that never got an
   // answer may or may not have created a batch, and the pending record is the
@@ -182,7 +188,15 @@ export async function submitBatch(opts: {
     throw batchFailure(`Batch was accepted but carried no id: ${body.slice(0, 300)}`);
   }
 
-  const record: BatchRecord = { id, model: modelId, price, out, submittedAt, requests: mapping };
+  const record: BatchRecord = {
+    id,
+    model: modelId,
+    price,
+    cacheTtl,
+    out,
+    submittedAt,
+    requests: mapping,
+  };
   // Rewritten in place and renamed rather than written to its final name and the
   // pending file then deleted: a crash between those two would leave both files
   // for one batch, and the pending one — never collectable, never marked — would
@@ -202,16 +216,19 @@ type ResultLine = {
 export type Collected = {
   descriptions: Record<string, string>;
   cost: number;
+  cache: CacheUsage;
   failures: string[];
 };
 
 // Pure so the envelope handling can be tested without a server: the JSONL is
-// the only place per-request outcomes (errored, canceled, expired) surface.
+// the only place per-request outcomes (errored, canceled, expired) surface, and
+// the only place a batch's cache hit rate can be counted.
 export function readResults(jsonl: string, record: BatchRecord): Collected {
   const descriptions: Record<string, string> = {};
   const failures: string[] = [];
   const seen = new Set<string>();
   let cost = 0;
+  let cache: CacheUsage = { created: 0, read: 0 };
 
   for (const [index, line] of jsonl.split("\n").entries()) {
     if (!line.trim()) continue;
@@ -230,8 +247,14 @@ export function readResults(jsonl: string, record: BatchRecord): Collected {
         failures.push(`${id}: ${String(result?.type)}${detail ? ` — ${String(detail)}` : ""}`);
         continue;
       }
-      const extracted = extractMessage(result.message, names, record.price);
+      const extracted = extractMessage(
+        result.message,
+        names,
+        record.price,
+        record.cacheTtl ?? "off",
+      );
       cost += extracted.cost;
+      cache = addCacheUsage(cache, extracted.cache);
       Object.assign(descriptions, extracted.descriptions);
     } catch (err) {
       // A request that reached the model was billed whether or not anything
@@ -249,7 +272,7 @@ export function readResults(jsonl: string, record: BatchRecord): Collected {
     if (!seen.has(id)) failures.push(`${id}: no result line in the downloaded results`);
   }
 
-  return { descriptions, cost, failures };
+  return { descriptions, cost, cache, failures };
 }
 
 // Validation is what stands between a paid-for response and the shipped corpus,

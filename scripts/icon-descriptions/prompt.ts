@@ -7,12 +7,12 @@
 // so there the files are work to fetch. Over HTTP the bytes are already in the
 // content block, each preceded by its own filename, and there is no Read tool —
 // the CLI wording would name an affordance that does not exist.
-export type ImageSource = "on-disk" | "attached";
+type ImageSource = "on-disk" | "attached";
 
 const SOURCE: Record<ImageSource, string> = {
   "on-disk": "Read every PNG file listed below and describe what each one depicts.",
   attached:
-    "Each icon is attached above, immediately preceded by its filename. Describe what each one depicts.",
+    "Each icon is attached below, immediately preceded by its filename. Describe what each one depicts.",
 };
 
 // The model reproduces an example's wording when it meets that example's icon.
@@ -60,12 +60,25 @@ Describe the subject, not the drawing style. Every icon is a flat black-and-whit
 
 Reply with ONLY a JSON object with a "descriptions" array, holding one entry per icon: {"name": the filename without the .png extension, "description": your sentence}.`;
 
-export function buildPrompt(filenames: readonly string[], images: ImageSource): string {
+function preamble(images: ImageSource): string {
   return `These are icons from the game-icons.net collection, used in a Dungeons & Dragons spell-and-item card app.
 
 ${SOURCE[images]}
 
-${INSTRUCTIONS}
+${INSTRUCTIONS}`;
+}
+
+// The attached path sends this ahead of the images instead of after them, which
+// is what makes it a prefix: prompt caching keys on everything up to the marked
+// block, so anything per-request appended here would change the key and never
+// hit. Nothing about it may vary with the request — not the icon count, not the
+// filenames.
+export const ATTACHED_INSTRUCTIONS = preamble("attached");
+
+// The CLI transport fetches the PNGs itself, so it still needs the list naming
+// them, and still sends one prompt after the fact rather than a cached prefix.
+export function buildPrompt(filenames: readonly string[]): string {
+  return `${preamble("on-disk")}
 
 Files:
 ${filenames.map((name) => `${name}.png`).join("\n")}`;

@@ -75,6 +75,13 @@ describe("coercion", () => {
     expect(() => parse("--transport", "grpc")).toThrow("must be one of: cli, api, batch");
   });
 
+  // A window the API does not recognize would be sent verbatim and rejected per
+  // request, and a misspelt one would silently reprice the whole run.
+  test("rejects an unknown --cache-ttl, and defaults to the cheaper window", () => {
+    expect(() => parse("--cache-ttl", "10m")).toThrow("must be one of: 5m, 1h, off");
+    expect(parse().cacheTtl).toBe("5m");
+  });
+
   test("collects a repeated --only", () => {
     expect(parse("--only", "fireball", "--only", "broadsword").only).toEqual([
       "fireball",

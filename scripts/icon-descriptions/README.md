@@ -33,7 +33,7 @@ Nothing needs a flag to be safe: the default transport spends subscription quota
 
 ## How a run works
 
-1. **Select.** Read the corpus at `--out`. `--only` wins outright: the named icons are described whether or not they already have entries, so **it implies `--force` for them and re-pays**. Otherwise subtract the corpus from the collection, then apply `--limit`. Either way, chunk into batches of `--batch-size` (30).
+1. **Select.** Read the corpus at `--out`. `--only` wins outright: the named icons are described whether or not they already have entries, so **it implies `--force` for them and re-pays**. Otherwise subtract the corpus from the collection, then apply `--limit`. Either way, chunk into batches of `--batch-size` (1).
 2. **Rasterize.** Render each icon to a 512px PNG under `.icon-cache/png/`, cached across runs. `.icon-cache/meta.json` records the icon-set version and render size; a change to either clears the rendered PNGs, since the cache key is the icon name and covers neither. Corpora and batch records are untouched.
 3. **Describe.** Send each batch to the model, constraining the reply with a JSON schema — `--json-schema` under `cli`, `output_config` under `api` and `batch`. All three share one schema; see "Why the response is a list, not an object keyed by icon" below.
 4. **Validate, then write.** Each entry is checked before it is merged. The corpus is written by rename, so a crash cannot leave it half-written.
@@ -50,7 +50,8 @@ Steps 1 and 4 are what make a run resumable: re-running after any failure picks 
 | `--limit <n>` | — | describe at most n icons |
 | `--only <name>` | — | describe exactly these; repeatable. Implies `--force` for them, so a name that already has an entry is described again and billed again |
 | `--force` | off | re-describe icons that already have entries |
-| `--batch-size <n>` | 30 | icons per request |
+| `--batch-size <n>` | 1 | icons per request; see "One image per request" below |
+| `--cache-ttl <5m\|1h\|off>` | `5m` | how long the API caches the invariant instruction prefix. `api` and `batch` only — `cli` sends no prefix to cache |
 | `--size <px>` | 512 | PNG render size |
 | `--max-cost <usd>` | — | spend ceiling: aborts a running `cli`/`api` total, refuses a `batch` submit pre-flight. Caps nothing once a batch is away |
 | `--dry-run` | — | print the selection and the estimate, then exit without sending |
@@ -76,7 +77,29 @@ Parsing, coercion, and `--help` come from `commander` (`cli.ts`). The exclusivit
 
 `batch` is asynchronous: submitting writes a record to `.icon-cache/batches/` and exits. Collect it later with `--fetch <id>`. Results are retained **29 days** from submission. Results come back in arbitrary order, which is why the record file — not the response — is the authority on which icon a description belongs to. Errored, canceled and expired requests are not billed.
 
-A batch is capped at 100,000 requests **or 256 MB, whichever comes first**, and an oversized submit returns 413 `request_too_large`. A full arm is 138 requests carrying the whole 79 MB PNG cache, which base64 inflates to roughly 105 MB — comfortably inside the cap, but the margin is a factor of two, not a factor of ten. Raising `--size` above 512 px would eat it.
+A batch is capped at 100,000 requests **or 256 MB, whichever comes first**, and an oversized submit returns 413 `request_too_large`. A full arm is 4,134 requests carrying the whole 79 MB PNG cache, which base64 inflates to roughly 107 MB, plus ~12 MB of instruction prefix duplicated across the requests — call it 120 MB against a 256 MB cap. The request count is nowhere near its own limit; the bytes are the binding constraint, and raising `--size` above 512 px would eat the margin.
+
+### One image per request
+
+`--batch-size` defaults to **1**, and the reason is a defect that grouping makes possible and nothing downstream can see.
+
+Sending 30 images in one request makes name↔image correspondence the model's job. Opus got it wrong twice in 138 requests: partway through, it began labelling each description with the *following* icon's name, and continued to the end of the request. 36 icons were displaced. Every description was valid prose carrying a real icon name, so validation passed, the schema was satisfied, and the corpus absorbed it silently. Sonnet received byte-identical requests in the same order and was unaffected. A separate pair, `metal-hand`/`stone-bust`, came back holding each other's descriptions — a mutual swap, which a shift detector structurally cannot see.
+
+At one image per request the mapping is established by the request itself. `buildContent` pairs the image with the filename the harness asked for, and the reply's `name` field becomes a redundant channel that can be checked by string equality rather than scored — `extractMessage` fails a single-icon request whose reply names anything else. The failure stops being rare and becomes unrepresentable.
+
+What this costs: 4,134 requests instead of 138, and the instruction prefix sent 4,134 times instead of 138. Prompt caching is the answer to the second half.
+
+### Prompt caching
+
+The instruction block is invariant — ~2,900 characters, about 793 tokens, identical on every request. At 30 images per request that was rounding error; at one it is the largest input the run sends.
+
+So the API path leads with the instructions and marks them `cache_control`, rather than trailing them after the images as the first arms did. **Order is what makes caching possible at all**: the cache key is everything up to and including the marked block, so a single per-request byte ahead of it would change the key on every request and never hit. `ATTACHED_INSTRUCTIONS` is that prefix, and nothing about it may vary with the request.
+
+Reads cost a tenth of an ordinary input token. Writes cost a premium, and that premium is the whole of the `5m`-versus-`1h` question: 1.25× for the 5-minute window against 2× for the hour, which is break-even at a **21.7%** hit rate versus **52.6%**. The docs recommend `1h` for batches, and this pipeline uses `5m` anyway, because the window is refreshed for free on every hit — a batch that keeps touching its own prefix never lets it lapse, so the longer window buys nothing and costs 60% more to write.
+
+`off` sends no marker at all rather than a shorter one, because a marked block pays the write premium whether or not anything ever re-reads it.
+
+**The hit rate is measured, not assumed.** Every run reports `prompt cache: N read, M written (X% hit rate)` — after the run on `api`, after `--fetch` on `batch`. The docs put batch hit rates at 30–98% and call them best-effort, and nothing smaller predicts what a 4,134-request batch will get. This is also why `--dry-run` prints a *range* rather than a single estimate: the floor assumes every request after the first re-reads the prefix, the ceiling assumes none do, and for a full Opus arm those are $6.88 and $16.30. `--max-cost` refuses a `batch` submit against the ceiling, since a batch cannot be stopped once it is away.
 
 ### Why the response is a list, not an object keyed by icon
 
@@ -104,7 +127,7 @@ A **rail** keeps a run from spending more than you meant it to. Not error handli
 
 Rails 1–3 guard money. Rails 4 and 5 guard something worse, and that is why they refuse instead of asking: a corpus holding two models' output is indistinguishable afterwards from one holding either, so "are you sure?" would be asking an operator to approve a result they cannot inspect later to find out whether they were right. Both are also trivially satisfiable — collect the batch, or name a different `--out`. Since `--out` now defaults to `corpus/<model>.json`, rail 5 should only ever fire on an explicit `--out` that names another model's file.
 
-**Dry run — `--dry-run`, on any transport.** Prints the selection and, on a paid transport, the floor estimate, then exits 0 before rendering a PNG or opening a connection. It is the only supported way to preview a run.
+**Dry run — `--dry-run`, on any transport.** Prints the selection and, on a paid transport, the estimate, then exits 0 before rendering a PNG or opening a connection. It is the only supported way to preview a run.
 
 Do not preview a run by giving it a `--max-cost` you expect it to refuse. That was the old advice and it is a trap: the refusal is rail 3 comparing the ceiling against the estimate, so it only fires when the estimate is *larger*. A selection small enough to fit under the ceiling submits instead — which is how a command meant as a preview put a live batch in flight once the corpus was nearly full. Choosing a ceiling that refuses also requires already knowing the estimate, which is the thing a preview is for.
 
@@ -200,9 +223,9 @@ npm run gen:icon-descriptions -- --validate --out corpus/tmp/pilot.json
 
 Pilot on whichever transport produced the baseline you are scoring against, since `cli` and `api` send different image-source wording and you want the instructions to be the only thing that moved. The recorded baseline under "Validation" above is `cli` — hence the default transport here, and the one place `cli` beats `api`. Scoring against anything else, add `--transport api`. Either way the selection is a seeded shuffle, so the same `--limit` reaches the same icons and the comparison comes out paired for free. If you record the numbers, move the file to `corpus/pilot-<date>.json` and commit it — a measurement is only re-derivable if the text it graded is in the history.
 
-### 2. One small batch, end to end — 30 icons, one request
+### 2. One small batch, end to end — 30 icons, 30 requests
 
-Do not skip this because step 1 passed. `batch` fails in ways `api` does not, and the failures are only visible after you have paid for a day of latency: the first full submit on this branch errored 102 of its 138 requests against an org-wide grammar-compilation limit. One request exercises the entire path — schema compiles, PNGs inline under the 256 MB cap, record round-trips, parse accepts.
+Do not skip this because step 1 passed. `batch` fails in ways `api` does not, and the failures are only visible after you have paid for a day of latency: the first full submit on this branch errored 102 of its 138 requests against an org-wide grammar-compilation limit. Thirty requests exercise the entire path — schema compiles, PNGs inline under the 256 MB cap, record round-trips, parse accepts — and, at one image per request, they are also the first place the prefix cache can be seen working at all.
 
 ```sh
 npm run gen:icon-descriptions -- --transport batch --model sonnet --limit 30 --out corpus/tmp/smoke.json --dry-run
@@ -213,6 +236,8 @@ npm run gen:icon-descriptions -- --fetch <smoke-batch-id>
 
 **Pass condition: `Described 30 of 30`, with no `dropped` and no failure lines.** Anything less is a finding — read it before spending on step 4.
 
+The `prompt cache:` line beneath it is information, not a pass condition. A hit rate near zero on 30 requests does not predict one on 4,134 — but a hit rate of *exactly* zero, with the written total equal to 30 × the prefix, says the prefix is not being recognised at all, and that is worth chasing before submitting 4,134 of them.
+
 Into `corpus/tmp/` on purpose. A smoke test you may want to throw away does not belong in an arm, where clearing it would need `--force`, and a separate corpus keeps rail 4 from blocking the full submit. The cost is re-describing those same 30 icons in step 4, which the seeded shuffle guarantees are the first 30 either way.
 
 ### 3. Dry-run both arms — free
@@ -222,7 +247,7 @@ npm run gen:icon-descriptions -- --transport batch --model sonnet --dry-run
 npm run gen:icon-descriptions -- --transport batch --model opus   --dry-run
 ```
 
-Check the count and the floor estimate against what you expect. This is the last free look.
+Check the count and the estimate against what you expect. The estimate is a range whose width is the prefix cache; `--max-cost` refuses against its upper end. This is the last free look.
 
 ### 4. Submit both
 
@@ -300,9 +325,11 @@ npm test
 
 Commit both arms **and their `.model` sidecars**, `choices.json`, and `corpus.json`. The sidecars are what rail 5 reads, so an arm without one is a corpus any model may later be merged into. `.icon-cache/` and `corpus/tmp/` are gitignored and stay that way.
 
-### Two arms are required, and each method sees what the other cannot
+### Two arms, and each method sees what the other cannot
 
-**Run at least two models.** This is not a comparison luxury; the alignment gate in step 10 is a cross-arm check and cannot run without a second arm.
+**Run at least two models.** The alignment gate in step 10 is a cross-arm check and cannot run without a second arm.
+
+That gate is no longer the load-bearing thing it was. It exists because a model could lose track of which image it was describing partway through a 30-image request; at one image per request the harness owns that mapping and the failure cannot occur. The gate is now a cheap check against a defect the transport already prevents — worth keeping while `--batch-size` remains adjustable, not worth organising the pipeline around. **The reason to run two arms is now quality, not correctness**: cross-arm disagreement is how `computer-fan`'s "round frame with a screw hole at each corner" was caught against Sonnet's "square housing".
 
 Neither available method is sufficient alone, and their blind spots are complements.
 
@@ -338,15 +365,18 @@ A random audit measures whether the *model* understands the artwork. It is close
 
 ## Cost
 
-A full run of both arms is estimated at **$8.48** — $2.42 Sonnet + $6.06 Opus. That is a **floor**: image and text tokens only, nothing for thinking tokens.
+A full run of both arms is estimated at **$9.63–$22.82** — Sonnet $2.75–$6.52, Opus $6.88–$16.30. Both ends count image and text tokens only, and nothing for thinking tokens, so even the upper end is not a hard ceiling.
 
-A separate projection from measured per-icon spend gives **$9.56**. The two are different methods; do not quote them as one number. Sonnet's introductory rate lapses **2026-08-31**, after which the floor is roughly $9.69.
+The width of those ranges is entirely the prefix cache, and it is wide because nobody can predict a batch's hit rate: the low end assumes every request after the first re-reads the instructions, the high end assumes each one writes them again. The run reports which it got. Sonnet's introductory rate lapses **2026-08-31**, after which its range rises by roughly half.
+
+For scale, the same corpus at 30 images per request and no caching estimated **$8.48**. One image per request is not free — it buys a defect class becoming unrepresentable, and the cache is what keeps the bill in the same neighbourhood rather than doubling it.
 
 Prices live in `invoke-api.ts` and only models whose rates were confirmed against the pricing page belong there — a guessed rate would report a run's spend as fact while being wrong about it.
 
 ## Known gaps
 
-- **Opus displaced 36 descriptions by one, in two of its 138 requests.** Partway through a request it stopped tracking which image went with which name and labelled every remaining description with the *following* icon's name — `xylophone` got the necktie, `yin-yang` got the xylophone, `amphora` got the yin-yang. Both runs began mid-request and continued to its end: 26 icons from index 3304 and 10 from 3950. Sonnet received byte-identical requests in the same order and was unaffected, and `invoke-api.ts` pairs each image with its own filename from one array, so this is the model losing the thread rather than a pipeline defect. Nothing in the pipeline could see it — the names were all present and the prose was all valid — which is why the alignment gate in step 10 now exists. Re-describing the affected icons with `--only` is the fix; `choices.json` is not, because it would pin good-but-displaced Opus text to Sonnet permanently.
+- **Opus displaced 36 descriptions by one, in two of its 138 requests.** Partway through a request it stopped tracking which image went with which name and labelled every remaining description with the *following* icon's name — `xylophone` got the necktie, `yin-yang` got the xylophone, `amphora` got the yin-yang. Both runs began mid-request and continued to its end: 26 icons from index 3304 and 10 from 3950. Sonnet received byte-identical requests in the same order and was unaffected, and `invoke-api.ts` pairs each image with its own filename from one array, so this is the model losing the thread rather than a pipeline defect. Nothing in the pipeline could see it — the names were all present and the prose was all valid — which is why the alignment gate in step 10 exists. Re-describing the affected icons with `--only` was the fix; `choices.json` was not, because it would pin good-but-displaced Opus text to Sonnet permanently. **`--batch-size 1` is what closes this for good**; the gate found it, the transport now prevents it.
+- **`metal-hand` and `stone-bust` came back holding each other's descriptions**, at adjacent request indices in the same Opus request. A mutual swap is invisible to the shift detector by construction: it asks whether description *k* resembles reference *k−1*, and a swap presents as a run of length 1, below the run-length floor. A detector for it was designed and measured — 1 hit across 4,134 at margin 0.05, zero false positives — and deliberately not built, because one image per request retires the whole class. The two icons are pinned in `choices.json` instead. If `--batch-size` is ever raised again, that detector is the right fix.
 - **The n=100 paired audit was measured out of band.** The claim that no icon had both models wrong (23 had at least one error; in 21 of those the other model was accurate) has no artifact in this repo and cannot be re-derived from it. Given the 67% self-agreement finding, treat it as an indication, not a result. It is no longer the only evidence for the Opus pick — see "Auditing the shipped corpus".
 - **`choices.json` ships the Opus arm wholesale, and that is a decision rather than a placeholder.** It says `default: claude-opus-5` with no exceptions. The grounds: 9 adjudicated cross-arm conflicts going 7–1 to Opus with one wash, and Opus naming the place in all four place-outline icons where Sonnet manages one. The 20-icon random audit is weaker evidence than it looked — see "Auditing the shipped corpus" — and the displacement above is a point against Opus that Sonnet does not share, though it is a mechanical failure rather than a comprehension one. What has *not* been done is a systematic pass over all 4,134; `choices` stays empty until some icon earns an exception.
 - **The cross-arm flag pass was removed, not kept as dead code.** It ran only at 50-icon scale, its verdict files were gitignored, and it had unfixed defects — `--max-cost` skipped on a failed chunk, no consecutive-failure brake, and a verdict parser that type-checked only `name`, so a reply with non-boolean fields banked every icon as clean permanently. None of that is why it went: conditioning on disagreement cannot see correlated error, which is the failure a shared prompt makes likeliest. Anyone rebuilding it should make `runBatches` generic and reuse it rather than copying it, and should read "Two arms are required" first.
@@ -368,9 +398,9 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 | `invoke.ts` | `cli` transport |
 | `invoke-api.ts` | `api` transport, model pricing, cost estimates |
 | `batch.ts` | `batch` transport: submit, record, collect |
-| `run.ts` | batch loop, retries, running cost, `--max-cost` abort |
+| `run.ts` | batch loop, retries, running cost, cache totals, `--max-cost` abort |
 | `store.ts` | corpus read/merge/write, model sidecar |
 | `promote.ts` | `choices.json` → which model's description each icon ships |
 | `alignment.ts` | cross-arm displacement gate: is a description on the right icon at all |
-| `transport.ts` | shared types, `batchFailure`, response schema |
+| `transport.ts` | shared types, `batchFailure`, response schema, cache-usage reporting |
 | `../../src/data/iconDescriptions/entries.ts` | validators + override merge — shared with the app |

@@ -32,6 +32,7 @@ import { ensurePngs, iconNames, loadCollection } from "./icon-descriptions/raste
 import { runBatches } from "./icon-descriptions/run";
 import { selectBatches } from "./icon-descriptions/selection";
 import { corpusModel, mergeDescriptions, readDescriptions } from "./icon-descriptions/store";
+import { formatCacheUsage } from "./icon-descriptions/transport";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OVERRIDES = resolve(__dirname, "../src/data/iconDescriptions/overrides.json");
@@ -102,7 +103,7 @@ if (values.validate) {
   process.exit(problems.length || missing.length ? 1 : 0);
 }
 
-const { batchSize, limit, maxCost, model, size, transport } = values;
+const { batchSize, cacheTtl, limit, maxCost, model, size, transport } = values;
 
 // `cli` spends subscription quota; `api` and `batch` spend money on an
 // ANTHROPIC_API_KEY. Defaulting to `cli` keeps the zero-real-money path the one
@@ -152,6 +153,10 @@ if (values.fetch !== undefined) {
       `Described ${Object.keys(accepted).length} of ${requested} icons from ${record.model} ` +
         `into ${record.out} ($${collected.cost.toFixed(3)} billed).`,
     );
+    // The only place the batch transport's cache hit rate is observable, and the
+    // number the whole one-image-per-request design turns on.
+    const cacheReport = formatCacheUsage(collected.cache);
+    if (cacheReport) console.log(`  ${cacheReport}`);
     for (const problem of dropped) console.warn(`  dropped ${problem}`);
     for (const failure of collected.failures) console.warn(`  ${failure}`);
     // Nothing about a collected batch changes on a second fetch, so the icons a
@@ -260,7 +265,7 @@ try {
 }
 
 if (price) {
-  const estimate = estimateCost(total, price);
+  const estimate = estimateCost(total, price, { batchSize, cacheTtl });
   // A batch is billed only once its results come back, so the ceiling can do
   // nothing but refuse to submit. That is a weaker guarantee than the
   // synchronous path's running total, which aborts partway through a real spend.
@@ -270,14 +275,24 @@ if (price) {
       : transport === "batch"
         ? ` Refusing to submit above $${maxCost.toFixed(2)}.`
         : ` Stopping at $${maxCost.toFixed(2)}.`;
+  // The two bounds are the same number when no prefix is cached, and otherwise
+  // straddle a hit rate nobody can predict — which is why the run reports the
+  // rate it actually got.
+  const range =
+    estimate.floor === estimate.ceiling
+      ? `at least $${estimate.floor.toFixed(2)}`
+      : `$${estimate.floor.toFixed(2)}–$${estimate.ceiling.toFixed(2)}, depending on how ` +
+        `many requests re-read the cached instructions rather than writing them again`;
   console.log(
-    `Estimated at least $${estimate.toFixed(2)} — image and text tokens ` +
-      `only, thinking tokens are extra.${ceiling}`,
+    `Estimated ${range} — image and text tokens only, thinking tokens are extra.${ceiling}`,
   );
-  if (transport === "batch" && maxCost !== undefined && estimate > maxCost) {
+  // Compared against the worst case, not the best: a submitted batch cannot be
+  // stopped partway, so a ceiling that only the luckiest cache outcome fits
+  // under is not a ceiling.
+  if (transport === "batch" && maxCost !== undefined && estimate.ceiling > maxCost) {
     fail(
-      `Estimated $${estimate.toFixed(2)} already exceeds --max-cost $${maxCost.toFixed(2)}, ` +
-        `and the estimate is a floor. Nothing submitted.`,
+      `Estimated up to $${estimate.ceiling.toFixed(2)} against --max-cost ` +
+        `$${maxCost.toFixed(2)}, and the estimate counts no thinking tokens. Nothing submitted.`,
     );
   }
 
@@ -290,7 +305,7 @@ if (price) {
   if (values.force && !values.only && limit === undefined && !values.dryRun) {
     const proceed = await confirm(
       `Re-describing all ${total} icons in ${OUTPUT} over ${transport} ` +
-        `(${model}), estimated at least $${estimate.toFixed(2)}. Proceed?`,
+        `(${model}), estimated ${range}. Proceed?`,
     );
     if (!proceed) {
       fail(
@@ -328,6 +343,7 @@ if (transport === "batch") {
     pngDir,
     modelId,
     price: rate,
+    cacheTtl,
     out: OUTPUT,
     key: assertApiKey(),
     recordDir: BATCH_DIR,
@@ -345,6 +361,7 @@ const result = await runBatches({
   describeBatch: transport === "api" ? describeBatchApi : describeBatch,
   pngDir,
   model,
+  cache: cacheTtl,
   validateEntry,
   maxCost,
   onAccept: (accepted) => mergeDescriptions(OUTPUT, accepted, canonicalModel(model)),
@@ -354,5 +371,7 @@ console.log(
   `Described ${result.described} icons in ${result.succeededBatches} batches ` +
     `($${result.totalCost.toFixed(3)} ${transport === "api" ? "billed" : "API-equivalent"}).`,
 );
+const cacheReport = formatCacheUsage(result.cache);
+if (cacheReport) console.log(`  ${cacheReport}`);
 if (result.failedBatches) console.warn(`${result.failedBatches} batches failed; re-run to retry.`);
 process.exit(result.aborted ? 1 : 0);

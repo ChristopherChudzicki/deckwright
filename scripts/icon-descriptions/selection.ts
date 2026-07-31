@@ -1,6 +1,11 @@
 import { SHUFFLE_SEED, shuffleSeeded } from "../../src/data/iconDescriptions/shuffle";
 
-export const DEFAULT_BATCH_SIZE = 30;
+// One image per request. Grouping made name↔image correspondence the model's
+// job, and it got it wrong: an Opus run shifted every description in a request
+// onto the following icon's name, producing valid prose under a real name that
+// nothing downstream could see was wrong. At one image per request the harness
+// establishes the mapping, so the failure is unrepresentable rather than rare.
+export const DEFAULT_BATCH_SIZE = 1;
 
 export function selectBatches(opts: {
   all: readonly string[];

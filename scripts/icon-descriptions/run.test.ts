@@ -20,6 +20,7 @@ const run = (
     describeBatch,
     pngDir: "/tmp/png",
     model: MODEL,
+    cache: "5m",
     onAccept: (entries) => Object.assign(accepted, entries),
     validateEntry: () => null,
     sleep: async () => {},
@@ -46,6 +47,23 @@ describe("runBatches", () => {
       aborted: false,
     });
     expect(result.totalCost).toBeCloseTo(0.6);
+    // The cli transport cannot cache and reports nothing; the totals still have
+    // to be numbers, since the summary divides by them.
+    expect(result.cache).toEqual({ created: 0, read: 0 });
+  });
+
+  // A single request can only ever write the prefix, so nothing below the run
+  // level can say whether caching paid for itself.
+  test("sums the cache usage across batches and forwards the window", async () => {
+    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
+      descriptions: ok(names),
+      cost: 0,
+      cache: names[0] === "a" ? { created: 800, read: 0 } : { created: 0, read: 800 },
+    }));
+    const result = await run([["a"], ["b"]], describeBatch, { cache: "1h" }).promise;
+
+    expect(result.cache).toEqual({ created: 800, read: 800 });
+    expect(describeBatch).toHaveBeenCalledWith(["a"], expect.objectContaining({ cache: "1h" }));
   });
 
   test("invokes batches sequentially", async () => {
@@ -76,6 +94,7 @@ describe("runBatches", () => {
       describeBatch,
       pngDir: "/tmp/png",
       model: MODEL,
+      cache: "5m",
       onAccept: (entries) => events.push(`accept:${Object.keys(entries)[0]}`),
       validateEntry: () => null,
       sleep: async () => {},

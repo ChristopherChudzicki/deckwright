@@ -13,7 +13,8 @@ import {
   pricingFor,
   resolveModel,
 } from "./invoke-api";
-import { RESPONSE_SCHEMA } from "./transport";
+import { ATTACHED_INSTRUCTIONS } from "./prompt";
+import { type CacheTtl, RESPONSE_SCHEMA } from "./transport";
 
 const SONNET = { input: 2, output: 10 };
 const USAGE = { input_tokens: 12_000, output_tokens: 1_200 };
@@ -82,30 +83,84 @@ describe("assertApiKey", () => {
 });
 
 describe("estimateCost", () => {
-  test("prices a whole run from its icon count", () => {
-    expect(estimateCost(1_000, SONNET)).toBeCloseTo(1.172, 6);
+  // The prefix is sent once per request, so at one icon per request it is the
+  // largest input the run has — the term a flat per-icon estimate misses, and
+  // the reason --max-cost could not be trusted at N=1.
+  test("charges the instruction prefix per request, not per icon", () => {
+    const grouped = estimateCost(1_000, SONNET, { batchSize: 30, cacheTtl: "off" });
+    const singles = estimateCost(1_000, SONNET, { batchSize: 1, cacheTtl: "off" });
+
+    expect(grouped.ceiling).toBeCloseTo(1.225924, 6);
+    expect(singles.ceiling).toBeCloseTo(2.758, 6);
+    // With no prefix cached there is nothing left for the run to vary.
+    expect(singles.floor).toBe(singles.ceiling);
+  });
+
+  // Nothing predicts the hit rate, so a single number would be wrong in one
+  // direction or the other — and it is the ceiling that refuses a submission.
+  test("brackets a cached run between every request re-reading the prefix and none", () => {
+    const { floor, ceiling } = estimateCost(1_000, SONNET, { batchSize: 1, cacheTtl: "5m" });
+
+    expect(floor).toBeCloseTo(1.332424, 6);
+    expect(ceiling).toBeCloseTo(3.1545, 6);
   });
 });
 
 describe("extractApiDescriptions", () => {
+  const extract = (
+    body: string,
+    requested: readonly string[] = ["fireball"],
+    cacheTtl: CacheTtl = "5m",
+  ) => extractApiDescriptions(body, requested, SONNET, cacheTtl);
+
   test("reads the JSON text block and prices the usage", () => {
-    const { descriptions, cost } = extractApiDescriptions(
-      reply(described({ fireball: "A ball of flame." })),
-      ["fireball"],
-      SONNET,
-    );
+    const { descriptions, cost } = extract(reply(described({ fireball: "A ball of flame." })));
     expect(descriptions).toEqual({ fireball: "A ball of flame." });
     expect(cost).toBeCloseTo(0.036, 6);
   });
 
+  // Cached tokens are reported outside `input_tokens`, so a run that ignored
+  // them would bill itself for the uncached remainder and read as far cheaper
+  // than it was, putting the --max-cost rail under the real spend.
+  test("prices a written prefix at the window's premium", () => {
+    const written = reply(described({ fireball: "A ball of flame." }), {
+      usage: { ...USAGE, cache_creation_input_tokens: 800 },
+    });
+
+    expect(extract(written, ["fireball"], "5m").cost).toBeCloseTo(0.038, 6);
+    expect(extract(written, ["fireball"], "1h").cost).toBeCloseTo(0.0392, 6);
+  });
+
+  // The point of leading with the instructions: a re-read costs a tenth of what
+  // sending them again would. The split is reported because the ratio between
+  // the two is the only evidence that caching paid for itself.
+  test("prices a re-read prefix at a tenth, and reports the split", () => {
+    const { cost, cache } = extract(
+      reply(described({ fireball: "A ball of flame." }), {
+        usage: { ...USAGE, cache_read_input_tokens: 800 },
+      }),
+    );
+
+    expect(cost).toBeCloseTo(0.03616, 6);
+    expect(cache).toEqual({ created: 0, read: 800 });
+  });
+
+  // At one image per request the harness already knows which icon it asked
+  // about, so a reply naming another one is not a shortfall to re-describe: it
+  // is a paid answer that `pickRequested` would drop without a word, leaving
+  // `batch` recording a succeeded request that merged nothing.
+  test("fails a single-icon request whose reply names a different icon", () => {
+    expect(() => extract(reply(described({ broadsword: "A straight blade." })))).toThrow(
+      /named no requested icon \(fireball\)/,
+    );
+  });
+
   // Reported so the subset measurement can see what adaptive thinking costs.
   test("reports the thinking tokens the response used", () => {
-    const { thinkingTokens } = extractApiDescriptions(
+    const { thinkingTokens } = extract(
       reply(described({ fireball: "A ball of flame." }), {
         usage: { ...USAGE, output_tokens_details: { thinking_tokens: 640 } },
       }),
-      ["fireball"],
-      SONNET,
     );
     expect(thinkingTokens).toBe(640);
   });
@@ -113,7 +168,7 @@ describe("extractApiDescriptions", () => {
   // Adaptive thinking puts a thinking block ahead of the answer, so reading
   // content[0] would work against every fixture and fail against every real call.
   test("joins the text blocks, ignoring a leading thinking block", () => {
-    const { descriptions } = extractApiDescriptions(
+    const { descriptions } = extract(
       JSON.stringify({
         stop_reason: "end_turn",
         usage: USAGE,
@@ -123,8 +178,6 @@ describe("extractApiDescriptions", () => {
           { type: "text", text: '"description":"A ball of flame."}]}' },
         ],
       }),
-      ["fireball"],
-      SONNET,
     );
     expect(descriptions).toEqual({ fireball: "A ball of flame." });
   });
@@ -133,32 +186,26 @@ describe("extractApiDescriptions", () => {
   // none of it.
   test("throws when the response reports no usage", () => {
     expect(() =>
-      extractApiDescriptions(
-        JSON.stringify({ stop_reason: "end_turn", content: [{ type: "text", text: "{}" }] }),
-        ["fireball"],
-        SONNET,
-      ),
+      extract(JSON.stringify({ stop_reason: "end_turn", content: [{ type: "text", text: "{}" }] })),
     ).toThrow(/no token usage/);
   });
 
   // Everything below the pricing line runs after a billed 200, so the cost has
   // to survive the throw or the run's total omits it.
   test("carries the cost of a failed batch out on the error", () => {
-    expect(() =>
-      extractApiDescriptions(reply("I cannot help with that."), ["fireball"], SONNET),
-    ).toThrow(expect.objectContaining({ cost: 0.036 }));
+    expect(() => extract(reply("I cannot help with that."))).toThrow(
+      expect.objectContaining({ cost: 0.036 }),
+    );
   });
 
   // Truncation leaves valid-looking prose that is invalid JSON; naming it
   // separately is what tells the operator to shrink the batch.
   test("throws when the response was cut off at max_tokens", () => {
     expect(() =>
-      extractApiDescriptions(
+      extract(
         reply('{"descriptions":[{"name":"fireball","description":"A ball of fla', {
           stop_reason: "max_tokens",
         }),
-        ["fireball"],
-        SONNET,
       ),
     ).toThrow(/max_tokens/);
   });
@@ -167,42 +214,30 @@ describe("extractApiDescriptions", () => {
   // it twice at full price.
   test("does not retry a refusal", () => {
     expect(() =>
-      extractApiDescriptions(
-        JSON.stringify({ stop_reason: "refusal", content: [], usage: USAGE }),
-        ["fireball"],
-        SONNET,
-      ),
+      extract(JSON.stringify({ stop_reason: "refusal", content: [], usage: USAGE })),
     ).toThrow(expect.objectContaining({ retryable: false }));
   });
 
   test("throws when the response carries no text block", () => {
     expect(() =>
-      extractApiDescriptions(
-        JSON.stringify({ stop_reason: "end_turn", content: [], usage: USAGE }),
-        ["fireball"],
-        SONNET,
-      ),
+      extract(JSON.stringify({ stop_reason: "end_turn", content: [], usage: USAGE })),
     ).toThrow(/no text block/);
   });
 
   test("throws when the text block is not JSON", () => {
-    expect(() =>
-      extractApiDescriptions(reply("I cannot help with that."), ["fireball"], SONNET),
-    ).toThrow(/not JSON/);
+    expect(() => extract(reply("I cannot help with that."))).toThrow(/not JSON/);
   });
 
   // Returning {} instead would leave `batch` recording a succeeded request that
   // merged nothing and reported no failure — the paid request lost in silence.
   test("throws when the object carries no descriptions array", () => {
-    expect(() =>
-      extractApiDescriptions(reply('{"fireball": "A ball of flame."}'), ["fireball"], SONNET),
-    ).toThrow(/no "descriptions" array/);
+    expect(() => extract(reply('{"fireball": "A ball of flame."}'))).toThrow(
+      /no "descriptions" array/,
+    );
   });
 
   test("throws when the text block is JSON but not an object", () => {
-    expect(() =>
-      extractApiDescriptions(reply('["A ball of flame."]'), ["fireball"], SONNET),
-    ).toThrow(/not a JSON object/);
+    expect(() => extract(reply('["A ball of flame."]'))).toThrow(/not a JSON object/);
   });
 });
 
@@ -239,21 +274,41 @@ describe("describeBatchApi", () => {
     expect(result.cost).toBeCloseTo(0.036, 6);
   });
 
+  const content = (captured: { body: () => Record<string, unknown> }) =>
+    (captured.body().messages as { content: Record<string, unknown>[] }[])[0].content;
+
   // Nothing in an inline image carries its filename, so the label immediately
-  // before it is the only thing tying a description back to an icon.
-  test("labels each image with its filename and closes with the prompt", async () => {
+  // before it is the only thing tying a description back to an icon. The
+  // instructions lead rather than trail so they can be cached: the key is
+  // everything up to the marked block, so a per-request byte ahead of it would
+  // change the key on every request and never hit.
+  test("opens with the marked instructions, then labels each image", async () => {
     const captured = capture();
     await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
 
-    const content = (captured.body().messages as { content: Record<string, unknown>[] }[])[0]
-      .content;
-    expect(content).toEqual([
+    expect(content(captured)).toEqual([
+      {
+        type: "text",
+        text: ATTACHED_INSTRUCTIONS,
+        cache_control: { type: "ephemeral" },
+      },
       { type: "text", text: "fireball.png" },
       { type: "image", source: { type: "base64", media_type: "image/png", data: "AQID" } },
       { type: "text", text: "broadsword.png" },
       { type: "image", source: { type: "base64", media_type: "image/png", data: "BAUG" } },
-      { type: "text", text: expect.stringContaining("fireball.png\nbroadsword.png") },
     ]);
+  });
+
+  // A marked block is billed at the write premium whether or not anything ever
+  // re-reads it, so `off` has to send no marker at all rather than a short one.
+  test("marks the prefix with the requested window, or leaves it unmarked", async () => {
+    const captured = capture();
+
+    await describeBatchApi(["fireball"], { pngDir, model: "sonnet", cache: "1h" });
+    expect(content(captured)[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+
+    await describeBatchApi(["fireball"], { pngDir, model: "sonnet", cache: "off" });
+    expect(content(captured)[0]).not.toHaveProperty("cache_control");
   });
 
   test("sends the alias's concrete model id", async () => {

@@ -1,7 +1,23 @@
 import { describe, expect, test } from "vitest";
-import { pickRequested, RESPONSE_SCHEMA } from "./transport";
+import { formatCacheUsage, pickRequested, RESPONSE_SCHEMA } from "./transport";
 
 const described = (entries: unknown[]) => ({ descriptions: entries });
+
+describe("formatCacheUsage", () => {
+  // The hit rate is what the whole one-image-per-request design turns on, and
+  // the raw totals sit beside it because a short run can only ever write.
+  test("reports the split and the rate it implies", () => {
+    expect(formatCacheUsage({ created: 800, read: 7_200 })).toBe(
+      "prompt cache: 7200 read, 800 written (90.0% hit rate)",
+    );
+  });
+
+  // Nothing cached is not a 0% hit rate — it is a run that never asked, and
+  // dividing by the total would report NaN.
+  test("says nothing when no prefix was cached", () => {
+    expect(formatCacheUsage({ created: 0, read: 0 })).toBeNull();
+  });
+});
 
 describe("RESPONSE_SCHEMA", () => {
   // Two properties this pins, both of which a live run has already broken:
