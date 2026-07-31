@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { Command, InvalidArgumentError } from "@commander-js/extra-typings";
 import { canonicalModel } from "./invoke-api";
 import { DEFAULT_RENDER_SIZE } from "./rasterize";
-import { DEFAULT_BATCH_SIZE } from "./selection";
 import { type CacheTtl, DEFAULT_MODEL } from "./transport";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -36,7 +35,6 @@ export type CliOptions = {
   limit?: number;
   only?: string[];
   force?: boolean;
-  batchSize: number;
   cacheTtl: CacheTtl;
   size: number;
   maxCost?: number;
@@ -67,7 +65,6 @@ const collect = (value: string, previous: string[] = []): string[] => [...previo
 // selection or model flag alongside it would silently do nothing.
 const RUN_FLAGS = [
   "only",
-  "batchSize",
   "cacheTtl",
   "force",
   "limit",
@@ -124,7 +121,6 @@ export function buildProgram() {
       .option("--limit <n>", "describe at most n icons", positiveInt)
       .option("--only <name>", "describe exactly these; repeatable", collect)
       .option("--force", "re-describe icons that already have an entry")
-      .option("--batch-size <n>", "icons per request", positiveInt, DEFAULT_BATCH_SIZE)
       .option(
         "--cache-ttl <5m|1h|off>",
         "how long the API caches the invariant instruction prefix",
@@ -134,7 +130,7 @@ export function buildProgram() {
           }
           return raw as CacheTtl;
         },
-        "5m" as CacheTtl,
+        "1h" as CacheTtl,
       )
       .option("--size <px>", "PNG render size", positiveInt, DEFAULT_RENDER_SIZE)
       .option("--max-cost <usd>", "spend ceiling", positiveDollars)

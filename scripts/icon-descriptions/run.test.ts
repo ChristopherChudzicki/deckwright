@@ -1,26 +1,25 @@
 import { describe, expect, test, vi } from "vitest";
-import { runBatches } from "./run";
-import { batchFailure, type DescribeBatch } from "./transport";
+import { runRequests } from "./run";
+import { type DescribeIcon, requestFailure } from "./transport";
 
-const ok = (names: readonly string[]): Record<string, string> =>
-  Object.fromEntries(names.map((n) => [n, `A drawing of a ${n}.`]));
+const ok = (name: string) => ({ description: `A drawing of a ${name}.`, cost: 0 });
 
-// runBatches only forwards the model to describeBatch, which is stubbed in
+// runRequests only forwards the model to describeIcon, which is stubbed in
 // every test here, so naming a real model would imply a dependency there isn't.
 const MODEL = "stub-model";
 
 const run = (
-  batches: string[][],
-  describeBatch: DescribeBatch,
-  overrides: Partial<Parameters<typeof runBatches>[0]> = {},
+  icons: string[],
+  describeIcon: DescribeIcon,
+  overrides: Partial<Parameters<typeof runRequests>[0]> = {},
 ) => {
   const accepted: Record<string, string> = {};
-  const promise = runBatches({
-    batches,
-    describeBatch,
+  const promise = runRequests({
+    icons,
+    describeIcon,
     pngDir: "/tmp/png",
     model: MODEL,
-    cache: "5m",
+    cache: "1h",
     onAccept: (entries) => Object.assign(accepted, entries),
     validateEntry: () => null,
     sleep: async () => {},
@@ -30,20 +29,17 @@ const run = (
   return { promise, accepted };
 };
 
-describe("runBatches", () => {
-  test("describes every batch and reports the running cost", async () => {
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
-      descriptions: ok(names),
-      cost: 0.3,
-    }));
-    const { promise, accepted } = run([["a", "b"], ["c"]], describeBatch);
+describe("runRequests", () => {
+  test("describes every icon and reports the running cost", async () => {
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => ({ ...ok(name), cost: 0.3 }));
+    const { promise, accepted } = run(["a", "b"], describeIcon);
     const result = await promise;
 
-    expect(Object.keys(accepted).sort()).toEqual(["a", "b", "c"]);
+    expect(Object.keys(accepted).sort()).toEqual(["a", "b"]);
     expect(result).toMatchObject({
-      described: 3,
-      succeededBatches: 2,
-      failedBatches: 0,
+      described: 2,
+      succeededRequests: 2,
+      failedRequests: 0,
       aborted: false,
     });
     expect(result.totalCost).toBeCloseTo(0.6);
@@ -54,202 +50,192 @@ describe("runBatches", () => {
 
   // A single request can only ever write the prefix, so nothing below the run
   // level can say whether caching paid for itself.
-  test("sums the cache usage across batches and forwards the window", async () => {
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
-      descriptions: ok(names),
-      cost: 0,
-      cache: names[0] === "a" ? { created: 800, read: 0 } : { created: 0, read: 800 },
+  test("sums the cache usage across requests and forwards the window", async () => {
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => ({
+      ...ok(name),
+      cache: name === "a" ? { created: 800, read: 0 } : { created: 0, read: 800 },
     }));
-    const result = await run([["a"], ["b"]], describeBatch, { cache: "1h" }).promise;
+    const result = await run(["a", "b"], describeIcon, { cache: "1h" }).promise;
 
     expect(result.cache).toEqual({ created: 800, read: 800 });
-    expect(describeBatch).toHaveBeenCalledWith(["a"], expect.objectContaining({ cache: "1h" }));
+    expect(describeIcon).toHaveBeenCalledWith("a", expect.objectContaining({ cache: "1h" }));
   });
 
-  test("invokes batches sequentially", async () => {
+  // A request billed for a prefix it wrote still wrote it. Counting the cost of
+  // a failure without its cache would report the hit rate over a different set
+  // of requests than the spend printed beside it.
+  test("counts the cache usage a failing request carries out on its error", async () => {
+    const describeIcon = vi
+      .fn<DescribeIcon>()
+      .mockRejectedValue(
+        requestFailure("truncated", { cost: 0.01, cache: { created: 948, read: 0 } }),
+      );
+    const result = await run(["a"], describeIcon).promise;
+
+    expect(result.cache).toEqual({ created: 948 * 3, read: 0 });
+  });
+
+  test("invokes requests sequentially", async () => {
     let inFlight = 0;
     let maxInFlight = 0;
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => {
       maxInFlight = Math.max(maxInFlight, ++inFlight);
       await Promise.resolve();
       inFlight--;
-      return { descriptions: ok(names), cost: 0 };
+      return ok(name);
     });
-    await run([["a"], ["b"], ["c"]], describeBatch).promise;
+    await run(["a", "b", "c"], describeIcon).promise;
 
     expect(maxInFlight).toBe(1);
   });
 
-  // The file is the progress marker, so a crash must leave every accepted batch
+  // The file is the progress marker, so a crash must leave every accepted icon
   // on disk. Asserting the interleaving is what rules out a buffer-then-flush
   // refactor; a call count alone is satisfied by three flushes at the end.
-  test("hands over each accepted batch as it lands, not once at the end", async () => {
+  test("hands over each accepted icon as it lands, not once at the end", async () => {
     const events: string[] = [];
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
-      events.push(`describe:${names[0]}`);
-      return { descriptions: ok(names), cost: 0 };
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => {
+      events.push(`describe:${name}`);
+      return ok(name);
     });
-    await runBatches({
-      batches: [["a"], ["b"], ["c"]],
-      describeBatch,
-      pngDir: "/tmp/png",
-      model: MODEL,
-      cache: "5m",
+    await run(["a", "b"], describeIcon, {
       onAccept: (entries) => events.push(`accept:${Object.keys(entries)[0]}`),
-      validateEntry: () => null,
-      sleep: async () => {},
-      log: () => {},
-    });
+    }).promise;
 
-    expect(events).toEqual([
-      "describe:a",
-      "accept:a",
-      "describe:b",
-      "accept:b",
-      "describe:c",
-      "accept:c",
-    ]);
+    expect(events).toEqual(["describe:a", "accept:a", "describe:b", "accept:b"]);
   });
 
-  // Partial acceptance: all-or-nothing would discard 29 good descriptions
-  // over one bad one, permanently, on every future run.
-  test("keeps the good entries of a batch with one invalid entry", async () => {
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
-      descriptions: { ...ok(names), b: "no" },
-      cost: 0,
-    }));
-    const { promise, accepted } = run([["a", "b", "c"]], describeBatch, {
-      validateEntry: (_name, description) => (description === "no" ? "too short" : null),
-    });
-    const result = await promise;
-
-    expect(Object.keys(accepted).sort()).toEqual(["a", "c"]);
-    expect(result).toMatchObject({ described: 2, failedBatches: 0, aborted: false });
-  });
-
-  test("retries a failing batch and accepts the retry", async () => {
-    const describeBatch = vi
-      .fn<DescribeBatch>()
+  test("retries a failing request and accepts the retry", async () => {
+    const describeIcon = vi
+      .fn<DescribeIcon>()
       .mockRejectedValueOnce(new Error("rate limited"))
-      .mockImplementation(async (names) => ({ descriptions: ok(names), cost: 0 }));
-    const { promise, accepted } = run([["a"]], describeBatch);
+      .mockImplementation(async (name) => ok(name));
+    const { promise, accepted } = run(["a"], describeIcon);
     const result = await promise;
 
-    expect(describeBatch).toHaveBeenCalledTimes(2);
+    expect(describeIcon).toHaveBeenCalledTimes(2);
     expect(accepted).toHaveProperty("a");
-    expect(result.failedBatches).toBe(0);
+    expect(result.failedRequests).toBe(0);
   });
 
-  test("gives up on a batch after three attempts and continues to the next", async () => {
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
-      if (names[0] === "a") throw new Error("always fails");
-      return { descriptions: ok(names), cost: 0 };
+  test("gives up on a request after three attempts and continues to the next", async () => {
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => {
+      if (name === "a") throw new Error("always fails");
+      return ok(name);
     });
-    const { promise, accepted } = run([["a"], ["b"]], describeBatch);
+    const { promise, accepted } = run(["a", "b"], describeIcon);
     const result = await promise;
 
-    expect(describeBatch).toHaveBeenCalledTimes(4);
+    expect(describeIcon).toHaveBeenCalledTimes(4);
     expect(accepted).toEqual({ b: "A drawing of a b." });
-    expect(result.failedBatches).toBe(1);
+    expect(result.failedRequests).toBe(1);
   });
 
   test("backs off between retries", async () => {
     const sleep = vi.fn<(ms: number) => Promise<void>>(async () => {});
-    const describeBatch = vi.fn<DescribeBatch>().mockRejectedValue(new Error("boom"));
-    await run([["a"]], describeBatch, { sleep }).promise;
+    const describeIcon = vi.fn<DescribeIcon>().mockRejectedValue(new Error("boom"));
+    await run(["a"], describeIcon, { sleep }).promise;
 
     expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([5_000, 20_000]);
   });
 
-  // Without this, an expired credential at batch 3 of 138 logs 135 failures
-  // and exits 0.
-  test("aborts after three consecutive batch failures", async () => {
-    const describeBatch = vi.fn<DescribeBatch>().mockRejectedValue(new Error("expired"));
-    const result = await run([["a"], ["b"], ["c"], ["d"]], describeBatch).promise;
+  // Without this, an expired credential at request 3 of 4,134 logs 4,131
+  // failures and exits 0.
+  test("aborts after three consecutive request failures", async () => {
+    const describeIcon = vi.fn<DescribeIcon>().mockRejectedValue(new Error("expired"));
+    const result = await run(["a", "b", "c", "d"], describeIcon).promise;
 
-    expect(result).toMatchObject({ aborted: true, succeededBatches: 0, failedBatches: 3 });
-    expect(describeBatch).toHaveBeenCalledTimes(9);
+    expect(result).toMatchObject({ aborted: true, succeededRequests: 0, failedRequests: 3 });
+    expect(describeIcon).toHaveBeenCalledTimes(9);
   });
 
   test("a success resets the consecutive-failure count", async () => {
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
-      if (names[0] === "ok") return { descriptions: ok(names), cost: 0 };
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => {
+      if (name === "ok") return ok(name);
       throw new Error("boom");
     });
-    const result = await run([["a"], ["b"], ["ok"], ["c"], ["d"]], describeBatch).promise;
+    const result = await run(["a", "b", "ok", "c", "d"], describeIcon).promise;
 
     expect(result.aborted).toBe(false);
-    expect(result.failedBatches).toBe(4);
+    expect(result.failedRequests).toBe(4);
   });
 
   // An HTTP 200 is billed whether or not anything usable came back, so a run
   // that only counts successes under-reports what it spent.
-  test("charges the cost a failing batch carries out on its error", async () => {
-    const describeBatch = vi
-      .fn<DescribeBatch>()
-      .mockRejectedValue(batchFailure("truncated", { cost: 0.04 }));
-    const result = await run([["a"]], describeBatch).promise;
+  test("charges the cost a failing request carries out on its error", async () => {
+    const describeIcon = vi
+      .fn<DescribeIcon>()
+      .mockRejectedValue(requestFailure("truncated", { cost: 0.04 }));
+    const result = await run(["a"], describeIcon).promise;
 
     expect(result.totalCost).toBeCloseTo(0.12);
   });
 
-  // Without this a revoked key at batch 3 of 138 spends 9 requests and 75s of
-  // backoff per batch discovering that it is still revoked.
+  // Without this a revoked key at request 3 of 4,134 spends 9 requests and 75s
+  // of backoff per icon discovering that it is still revoked.
   test("aborts the whole run on a fatal failure without retrying", async () => {
-    const describeBatch = vi
-      .fn<DescribeBatch>()
-      .mockRejectedValue(batchFailure("HTTP 401", { fatal: true }));
-    const result = await run([["a"], ["b"]], describeBatch).promise;
+    const describeIcon = vi
+      .fn<DescribeIcon>()
+      .mockRejectedValue(requestFailure("HTTP 401", { fatal: true }));
+    const result = await run(["a", "b"], describeIcon).promise;
 
-    expect(describeBatch).toHaveBeenCalledTimes(1);
-    expect(result).toMatchObject({ aborted: true, failedBatches: 1 });
+    expect(describeIcon).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ aborted: true, failedRequests: 1 });
   });
 
-  test("gives up on an unretryable failure but continues to the next batch", async () => {
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => {
-      if (names[0] === "a") throw batchFailure("refused", { retryable: false });
-      return { descriptions: ok(names), cost: 0 };
+  test("gives up on an unretryable failure but continues to the next icon", async () => {
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => {
+      if (name === "a") throw requestFailure("refused", { retryable: false });
+      return ok(name);
     });
-    const { promise, accepted } = run([["a"], ["b"]], describeBatch);
+    const { promise, accepted } = run(["a", "b"], describeIcon);
     const result = await promise;
 
-    expect(describeBatch).toHaveBeenCalledTimes(2);
+    expect(describeIcon).toHaveBeenCalledTimes(2);
     expect(accepted).toEqual({ b: "A drawing of a b." });
-    expect(result).toMatchObject({ failedBatches: 1, aborted: false });
+    expect(result).toMatchObject({ failedRequests: 1, aborted: false });
   });
 
   // The fixed ladder is a guess; a 429 tells us the real answer.
   test("prefers the server's retry-after over the backoff ladder", async () => {
     const sleep = vi.fn<(ms: number) => Promise<void>>(async () => {});
-    const describeBatch = vi
-      .fn<DescribeBatch>()
-      .mockRejectedValue(batchFailure("rate limited", { retryAfterMs: 3_000 }));
-    await run([["a"]], describeBatch, { sleep }).promise;
+    const describeIcon = vi
+      .fn<DescribeIcon>()
+      .mockRejectedValue(requestFailure("rate limited", { retryAfterMs: 3_000 }));
+    await run(["a"], describeIcon, { sleep }).promise;
 
     expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([3_000, 3_000]);
   });
 
   test("stops once spend reaches the cost ceiling", async () => {
-    const describeBatch = vi.fn<DescribeBatch>(async (names) => ({
-      descriptions: ok(names),
-      cost: 0.4,
-    }));
-    const result = await run([["a"], ["b"], ["c"]], describeBatch, { maxCost: 0.5 }).promise;
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => ({ ...ok(name), cost: 0.4 }));
+    const result = await run(["a", "b", "c"], describeIcon, { maxCost: 0.5 }).promise;
 
-    expect(describeBatch).toHaveBeenCalledTimes(2);
+    expect(describeIcon).toHaveBeenCalledTimes(2);
     expect(result).toMatchObject({ described: 2, aborted: true });
   });
 
-  test("a batch whose entries all fail validation counts as a failure, and is still paid for", async () => {
-    const describeBatch = vi.fn<DescribeBatch>(async () => ({
-      descriptions: { a: "no" },
-      cost: 0.1,
-    }));
-    const result = await run([["a"]], describeBatch, {
-      validateEntry: () => "too short",
+  // A description the validator refuses is an answer, not a transport fault:
+  // the model will say the same thing again, so retrying it twice more just
+  // pays three times for the same rejection.
+  test("does not retry a description that fails validation, and still pays for it", async () => {
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => ({ ...ok(name), cost: 0.1 }));
+    const result = await run(["a"], describeIcon, { validateEntry: () => "too short" }).promise;
+
+    expect(describeIcon).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ described: 0, succeededRequests: 0, failedRequests: 1 });
+    expect(result.totalCost).toBeCloseTo(0.1);
+  });
+
+  // At one icon per request a rejection is common enough to cluster, and the
+  // abort exists for a dead credential — ending a 4,134-icon run because three
+  // adjacent descriptions ran long would strand the rest.
+  test("consecutive validation rejections do not abort the run", async () => {
+    const describeIcon = vi.fn<DescribeIcon>(async (name) => ok(name));
+    const result = await run(["a", "b", "c", "d"], describeIcon, {
+      validateEntry: (name) => (name === "d" ? null : "too short"),
     }).promise;
 
-    expect(result).toMatchObject({ described: 0, succeededBatches: 0, failedBatches: 1 });
-    expect(result.totalCost).toBeCloseTo(0.3);
+    expect(result).toMatchObject({ described: 1, failedRequests: 3, aborted: false });
   });
 });

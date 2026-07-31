@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { formatCacheUsage, pickRequested, RESPONSE_SCHEMA } from "./transport";
+import { formatCacheUsage, pickDescription, RESPONSE_SCHEMA } from "./transport";
 
 const described = (entries: unknown[]) => ({ descriptions: entries });
 
@@ -7,15 +7,22 @@ describe("formatCacheUsage", () => {
   // The hit rate is what the whole one-image-per-request design turns on, and
   // the raw totals sit beside it because a short run can only ever write.
   test("reports the split and the rate it implies", () => {
-    expect(formatCacheUsage({ created: 800, read: 7_200 })).toBe(
+    expect(formatCacheUsage({ created: 800, read: 7_200 }, "1h")).toBe(
       "prompt cache: 7200 read, 800 written (90.0% hit rate)",
     );
   });
 
-  // Nothing cached is not a 0% hit rate — it is a run that never asked, and
-  // dividing by the total would report NaN.
-  test("says nothing when no prefix was cached", () => {
-    expect(formatCacheUsage({ created: 0, read: 0 })).toBeNull();
+  // A run that asked and cached nothing has found something — a prefix under the
+  // model's minimum is ignored silently — so reporting it as absence would hide
+  // the one thing the smoke test exists to catch.
+  test("says a run that asked for caching and got none cached nothing", () => {
+    expect(formatCacheUsage({ created: 0, read: 0 }, "1h")).toMatch(/nothing cached/);
+  });
+
+  // Under `off` there is nothing to report rather than something to chase, and
+  // dividing by the total would give NaN.
+  test("says nothing when no prefix was asked for", () => {
+    expect(formatCacheUsage({ created: 0, read: 0 }, "off")).toBeNull();
   });
 });
 
@@ -44,55 +51,53 @@ describe("RESPONSE_SCHEMA", () => {
   });
 });
 
-describe("pickRequested", () => {
-  test("keys the descriptions by name and trims surrounding whitespace", () => {
+describe("pickDescription", () => {
+  test("returns the matching description with surrounding whitespace trimmed", () => {
     expect(
-      pickRequested(described([{ name: "fireball", description: "  A ball of flame.\n" }]), [
+      pickDescription(
+        described([{ name: "fireball", description: "  A ball of flame.\n" }]),
         "fireball",
-      ]),
-    ).toEqual({ fireball: "A ball of flame." });
+      ),
+    ).toBe("A ball of flame.");
   });
 
   // The schema constrains the shape, not the contents: nothing stops the model
   // naming an icon nobody asked for, and a wrong name silently lost butter-toast
-  // in a measured run.
-  test("drops an entry naming no requested icon and keeps the rest", () => {
+  // in a measured run. At one icon per request there is nothing else in the
+  // reply to fall back on.
+  test("returns null when no entry names the requested icon", () => {
     expect(
-      pickRequested(
-        described([
-          { name: "fireball", description: "A ball of flame." },
-          { name: "butter-toads", description: "Nonsense." },
-        ]),
-        ["fireball", "butter-toast"],
+      pickDescription(
+        described([{ name: "butter-toads", description: "Nonsense." }]),
+        "butter-toast",
       ),
-    ).toEqual({ fireball: "A ball of flame." });
+    ).toBeNull();
   });
 
-  // `.trim()` on a non-string throws, which would lose the whole billed request
-  // over one bad entry.
-  test("drops an entry whose description is not a string and keeps the rest", () => {
+  // `.trim()` on a non-string throws, which would lose the whole billed request.
+  test("skips an entry whose description is not a string", () => {
     expect(
-      pickRequested(
+      pickDescription(
         described([
+          { name: "fireball", description: null },
           { name: "fireball", description: "A ball of flame." },
-          { name: "broadsword", description: null },
         ]),
-        ["fireball", "broadsword"],
+        "fireball",
       ),
-    ).toEqual({ fireball: "A ball of flame." });
+    ).toBe("A ball of flame.");
   });
 
-  // Nothing in the schema forbids naming one icon twice, and a later duplicate
-  // would otherwise overwrite the description already accepted for it.
+  // Nothing in the schema forbids naming one icon twice, and reading the last
+  // would let a retraction overwrite the answer already given.
   test("keeps the first of two entries naming the same icon", () => {
     expect(
-      pickRequested(
+      pickDescription(
         described([
           { name: "fireball", description: "A ball of flame." },
           { name: "fireball", description: "A second attempt." },
         ]),
-        ["fireball"],
+        "fireball",
       ),
-    ).toEqual({ fireball: "A ball of flame." });
+    ).toBe("A ball of flame.");
   });
 });

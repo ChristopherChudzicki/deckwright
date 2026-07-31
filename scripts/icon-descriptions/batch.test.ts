@@ -12,7 +12,6 @@ import {
   outstandingBatches,
   readRecord,
   readResults,
-  requestId,
   submitBatch,
   writeRecord,
 } from "./batch";
@@ -32,7 +31,7 @@ const COST_PER_REQUEST = 0.018;
 // record written before caching existed carries no ttl — which is the shape
 // this default stands in for. A real model id would imply a dependency that
 // isn't there.
-const record = (requests: Record<string, string[]>): BatchRecord => ({
+const record = (requests: string[]): BatchRecord => ({
   id: "msgbatch_01",
   model: "stub-model",
   price: PRICE,
@@ -41,13 +40,18 @@ const record = (requests: Record<string, string[]>): BatchRecord => ({
   requests,
 });
 
+// custom_id is the icon's own name, so the reply's echoed name and the key it
+// arrives under are the same string — which is what makes a mismatch visible.
+// `echoedName` is what the reply calls itself, and only differs where a test is
+// about that mismatch.
 const succeeded = (
-  customId: string,
-  descriptions: Record<string, string>,
+  name: string,
+  description: string,
   usage: Record<string, unknown> = USAGE,
+  echoedName: string = name,
 ) =>
   JSON.stringify({
-    custom_id: customId,
+    custom_id: name,
     result: {
       type: "succeeded",
       message: {
@@ -55,12 +59,7 @@ const succeeded = (
         content: [
           {
             type: "text",
-            text: JSON.stringify({
-              descriptions: Object.entries(descriptions).map(([name, description]) => ({
-                name,
-                description,
-              })),
-            }),
+            text: JSON.stringify({ descriptions: [{ name: echoedName, description }] }),
           },
         ],
         usage,
@@ -71,23 +70,14 @@ const succeeded = (
 // Real JSONL ends in a newline; the blank final element must not be parsed.
 const jsonl = (...lines: string[]) => `${lines.join("\n")}\n`;
 
-describe("requestId", () => {
-  // A 30-icon request cannot be keyed by icon name, so results are tied back to
-  // icons by an index the record maps.
-  test("numbers requests from one", () => {
-    expect(requestId(0)).toBe("icons-0001");
-    expect(requestId(137)).toBe("icons-0138");
-  });
-});
-
 describe("readResults", () => {
   test("merges every request in the file and accumulates their cost", () => {
     const collected = readResults(
       jsonl(
-        succeeded("icons-0001", { fireball: "A ball of flame." }),
-        succeeded("icons-0002", { broadsword: "A straight blade." }),
+        succeeded("fireball", "A ball of flame."),
+        succeeded("broadsword", "A straight blade."),
       ),
-      record({ "icons-0001": ["fireball"], "icons-0002": ["broadsword"] }),
+      record(["fireball", "broadsword"]),
     );
 
     expect(collected.descriptions).toEqual({
@@ -104,7 +94,7 @@ describe("readResults", () => {
     const collected = readResults(
       jsonl(
         JSON.stringify({
-          custom_id: "icons-0001",
+          custom_id: "fireball",
           result: {
             type: "errored",
             error: {
@@ -113,13 +103,13 @@ describe("readResults", () => {
             },
           },
         }),
-        succeeded("icons-0002", { broadsword: "A straight blade." }),
+        succeeded("broadsword", "A straight blade."),
       ),
-      record({ "icons-0001": ["fireball"], "icons-0002": ["broadsword"] }),
+      record(["fireball", "broadsword"]),
     );
 
     expect(collected.descriptions).toEqual({ broadsword: "A straight blade." });
-    expect(collected.failures).toEqual(["icons-0001: errored — too large"]);
+    expect(collected.failures).toEqual(["fireball: errored — too large"]);
   });
 
   // A short results body produces no failing line of its own, so counting the
@@ -127,18 +117,18 @@ describe("readResults", () => {
   // being reported as a complete one and paid for twice.
   test("reports a recorded request that no line accounted for", () => {
     const collected = readResults(
-      jsonl(succeeded("icons-0001", { fireball: "A ball of flame." })),
-      record({ "icons-0001": ["fireball"], "icons-0002": ["broadsword"] }),
+      jsonl(succeeded("fireball", "A ball of flame.")),
+      record(["fireball", "broadsword"]),
     );
 
     expect(collected.descriptions).toEqual({ fireball: "A ball of flame." });
-    expect(collected.failures).toEqual([expect.stringContaining("icons-0002")]);
+    expect(collected.failures).toEqual([expect.stringContaining("broadsword")]);
   });
 
   test("keeps the requests above an unparseable line", () => {
     const collected = readResults(
-      `${succeeded("icons-0001", { fireball: "A ball of flame." })}\n{"custom_id": "icons-00`,
-      record({ "icons-0001": ["fireball"] }),
+      `${succeeded("fireball", "A ball of flame.")}\n{"custom_id": "broadsw`,
+      record(["fireball"]),
     );
 
     expect(collected.descriptions).toEqual({ fireball: "A ball of flame." });
@@ -153,27 +143,16 @@ describe("readResults", () => {
   test("sums the cached tokens and prices them at the record's frozen window", () => {
     const collected = readResults(
       jsonl(
-        succeeded(
-          "icons-0001",
-          { fireball: "A ball of flame." },
-          {
-            ...USAGE,
-            cache_creation_input_tokens: 800,
-          },
-        ),
-        succeeded(
-          "icons-0002",
-          { broadsword: "A straight blade." },
-          {
-            ...USAGE,
-            cache_read_input_tokens: 800,
-          },
-        ),
+        succeeded("fireball", "A ball of flame.", {
+          ...USAGE,
+          cache_creation_input_tokens: 800,
+        }),
+        succeeded("broadsword", "A straight blade.", {
+          ...USAGE,
+          cache_read_input_tokens: 800,
+        }),
       ),
-      {
-        ...record({ "icons-0001": ["fireball"], "icons-0002": ["broadsword"] }),
-        cacheTtl: "1h",
-      },
+      { ...record(["fireball", "broadsword"]), cacheTtl: "1h" },
     );
 
     expect(collected.cache).toEqual({ created: 800, read: 800 });
@@ -181,12 +160,12 @@ describe("readResults", () => {
   });
 
   // The response was billed whether or not anything usable came back, so its
-  // cost has to reach the reported total.
+  // cost and the prefix it read both have to reach the reported totals.
   test("charges a request whose message could not be read", () => {
     const collected = readResults(
       jsonl(
         JSON.stringify({
-          custom_id: "icons-0001",
+          custom_id: "fireball",
           result: {
             type: "succeeded",
             message: {
@@ -194,17 +173,30 @@ describe("readResults", () => {
               content: [
                 { type: "text", text: '{"descriptions":[{"name":"fireball","description":"A ba' },
               ],
-              usage: USAGE,
+              usage: { ...USAGE, cache_read_input_tokens: 800 },
             },
           },
         }),
       ),
-      record({ "icons-0001": ["fireball"] }),
+      { ...record(["fireball"]), cacheTtl: "1h" },
     );
 
     expect(collected.descriptions).toEqual({});
-    expect(collected.cost).toBeCloseTo(COST_PER_REQUEST, 6);
+    expect(collected.cost).toBeCloseTo(COST_PER_REQUEST + 0.00008, 6);
+    expect(collected.cache).toEqual({ created: 0, read: 800 });
     expect(collected.failures).toEqual([expect.stringContaining("max_tokens")]);
+  });
+
+  // The reply's echoed name is a redundant channel: a request asks about one
+  // icon, so an answer about another is not a partial result to top up later.
+  test("fails a request whose reply names a different icon", () => {
+    const collected = readResults(
+      jsonl(succeeded("fireball", "A ball of flame.", USAGE, "firebal")),
+      record(["fireball"]),
+    );
+
+    expect(collected.descriptions).toEqual({});
+    expect(collected.failures).toEqual([expect.stringContaining("named no requested icon")]);
   });
 });
 
@@ -238,7 +230,7 @@ describe("readRecord", () => {
   // Reaching a missing price deep inside the per-line loop would report a fully
   // billed batch as $0.00 and merge nothing.
   test("rejects a record that carries no price", () => {
-    const { price, ...priceless } = record({ "icons-0001": ["fireball"] });
+    const { price, ...priceless } = record(["fireball"]);
     writeFileSync(join(dir, "msgbatch_01.json"), JSON.stringify(priceless), "utf8");
 
     expect(() => readRecord(dir, "msgbatch_01")).toThrow(/missing its price/);
@@ -254,7 +246,7 @@ describe("outstandingBatches", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  const submitted = record({ "icons-0001": ["fireball"] });
+  const submitted = record(["fireball"]);
 
   test("reports nothing when the directory has never been written to", () => {
     expect(outstandingBatches(join(dir, "absent"), submitted.out)).toEqual([]);
@@ -326,9 +318,9 @@ describe("submitBatch", () => {
     return () => seen.requests ?? [];
   };
 
-  const submit = (batches: string[][], cacheTtl: CacheTtl = "5m") =>
+  const submit = (icons: string[], cacheTtl: CacheTtl = "1h") =>
     submitBatch({
-      batches,
+      icons,
       pngDir,
       modelId: "claude-sonnet-5",
       price: PRICE,
@@ -339,25 +331,27 @@ describe("submitBatch", () => {
     });
 
   // The batch path must not drift from the synchronous one: they have to put the
-  // same images, prompt, cache marker and schema in front of the model.
-  test("sends one request per batch, carrying exactly the synchronous params", async () => {
+  // same image, prompt, cache marker and schema in front of the model. The
+  // custom_id is the icon's own name, which every one of the 4,134 satisfies —
+  // the charset is ^[a-zA-Z0-9_-]{1,64}$ and the longest name is 33 characters.
+  test("sends one request per icon, keyed by name and carrying the synchronous params", async () => {
     const requests = capture();
-    await submit([["fireball"], ["broadsword"]], "1h");
+    await submit(["fireball", "broadsword"], "1h");
 
-    expect(requests().map((request) => request.custom_id)).toEqual(["icons-0001", "icons-0002"]);
+    expect(requests().map((request) => request.custom_id)).toEqual(["fireball", "broadsword"]);
     expect(requests()[0].params).toEqual(
-      await buildRequestParams(["fireball"], pngDir, "claude-sonnet-5", "1h"),
+      await buildRequestParams("fireball", pngDir, "claude-sonnet-5", "1h"),
     );
   });
 
   // Frozen alongside the price, and for the same reason: the collection runs
   // hours later, under whatever flags that invocation happens to carry.
-  test("records what each request asked for, and what it was priced under", async () => {
+  test("records what it asked for, and what it was priced under", async () => {
     capture();
-    const submitted = await submit([["fireball", "broadsword"]], "1h");
+    const submitted = await submit(["fireball", "broadsword"], "1h");
 
     expect(readRecord(recordDir, "msgbatch_01")).toEqual(submitted);
-    expect(submitted.requests).toEqual({ "icons-0001": ["fireball", "broadsword"] });
+    expect(submitted.requests).toEqual(["fireball", "broadsword"]);
     expect(submitted.price).toEqual(PRICE);
     expect(submitted.cacheTtl).toBe("1h");
   });
@@ -367,7 +361,7 @@ describe("submitBatch", () => {
   test("refuses a batch that came back without an id", async () => {
     server.use(http.post(BATCHES_URL, () => HttpResponse.json({})));
 
-    await expect(submit([["fireball"]])).rejects.toThrow(/carried no id/);
+    await expect(submit(["fireball"])).rejects.toThrow(/carried no id/);
   });
 
   // If the connection drops after the server accepts the batch, the mapping
@@ -375,14 +369,14 @@ describe("submitBatch", () => {
   test("leaves the request mapping on disk when the submission fails", async () => {
     server.use(http.post(BATCHES_URL, () => HttpResponse.error()));
 
-    await expect(submit([["fireball"]])).rejects.toThrow(/may still have been created/);
+    await expect(submit(["fireball"])).rejects.toThrow(/may still have been created/);
     expect(readdirSync(recordDir)).toEqual([expect.stringMatching(/^pending-.*\.json$/)]);
   });
 
   test("throws with the status when the API rejects the batch", async () => {
     server.use(http.post(BATCHES_URL, () => HttpResponse.text("too large", { status: 413 })));
 
-    await expect(submit([["fireball"]])).rejects.toThrow(/HTTP 413/);
+    await expect(submit(["fireball"])).rejects.toThrow(/HTTP 413/);
   });
 });
 
@@ -397,7 +391,7 @@ describe("collectBatch", () => {
       http.get(RESULTS_URL, results),
     );
 
-    const collected = await collectBatch(record({}), "sk-test");
+    const collected = await collectBatch(record([]), "sk-test");
 
     expect(collected).toEqual({ ended: false, status: "in_progress" });
     expect(results).not.toHaveBeenCalled();
@@ -407,11 +401,11 @@ describe("collectBatch", () => {
     server.use(
       status({ processing_status: "ended", results_url: RESULTS_URL }),
       http.get(RESULTS_URL, () =>
-        HttpResponse.text(jsonl(succeeded("icons-0001", { fireball: "A ball of flame." }))),
+        HttpResponse.text(jsonl(succeeded("fireball", "A ball of flame."))),
       ),
     );
 
-    const collected = await collectBatch(record({ "icons-0001": ["fireball"] }), "sk-test");
+    const collected = await collectBatch(record(["fireball"]), "sk-test");
 
     expect(collected).toMatchObject({
       ended: true,
@@ -427,7 +421,7 @@ describe("collectBatch", () => {
       http.get(RESULTS_URL, () => HttpResponse.text("gateway error", { status: 502 })),
     );
 
-    await expect(collectBatch(record({}), "sk-test")).rejects.toThrow(
+    await expect(collectBatch(record([]), "sk-test")).rejects.toThrow(
       /Downloading results.*HTTP 502/,
     );
   });
@@ -437,6 +431,6 @@ describe("collectBatch", () => {
       http.get(`${BATCHES_URL}/msgbatch_01`, () => HttpResponse.text("gone", { status: 404 })),
     );
 
-    await expect(collectBatch(record({}), "sk-test")).rejects.toThrow(/Retrieving batch.*HTTP 404/);
+    await expect(collectBatch(record([]), "sk-test")).rejects.toThrow(/Retrieving batch.*HTTP 404/);
   });
 });

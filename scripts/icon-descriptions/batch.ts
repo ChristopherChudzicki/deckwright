@@ -9,18 +9,19 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { apiHeaders, buildRequestParams, extractMessage, type Price } from "./invoke-api";
-import { addCacheUsage, batchFailure, type CacheTtl, type CacheUsage } from "./transport";
+import {
+  addCacheUsage,
+  type CacheTtl,
+  type CacheUsage,
+  type RequestFailure,
+  requestFailure,
+} from "./transport";
 
 const BATCHES_URL = "https://api.anthropic.com/v1/messages/batches";
 // The submit POST uploads ~100MB of base64, so this is far longer than the
 // synchronous transport's ceiling. An unbounded wait would hang holding the run
 // lockfile, blocking every later invocation with no indication why.
 const HTTP_TIMEOUT_MS = 900_000;
-
-// custom_id must match ^[a-zA-Z0-9_-]{1,64}$, and it is the only thing tying a
-// result line back to the icons that produced it — the API documents that
-// results may come back in any order.
-export const requestId = (index: number): string => `icons-${String(index + 1).padStart(4, "0")}`;
 
 export type BatchRecord = {
   id: string;
@@ -38,7 +39,11 @@ export type BatchRecord = {
   // not something an operator can do by mistyping a flag hours later.
   out: string;
   submittedAt: string;
-  requests: Record<string, string[]>;
+  // The icons this batch was submitted for, in submission order. Kept even
+  // though `custom_id` now carries the name, because collection checks the
+  // downloaded results against the manifest: a short results body has no
+  // failures of its own to report.
+  requests: string[];
   collectedAt?: string;
 };
 
@@ -122,7 +127,7 @@ export function outstandingBatches(dir: string, out: string): OutstandingBatch[]
 async function assertOk(response: Response, what: string): Promise<string> {
   const body = await response.text();
   if (!response.ok) {
-    throw batchFailure(
+    throw requestFailure(
       `${what} failed: HTTP ${response.status} ${response.statusText}: ${body.slice(0, 300)}`,
     );
   }
@@ -130,7 +135,7 @@ async function assertOk(response: Response, what: string): Promise<string> {
 }
 
 export async function submitBatch(opts: {
-  batches: readonly (readonly string[])[];
+  icons: readonly string[];
   pngDir: string;
   modelId: string;
   price: Price;
@@ -139,20 +144,25 @@ export async function submitBatch(opts: {
   key: string;
   recordDir: string;
 }): Promise<BatchRecord> {
-  const { batches, pngDir, modelId, price, cacheTtl, out, key, recordDir } = opts;
+  const { icons, pngDir, modelId, price, cacheTtl, out, key, recordDir } = opts;
 
-  // Built one at a time: each request reads and base64-encodes its own PNGs, and
+  // Built one at a time: each request reads and base64-encodes its own PNG, and
   // resolving them all concurrently would hold 4,134 file descriptors open.
+  //
+  // custom_id must match ^[a-zA-Z0-9_-]{1,64}$, which every icon name does — the
+  // longest is 33 characters — so with one icon per request the name itself ties
+  // a result line back to its icon. The API documents that results may come back
+  // in any order, which is why the tie has to be carried explicitly.
   const requests = [];
-  for (const [index, names] of batches.entries()) {
+  for (const name of icons) {
     requests.push({
-      custom_id: requestId(index),
-      params: await buildRequestParams(names, pngDir, modelId, cacheTtl),
+      custom_id: name,
+      params: await buildRequestParams(name, pngDir, modelId, cacheTtl),
     });
   }
 
   const submittedAt = new Date().toISOString();
-  const mapping = Object.fromEntries(batches.map((names, index) => [requestId(index), [...names]]));
+  const mapping = [...icons];
   // The mapping is written before the request, not after: if the connection
   // drops once the server has accepted the batch, this file is the only copy of
   // it, and a batch whose mapping is lost is billed and uncollectable.
@@ -171,7 +181,7 @@ export async function submitBatch(opts: {
       signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     });
   } catch (err) {
-    throw batchFailure(
+    throw requestFailure(
       `${(err as Error).message}\nThe batch may still have been created. Its request ` +
         `mapping is at ${pendingPath}; list your batches before submitting again.`,
     );
@@ -185,7 +195,7 @@ export async function submitBatch(opts: {
 
   const id = (JSON.parse(body) as { id?: unknown }).id;
   if (typeof id !== "string") {
-    throw batchFailure(`Batch was accepted but carried no id: ${body.slice(0, 300)}`);
+    throw requestFailure(`Batch was accepted but carried no id: ${body.slice(0, 300)}`);
   }
 
   const record: BatchRecord = {
@@ -227,6 +237,7 @@ export function readResults(jsonl: string, record: BatchRecord): Collected {
   const descriptions: Record<string, string> = {};
   const failures: string[] = [];
   const seen = new Set<string>();
+  const submitted = new Set(record.requests);
   let cost = 0;
   let cache: CacheUsage = { created: 0, read: 0 };
 
@@ -236,8 +247,7 @@ export function readResults(jsonl: string, record: BatchRecord): Collected {
     try {
       const { custom_id: customId, result } = JSON.parse(line) as ResultLine;
       if (typeof customId === "string") id = customId;
-      const names = record.requests[id];
-      if (!names) {
+      if (!submitted.has(id)) {
         failures.push(`${id}: result for a request this batch did not record`);
         continue;
       }
@@ -247,20 +257,17 @@ export function readResults(jsonl: string, record: BatchRecord): Collected {
         failures.push(`${id}: ${String(result?.type)}${detail ? ` — ${String(detail)}` : ""}`);
         continue;
       }
-      const extracted = extractMessage(
-        result.message,
-        names,
-        record.price,
-        record.cacheTtl ?? "off",
-      );
+      const extracted = extractMessage(result.message, id, record.price, record.cacheTtl ?? "off");
       cost += extracted.cost;
       cache = addCacheUsage(cache, extracted.cache);
-      Object.assign(descriptions, extracted.descriptions);
+      descriptions[id] = extracted.description;
     } catch (err) {
       // A request that reached the model was billed whether or not anything
-      // usable came back.
-      cost += (err as { cost?: number }).cost ?? 0;
-      failures.push(`${id}: ${(err as Error).message}`);
+      // usable came back, and it wrote or read its prefix either way.
+      const failure = err as RequestFailure;
+      cost += failure.cost ?? 0;
+      cache = addCacheUsage(cache, failure.cache);
+      failures.push(`${id}: ${failure.message}`);
     }
   }
 
@@ -268,15 +275,15 @@ export function readResults(jsonl: string, record: BatchRecord): Collected {
   // lines with no failures of their own, which would otherwise report a partial
   // collection as a complete one and send the missing icons back through a
   // second, paid submission.
-  for (const id of Object.keys(record.requests)) {
-    if (!seen.has(id)) failures.push(`${id}: no result line in the downloaded results`);
+  for (const name of record.requests) {
+    if (!seen.has(name)) failures.push(`${name}: no result line in the downloaded results`);
   }
 
   return { descriptions, cost, cache, failures };
 }
 
 // Validation is what stands between a paid-for response and the shipped corpus,
-// and dropping one bad entry must never discard the other 29 in its request.
+// and dropping one bad entry must never discard the rest of the collection.
 export function acceptCollected(
   descriptions: Record<string, string>,
   validateEntry: (name: string, description: string) => string | null,
@@ -309,7 +316,7 @@ export async function collectBatch(
     return { ended: false, status: String(processingStatus) };
   }
   if (typeof resultsUrl !== "string") {
-    throw batchFailure(`Batch ${record.id} has ended but published no results_url.`);
+    throw requestFailure(`Batch ${record.id} has ended but published no results_url.`);
   }
 
   const results = await get(resultsUrl);

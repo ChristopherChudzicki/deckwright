@@ -2,21 +2,22 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ATTACHED_INSTRUCTIONS } from "./prompt";
 import {
-  type BatchResult,
-  batchFailure,
   type CacheTtl,
   type CacheUsage,
-  type DescribeBatch,
-  pickRequested,
+  type DescribeIcon,
+  type IconResult,
+  pickDescription,
   RESPONSE_SCHEMA,
+  requestFailure,
 } from "./transport";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const REQUEST_TIMEOUT_MS = 600_000;
-// A ceiling, not a reservation — unused headroom is not billed. Thinking tokens
-// draw on the same budget as the ~3k tokens of JSON a 30-icon batch emits, so a
-// tight limit buys nothing and truncates the object mid-string.
+// A ceiling, not a reservation — unused headroom is not billed. The reply is one
+// sentence, so this is almost entirely thinking headroom, and thinking draws on
+// the same budget: a tight limit buys nothing and truncates the object
+// mid-string.
 const MAX_TOKENS = 32_000;
 
 // Retrying these buys delay and nothing else: a malformed request, a rejected
@@ -95,14 +96,17 @@ export function pricingFor(
   return transport === "batch" ? { ...resolved, price: batchPrice(resolved.price) } : resolved;
 }
 
-// Rough, and deliberately labelled as a floor where it is printed: image tokens
-// for one 512px PNG plus a 30-word description, with nothing for thinking.
+// Rough, and printed as a range because nothing predicts the cache hit rate:
+// image tokens for one 512px PNG plus a 30-word description, with nothing for
+// thinking, so even the upper bound is not a hard ceiling.
 const INPUT_TOKENS_PER_ICON = 361;
 const OUTPUT_TOKENS_PER_ICON = 45;
-// The invariant prefix, ~2,900 characters. Billed once per request rather than
-// once per icon, which is what makes the group size a term in the estimate: at
-// one icon per request it is the largest input the run sends.
-const INSTRUCTION_TOKENS = 793;
+// The invariant prefix, measured with the token-counting endpoint rather than
+// estimated from its 2,933 characters — an earlier chars/3.7 guess put it at 793
+// and understated every request's largest single input by 20%. It also sits
+// below Claude Sonnet 5's 1024-token minimum cacheable length, so that arm sends
+// a cache_control marker the API ignores; Opus 5's minimum is 512.
+const INSTRUCTION_TOKENS = 948;
 
 // Two numbers, because a cached run's cost is not knowable before it runs. Every
 // request after the first either re-reads the prefix at a tenth of an input
@@ -110,22 +114,16 @@ const INSTRUCTION_TOKENS = 793;
 // what the run reports afterwards. The bounds coincide when no prefix is sent.
 export type CostEstimate = { floor: number; ceiling: number };
 
-export function estimateCost(
-  icons: number,
-  price: Price,
-  opts: { batchSize: number; cacheTtl: CacheTtl },
-): CostEstimate {
-  const { batchSize, cacheTtl } = opts;
-  const requests = Math.ceil(icons / batchSize);
+export function estimateCost(icons: number, price: Price, cacheTtl: CacheTtl): CostEstimate {
   const perIcon =
     icons * (INPUT_TOKENS_PER_ICON * price.input + OUTPUT_TOKENS_PER_ICON * price.output);
   const prefix = INSTRUCTION_TOKENS * price.input;
   const write = cacheTtl === "off" ? 1 : CACHE_WRITE_MULTIPLIER[cacheTtl];
-  const ceiling = perIcon + requests * prefix * write;
+  const ceiling = perIcon + icons * prefix * write;
   const floor =
     cacheTtl === "off"
       ? ceiling
-      : perIcon + prefix * write + (requests - 1) * prefix * CACHE_READ_MULTIPLIER;
+      : perIcon + prefix * write + (icons - 1) * prefix * CACHE_READ_MULTIPLIER;
   return { floor: floor / 1_000_000, ceiling: ceiling / 1_000_000 };
 }
 
@@ -155,19 +153,19 @@ type Payload = {
 // which would put the --max-cost rail under the real spend.
 const tokenCount = (value: unknown): number => (typeof value === "number" ? value : 0);
 
-export function extractApiDescriptions(
+export function extractApiDescription(
   body: string,
-  requested: readonly string[],
+  name: string,
   price: Price,
   cacheTtl: CacheTtl,
-): BatchResult {
+): IconResult {
   let payload: unknown;
   try {
     payload = JSON.parse(body);
   } catch {
-    throw batchFailure(`response body is not JSON: ${body.slice(0, 200)}`);
+    throw requestFailure(`response body is not JSON: ${body.slice(0, 200)}`);
   }
-  return extractMessage(payload, requested, price, cacheTtl);
+  return extractMessage(payload, name, price, cacheTtl);
 }
 
 // Takes a parsed message rather than a response body, because the Batch API
@@ -177,10 +175,10 @@ export function extractApiDescriptions(
 // actually sent with, and a wrong one silently reprices every cached token.
 export function extractMessage(
   message: unknown,
-  requested: readonly string[],
+  name: string,
   price: Price,
   cacheTtl: CacheTtl,
-): BatchResult {
+): IconResult {
   const payload = (message ?? {}) as Payload;
   const snippet = () => JSON.stringify(message)?.slice(0, 200);
 
@@ -188,7 +186,7 @@ export function extractMessage(
   // every failure below this line still has to carry its cost out.
   const { usage } = payload;
   if (typeof usage?.input_tokens !== "number" || typeof usage.output_tokens !== "number") {
-    throw batchFailure(`response reported no token usage, so its cost is unknown: ${snippet()}`);
+    throw requestFailure(`response reported no token usage, so its cost is unknown: ${snippet()}`);
   }
   const cache: CacheUsage = {
     created: tokenCount(usage.cache_creation_input_tokens),
@@ -203,18 +201,22 @@ export function extractMessage(
     1_000_000;
   const thinking = usage.output_tokens_details?.thinking_tokens;
   const thinkingTokens = typeof thinking === "number" ? thinking : undefined;
+  // Both `cost` and `cache` ride out on every failure below: the request was
+  // billed, and a total that counts one without the other reports its hit rate
+  // over a different set of requests than its spend.
   const failed = (message: string, extra: { retryable?: boolean } = {}) =>
-    batchFailure(message, { cost, ...extra });
+    requestFailure(message, { cost, cache, ...extra });
 
   // Truncation cuts the JSON off mid-object. Reporting it as its own failure
-  // beats a parse error, because the fix is a smaller batch, not a retry.
+  // beats a parse error: one icon and one sentence cannot overrun a 32k budget
+  // on their own, so this means thinking ran away, which a retry will not fix.
   if (payload.stop_reason === "max_tokens") {
     throw failed(`response hit max_tokens (${MAX_TOKENS}) before closing the JSON object`);
   }
   // A refusal is a decision about these exact images, so the retry ladder would
   // reproduce it twice at full price.
   if (payload.stop_reason === "refusal") {
-    throw failed("the model declined to describe this batch", { retryable: false });
+    throw failed("the model declined to describe this icon", { retryable: false });
   }
 
   // Adaptive thinking emits a thinking block ahead of the answer, so the JSON is
@@ -247,16 +249,15 @@ export function extractMessage(
     throw failed(`text block carries no "descriptions" array: ${text.slice(0, 200)}`);
   }
 
-  const descriptions = pickRequested(output, requested);
-  // At one image per request the harness already knows which icon the reply is
-  // about, so a name it did not ask for is not a shortfall to re-describe later
-  // — it is a paid answer that would otherwise be dropped without a word.
-  // Ambiguous above one image, where the same reply may be a partial answer.
-  if (requested.length === 1 && Object.keys(descriptions).length === 0) {
-    throw failed(`response named no requested icon (${requested.join()}): ${text.slice(0, 200)}`);
+  const description = pickDescription(output, name);
+  // The harness already knows which icon the reply is about, so a name it did
+  // not ask for is not a shortfall to re-describe later — it is a paid answer
+  // with nothing in it, which would otherwise be dropped without a word.
+  if (description === null) {
+    throw failed(`response named no requested icon (${name}): ${text.slice(0, 200)}`);
   }
 
-  return { descriptions, cost, thinkingTokens, cache };
+  return { description, cost, thinkingTokens, cache };
 }
 
 // Over HTTP the bytes are inline and nothing carries a filename, so each image
@@ -267,32 +268,30 @@ export function extractMessage(
 // The instructions lead so they can be cached. That inverts the order the first
 // arms ran under, where the prompt trailed the images and no two requests shared
 // a prefix.
-async function buildContent(
-  names: readonly string[],
-  pngDir: string,
-  cache: CacheTtl,
-): Promise<unknown[]> {
-  const pngs = await Promise.all(names.map((name) => readFile(join(pngDir, `${name}.png`))));
+async function buildContent(name: string, pngDir: string, cache: CacheTtl): Promise<unknown[]> {
+  const png = await readFile(join(pngDir, `${name}.png`));
   const instructions: Record<string, unknown> = { type: "text", text: ATTACHED_INSTRUCTIONS };
   if (cache !== "off") {
     instructions.cache_control =
       cache === "1h" ? { type: "ephemeral", ttl: "1h" } : { type: "ephemeral" };
   }
-  const content: unknown[] = [instructions];
-  for (const [index, name] of names.entries()) {
-    content.push({ type: "text", text: `${name}.png` });
-    content.push({
+  // The filename still precedes the image even though the request names only one
+  // icon: it is what the reply echoes back, and that echo is the redundant
+  // channel `extractMessage` checks.
+  return [
+    instructions,
+    { type: "text", text: `${name}.png` },
+    {
       type: "image",
-      source: { type: "base64", media_type: "image/png", data: pngs[index].toString("base64") },
-    });
-  }
-  return content;
+      source: { type: "base64", media_type: "image/png", data: png.toString("base64") },
+    },
+  ];
 }
 
 // One request's worth of parameters. The Messages endpoint takes these as its
 // whole body; the Batch endpoint takes the same object as a request's `params`.
 export async function buildRequestParams(
-  names: readonly string[],
+  name: string,
   pngDir: string,
   modelId: string,
   cache: CacheTtl,
@@ -306,7 +305,7 @@ export async function buildRequestParams(
   return {
     model: modelId,
     max_tokens: MAX_TOKENS,
-    messages: [{ role: "user", content: await buildContent(names, pngDir, cache) }],
+    messages: [{ role: "user", content: await buildContent(name, pngDir, cache) }],
     output_config: { format: { type: "json_schema", schema: RESPONSE_SCHEMA } },
   };
 }
@@ -326,25 +325,25 @@ function retryAfterMs(headers: Headers): number | undefined {
   return Number.isFinite(seconds) && seconds > 0 ? seconds * 1_000 : undefined;
 }
 
-// The one place `cache` may default, because here the same value both decides
-// what is sent and prices what comes back — a caller that omits it gets a
-// consistent 5m run rather than a mispriced one.
-export const describeBatchApi: DescribeBatch = async (names, { pngDir, model, cache = "5m" }) => {
+// `cache` has no default: the same value decides what is sent and prices what
+// comes back, so a caller that forgot it would send a marked prefix and pay the
+// write premium even under `--cache-ttl off`.
+export const describeIconApi: DescribeIcon = async (name, { pngDir, model, cache }) => {
   const { id, price } = resolveModel(model);
   const key = assertApiKey();
   const response = await fetch(API_URL, {
     method: "POST",
     headers: apiHeaders(key),
-    body: JSON.stringify(await buildRequestParams(names, pngDir, id, cache)),
+    body: JSON.stringify(await buildRequestParams(name, pngDir, id, cache)),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   const body = await response.text();
   if (!response.ok) {
-    throw batchFailure(`HTTP ${response.status} ${response.statusText}: ${body.slice(0, 300)}`, {
+    throw requestFailure(`HTTP ${response.status} ${response.statusText}: ${body.slice(0, 300)}`, {
       fatal: FATAL_STATUSES.has(response.status),
       retryAfterMs: retryAfterMs(response.headers),
     });
   }
-  return extractApiDescriptions(body, names, price, cache);
+  return extractApiDescription(body, name, price, cache);
 };

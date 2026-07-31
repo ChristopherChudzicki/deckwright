@@ -2,18 +2,18 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { buildPrompt } from "./prompt";
 import {
-  type BatchResult,
-  batchFailure,
-  type DescribeBatch,
-  pickRequested,
+  type DescribeIcon,
+  type IconResult,
+  pickDescription,
   RESPONSE_SCHEMA,
+  requestFailure,
 } from "./transport";
 
 const execFileP = promisify(execFile);
 
 // A timeout yields nothing while still having consumed quota, so cutting off a
-// slow-but-working invocation is a guaranteed loss. Measured mean for a batch
-// of 30 is ~84s; the ceiling is deliberately far above it.
+// slow-but-working invocation is a guaranteed loss. The ceiling is deliberately
+// far above any observed invocation.
 const INVOKE_TIMEOUT_MS = 600_000;
 
 type Envelope = {
@@ -24,7 +24,7 @@ type Envelope = {
   total_cost_usd?: number;
 };
 
-export function extractDescriptions(stdout: string, requested: readonly string[]): BatchResult {
+export function extractDescription(stdout: string, name: string): IconResult {
   let envelope: Envelope;
   try {
     envelope = JSON.parse(stdout) as Envelope;
@@ -35,13 +35,13 @@ export function extractDescriptions(stdout: string, requested: readonly string[]
   // has to carry its cost out.
   const cost = envelope.total_cost_usd ?? 0;
   if (envelope.is_error) {
-    throw batchFailure(`claude -p reported an error: ${String(envelope.result).slice(0, 300)}`, {
+    throw requestFailure(`claude -p reported an error: ${String(envelope.result).slice(0, 300)}`, {
       cost,
     });
   }
 
   // A run can report subtype "success" and still carry no structured output;
-  // that is a failure, not an empty batch.
+  // that is a failure, not an empty reply.
   const output = envelope.structured_output;
   if (
     typeof output !== "object" ||
@@ -49,14 +49,20 @@ export function extractDescriptions(stdout: string, requested: readonly string[]
     Array.isArray(output) ||
     !Array.isArray((output as { descriptions?: unknown }).descriptions)
   ) {
-    throw batchFailure(
+    throw requestFailure(
       `claude -p returned no structured_output (subtype ${String(envelope.subtype)}): ` +
         `${stdout.slice(0, 200)}`,
       { cost },
     );
   }
 
-  return { descriptions: pickRequested(output, requested), cost };
+  const description = pickDescription(output, name);
+  if (description === null) {
+    throw requestFailure(`claude -p named no requested icon (${name}): ${stdout.slice(0, 200)}`, {
+      cost,
+    });
+  }
+  return { description, cost };
 }
 
 // Without this, a missing binary surfaces only after every PNG has been
@@ -69,14 +75,14 @@ export async function assertClaudeAvailable(): Promise<void> {
   }
 }
 
-export const describeBatch: DescribeBatch = async (names, { pngDir, model }) => {
+export const describeIcon: DescribeIcon = async (name, { pngDir, model }) => {
   let stdout: string;
   try {
     ({ stdout } = await execFileP(
       "claude",
       [
         "-p",
-        buildPrompt(names),
+        buildPrompt([name]),
         "--allowedTools",
         "Read",
         "--output-format",
@@ -99,5 +105,5 @@ export const describeBatch: DescribeBatch = async (names, { pngDir, model }) => 
     }
     throw err;
   }
-  return extractDescriptions(stdout, names);
+  return extractDescription(stdout, name);
 };

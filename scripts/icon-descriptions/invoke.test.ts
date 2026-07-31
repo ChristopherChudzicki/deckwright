@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { extractDescriptions } from "./invoke";
+import { extractDescription } from "./invoke";
 import { ATTACHED_INSTRUCTIONS, buildPrompt } from "./prompt";
-import type { BatchFailure } from "./transport";
+import type { RequestFailure } from "./transport";
 
 const envelope = (structured_output: unknown, extra: Record<string, unknown> = {}) =>
   JSON.stringify({ is_error: false, subtype: "success", structured_output, ...extra });
@@ -70,50 +70,62 @@ Reply with ONLY a JSON object with a "descriptions" array, holding one entry per
   });
 });
 
-describe("extractDescriptions", () => {
+describe("extractDescription", () => {
   test("reads structured_output and the cost", () => {
-    const { descriptions, cost } = extractDescriptions(
+    const { description, cost } = extractDescription(
       envelope(
         { descriptions: [{ name: "fireball", description: "A ball of flame." }] },
         {
           total_cost_usd: 0.31,
         },
       ),
-      ["fireball"],
+      "fireball",
     );
-    expect(descriptions).toEqual({ fireball: "A ball of flame." });
+    expect(description).toBe("A ball of flame.");
     expect(cost).toBe(0.31);
   });
 
   // The CLI can report success and still carry no structured output; treating
-  // that as an empty batch would bank a paid-for invocation as a no-op.
+  // that as an empty reply would bank a paid-for invocation as a no-op.
   test("throws when the envelope reports success but carries no structured_output", () => {
-    expect(() => extractDescriptions(JSON.stringify({ subtype: "success" }), ["fireball"])).toThrow(
+    expect(() => extractDescription(JSON.stringify({ subtype: "success" }), "fireball")).toThrow(
       /no structured_output/,
     );
   });
 
   test("throws when structured_output is an array rather than an object", () => {
-    expect(() => extractDescriptions(envelope([]), ["fireball"])).toThrow(/no structured_output/);
+    expect(() => extractDescription(envelope([]), "fireball")).toThrow(/no structured_output/);
   });
 
-  // Returning nothing instead would bank a paid invocation as an empty batch.
+  // Returning nothing instead would bank a paid invocation as an empty reply.
   test("throws when structured_output carries no descriptions array", () => {
-    expect(() => extractDescriptions(envelope({ fireball: "A ball." }), ["fireball"])).toThrow(
+    expect(() => extractDescription(envelope({ fireball: "A ball." }), "fireball")).toThrow(
       /no structured_output/,
     );
   });
 
+  // The request named one icon, so a reply about another is not a partial answer
+  // to top up later — it is a paid answer with nothing in it.
+  test("throws when the only entry names a different icon", () => {
+    expect(() =>
+      extractDescription(
+        envelope({ descriptions: [{ name: "butter-toads", description: "Nonsense." }] }),
+        "butter-toast",
+      ),
+    ).toThrow(/named no requested icon/);
+  });
+
   test("throws when the envelope reports an error", () => {
     expect(() =>
-      extractDescriptions(envelope(null, { is_error: true, result: "Credit balance too low" }), [
+      extractDescription(
+        envelope(null, { is_error: true, result: "Credit balance too low" }),
         "fireball",
-      ]),
+      ),
     ).toThrow(/Credit balance too low/);
   });
 
   test("throws when stdout is not the expected envelope", () => {
-    expect(() => extractDescriptions("command not found", ["fireball"])).toThrow(/envelope/);
+    expect(() => extractDescription("command not found", "fireball")).toThrow(/envelope/);
   });
 
   // The envelope only exists because the invocation ran, so these failures were
@@ -122,11 +134,11 @@ describe("extractDescriptions", () => {
     ["the envelope reports an error", { is_error: true, result: "Overloaded" }],
     ["the envelope carries no structured_output", {}],
   ])("carries the cost out when %s", (_label, extra) => {
-    let thrown: BatchFailure | undefined;
+    let thrown: RequestFailure | undefined;
     try {
-      extractDescriptions(envelope(null, { total_cost_usd: 0.17, ...extra }), ["fireball"]);
+      extractDescription(envelope(null, { total_cost_usd: 0.17, ...extra }), "fireball");
     } catch (err) {
-      thrown = err as BatchFailure;
+      thrown = err as RequestFailure;
     }
     expect(thrown?.cost).toBe(0.17);
   });
@@ -134,9 +146,9 @@ describe("extractDescriptions", () => {
   // Without the ?? 0 the run's running total becomes NaN, with no other symptom.
   test("reports zero cost when the envelope omits total_cost_usd", () => {
     expect(
-      extractDescriptions(
+      extractDescription(
         envelope({ descriptions: [{ name: "fireball", description: "A ball of flame." }] }),
-        ["fireball"],
+        "fireball",
       ).cost,
     ).toBe(0);
   });

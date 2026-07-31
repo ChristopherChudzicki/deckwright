@@ -19,20 +19,20 @@ import {
 } from "./icon-descriptions/batch";
 import { parseCliArgs } from "./icon-descriptions/cli";
 import { confirm } from "./icon-descriptions/confirm";
-import { assertClaudeAvailable, describeBatch } from "./icon-descriptions/invoke";
+import { assertClaudeAvailable, describeIcon } from "./icon-descriptions/invoke";
 import {
   assertApiKey,
   canonicalModel,
-  describeBatchApi,
+  describeIconApi,
   estimateCost,
   type Price,
   pricingFor,
 } from "./icon-descriptions/invoke-api";
 import { ensurePngs, iconNames, loadCollection } from "./icon-descriptions/rasterize";
-import { runBatches } from "./icon-descriptions/run";
-import { selectBatches } from "./icon-descriptions/selection";
+import { runRequests } from "./icon-descriptions/run";
+import { selectIcons } from "./icon-descriptions/selection";
 import { corpusModel, mergeDescriptions, readDescriptions } from "./icon-descriptions/store";
-import { formatCacheUsage } from "./icon-descriptions/transport";
+import { type CacheTtl, formatCacheUsage } from "./icon-descriptions/transport";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OVERRIDES = resolve(__dirname, "../src/data/iconDescriptions/overrides.json");
@@ -103,12 +103,17 @@ if (values.validate) {
   process.exit(problems.length || missing.length ? 1 : 0);
 }
 
-const { batchSize, cacheTtl, limit, maxCost, model, size, transport } = values;
+const { cacheTtl, limit, maxCost, model, size, transport } = values;
 
 // `cli` spends subscription quota; `api` and `batch` spend money on an
 // ANTHROPIC_API_KEY. Defaulting to `cli` keeps the zero-real-money path the one
 // you get by accident.
 const paid = transport !== "cli";
+
+// `cli` sends its prompt after the images and marks nothing, so pricing or
+// reporting one of its runs under the requested ttl would describe a cache it
+// never asked for.
+const effectiveTtl: CacheTtl = paid ? cacheTtl : "off";
 
 // Concurrent runs would lose updates: each reads the file, merges, and renames
 // over the other's work.
@@ -148,14 +153,14 @@ if (values.fetch !== undefined) {
     // be mistaken for one still outstanding and block the next submission.
     writeRecord(BATCH_DIR, { ...record, collectedAt: new Date().toISOString() });
 
-    const requested = Object.values(record.requests).flat().length;
     console.log(
-      `Described ${Object.keys(accepted).length} of ${requested} icons from ${record.model} ` +
-        `into ${record.out} ($${collected.cost.toFixed(3)} billed).`,
+      `Described ${Object.keys(accepted).length} of ${record.requests.length} icons from ` +
+        `${record.model} into ${record.out} ($${collected.cost.toFixed(3)} billed).`,
     );
     // The only place the batch transport's cache hit rate is observable, and the
-    // number the whole one-image-per-request design turns on.
-    const cacheReport = formatCacheUsage(collected.cache);
+    // number the whole one-image-per-request design turns on. Reported under the
+    // ttl the batch was submitted with, not this invocation's flag.
+    const cacheReport = formatCacheUsage(collected.cache, record.cacheTtl ?? "off");
     if (cacheReport) console.log(`  ${cacheReport}`);
     for (const problem of dropped) console.warn(`  dropped ${problem}`);
     for (const failure of collected.failures) console.warn(`  ${failure}`);
@@ -226,27 +231,25 @@ const collection = loadCollection();
 const all = iconNames(collection);
 const existing = readDescriptions(OUTPUT);
 
-const selectOrFail = (): string[][] => {
+const selectOrFail = (): string[] => {
   try {
-    return selectBatches({
+    return selectIcons({
       all,
       existing: new Set(Object.keys(existing)),
       only: values.only,
       force: values.force,
       limit,
-      batchSize,
     });
   } catch (err) {
     return fail((err as Error).message);
   }
 };
-const batches = selectOrFail();
+const icons = selectOrFail();
 
-const total = batches.reduce((sum, batch) => sum + batch.length, 0);
+const total = icons.length;
 console.log(
   `${all.length} icons, ${Object.keys(existing).length} described; ` +
-    `${total} to do in ${batches.length} batches of up to ${batchSize} ` +
-    `(${transport}, ${model}, ${size}px).`,
+    `${total} to do, one request each (${transport}, ${model}, ${size}px).`,
 );
 if (total === 0) process.exit(0);
 
@@ -265,7 +268,7 @@ try {
 }
 
 if (price) {
-  const estimate = estimateCost(total, price, { batchSize, cacheTtl });
+  const estimate = estimateCost(total, price, effectiveTtl);
   // A batch is billed only once its results come back, so the ceiling can do
   // nothing but refuse to submit. That is a weaker guarantee than the
   // synchronous path's running total, which aborts partway through a real spend.
@@ -331,47 +334,56 @@ if (values.dryRun) {
 console.log("Rendering PNGs…");
 const { pngDir } = await ensurePngs({
   collection,
-  names: batches.flat(),
+  names: icons,
   size,
   cacheDir: CACHE_DIR,
 });
 
 if (transport === "batch") {
   const { id: modelId, price: rate } = pricingFor(model, transport);
-  const record = await submitBatch({
-    batches,
-    pngDir,
-    modelId,
-    price: rate,
-    cacheTtl,
-    out: OUTPUT,
-    key: assertApiKey(),
-    recordDir: BATCH_DIR,
-  });
-  console.log(
-    `Submitted batch ${record.id}: ${batches.length} requests, ${total} icons (${modelId}).\n` +
-      `Results are retained 29 days from submission. Collect with:\n` +
-      `  npm run gen:icon-descriptions -- --fetch ${record.id}`,
-  );
+  // Submitting uploads ~114MB, so the failure worth reading here is a rejected
+  // payload — which arrives as an HTTP error carrying the pending record's path,
+  // not as something a stack trace would explain.
+  try {
+    const record = await submitBatch({
+      icons,
+      pngDir,
+      modelId,
+      price: rate,
+      cacheTtl,
+      out: OUTPUT,
+      key: assertApiKey(),
+      recordDir: BATCH_DIR,
+    });
+    console.log(
+      `Submitted batch ${record.id}: ${total} requests, one icon each (${modelId}).\n` +
+        `Results are retained 29 days from submission. Collect with:\n` +
+        `  npm run gen:icon-descriptions -- --fetch ${record.id}`,
+    );
+  } catch (err) {
+    fail((err as Error).message);
+  }
   process.exit(0);
 }
 
-const result = await runBatches({
-  batches,
-  describeBatch: transport === "api" ? describeBatchApi : describeBatch,
+const result = await runRequests({
+  icons,
+  describeIcon: transport === "api" ? describeIconApi : describeIcon,
   pngDir,
   model,
-  cache: cacheTtl,
+  cache: effectiveTtl,
   validateEntry,
   maxCost,
   onAccept: (accepted) => mergeDescriptions(OUTPUT, accepted, canonicalModel(model)),
 });
 
 console.log(
-  `Described ${result.described} icons in ${result.succeededBatches} batches ` +
+  `Described ${result.described} icons in ${result.succeededRequests} requests ` +
     `($${result.totalCost.toFixed(3)} ${transport === "api" ? "billed" : "API-equivalent"}).`,
 );
-const cacheReport = formatCacheUsage(result.cache);
+const cacheReport = formatCacheUsage(result.cache, effectiveTtl);
 if (cacheReport) console.log(`  ${cacheReport}`);
-if (result.failedBatches) console.warn(`${result.failedBatches} batches failed; re-run to retry.`);
+if (result.failedRequests) {
+  console.warn(`${result.failedRequests} requests failed; re-run to retry.`);
+}
 process.exit(result.aborted ? 1 : 0);

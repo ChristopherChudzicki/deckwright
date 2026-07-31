@@ -7,9 +7,9 @@ import { server } from "../../src/test/msw";
 import {
   assertApiKey,
   batchPrice,
-  describeBatchApi,
+  describeIconApi,
   estimateCost,
-  extractApiDescriptions,
+  extractApiDescription,
   pricingFor,
   resolveModel,
 } from "./invoke-api";
@@ -83,39 +83,35 @@ describe("assertApiKey", () => {
 });
 
 describe("estimateCost", () => {
-  // The prefix is sent once per request, so at one icon per request it is the
-  // largest input the run has — the term a flat per-icon estimate misses, and
-  // the reason --max-cost could not be trusted at N=1.
-  test("charges the instruction prefix per request, not per icon", () => {
-    const grouped = estimateCost(1_000, SONNET, { batchSize: 30, cacheTtl: "off" });
-    const singles = estimateCost(1_000, SONNET, { batchSize: 1, cacheTtl: "off" });
+  // One icon per request means one 948-token instruction prefix per icon, which
+  // is a bigger input than the image. A flat per-icon estimate misses it, and
+  // that is what --max-cost is compared against.
+  test("charges the instruction prefix once per icon", () => {
+    const { floor, ceiling } = estimateCost(1_000, SONNET, "off");
 
-    expect(grouped.ceiling).toBeCloseTo(1.225924, 6);
-    expect(singles.ceiling).toBeCloseTo(2.758, 6);
+    // 1,000 × (361 input + 45 output) tokens, plus 1,000 × 948 for the prefix.
+    expect(ceiling).toBeCloseTo(3.068, 6);
     // With no prefix cached there is nothing left for the run to vary.
-    expect(singles.floor).toBe(singles.ceiling);
+    expect(floor).toBe(ceiling);
   });
 
   // Nothing predicts the hit rate, so a single number would be wrong in one
   // direction or the other — and it is the ceiling that refuses a submission.
   test("brackets a cached run between every request re-reading the prefix and none", () => {
-    const { floor, ceiling } = estimateCost(1_000, SONNET, { batchSize: 1, cacheTtl: "5m" });
+    const { floor, ceiling } = estimateCost(1_000, SONNET, "1h");
 
-    expect(floor).toBeCloseTo(1.332424, 6);
-    expect(ceiling).toBeCloseTo(3.1545, 6);
+    expect(floor).toBeCloseTo(1.3652024, 6);
+    expect(ceiling).toBeCloseTo(4.964, 6);
   });
 });
 
-describe("extractApiDescriptions", () => {
-  const extract = (
-    body: string,
-    requested: readonly string[] = ["fireball"],
-    cacheTtl: CacheTtl = "5m",
-  ) => extractApiDescriptions(body, requested, SONNET, cacheTtl);
+describe("extractApiDescription", () => {
+  const extract = (body: string, name = "fireball", cacheTtl: CacheTtl = "1h") =>
+    extractApiDescription(body, name, SONNET, cacheTtl);
 
   test("reads the JSON text block and prices the usage", () => {
-    const { descriptions, cost } = extract(reply(described({ fireball: "A ball of flame." })));
-    expect(descriptions).toEqual({ fireball: "A ball of flame." });
+    const { description, cost } = extract(reply(described({ fireball: "A ball of flame." })));
+    expect(description).toBe("A ball of flame.");
     expect(cost).toBeCloseTo(0.036, 6);
   });
 
@@ -127,8 +123,8 @@ describe("extractApiDescriptions", () => {
       usage: { ...USAGE, cache_creation_input_tokens: 800 },
     });
 
-    expect(extract(written, ["fireball"], "5m").cost).toBeCloseTo(0.038, 6);
-    expect(extract(written, ["fireball"], "1h").cost).toBeCloseTo(0.0392, 6);
+    expect(extract(written, "fireball", "5m").cost).toBeCloseTo(0.038, 6);
+    expect(extract(written, "fireball", "1h").cost).toBeCloseTo(0.0392, 6);
   });
 
   // The point of leading with the instructions: a re-read costs a tenth of what
@@ -145,11 +141,11 @@ describe("extractApiDescriptions", () => {
     expect(cache).toEqual({ created: 0, read: 800 });
   });
 
-  // At one image per request the harness already knows which icon it asked
-  // about, so a reply naming another one is not a shortfall to re-describe: it
-  // is a paid answer that `pickRequested` would drop without a word, leaving
-  // `batch` recording a succeeded request that merged nothing.
-  test("fails a single-icon request whose reply names a different icon", () => {
+  // The harness already knows which icon it asked about, so a reply naming
+  // another one is not a shortfall to re-describe: it is a paid answer that
+  // would otherwise be dropped without a word, leaving `batch` recording a
+  // succeeded request that merged nothing.
+  test("fails a request whose reply names a different icon", () => {
     expect(() => extract(reply(described({ broadsword: "A straight blade." })))).toThrow(
       /named no requested icon \(fireball\)/,
     );
@@ -168,7 +164,7 @@ describe("extractApiDescriptions", () => {
   // Adaptive thinking puts a thinking block ahead of the answer, so reading
   // content[0] would work against every fixture and fail against every real call.
   test("joins the text blocks, ignoring a leading thinking block", () => {
-    const { descriptions } = extract(
+    const { description } = extract(
       JSON.stringify({
         stop_reason: "end_turn",
         usage: USAGE,
@@ -179,7 +175,7 @@ describe("extractApiDescriptions", () => {
         ],
       }),
     );
-    expect(descriptions).toEqual({ fireball: "A ball of flame." });
+    expect(description).toBe("A ball of flame.");
   });
 
   // Silently pricing an unpriceable response at $0 spends real money and reports
@@ -190,16 +186,21 @@ describe("extractApiDescriptions", () => {
     ).toThrow(/no token usage/);
   });
 
-  // Everything below the pricing line runs after a billed 200, so the cost has
-  // to survive the throw or the run's total omits it.
-  test("carries the cost of a failed batch out on the error", () => {
-    expect(() => extract(reply("I cannot help with that."))).toThrow(
-      expect.objectContaining({ cost: 0.036 }),
-    );
+  // Everything below the pricing line runs after a billed 200, so both the cost
+  // and the cache usage have to survive the throw. Counting one without the
+  // other reports the hit rate over a different set of requests than the spend.
+  test("carries the cost and the cache usage out on the error", () => {
+    expect(() =>
+      extract(
+        reply("I cannot help with that.", {
+          usage: { ...USAGE, cache_read_input_tokens: 948 },
+        }),
+      ),
+    ).toThrow(expect.objectContaining({ cache: { created: 0, read: 948 } }));
   });
 
   // Truncation leaves valid-looking prose that is invalid JSON; naming it
-  // separately is what tells the operator to shrink the batch.
+  // separately keeps it out of the parse errors.
   test("throws when the response was cut off at max_tokens", () => {
     expect(() =>
       extract(
@@ -241,7 +242,7 @@ describe("extractApiDescriptions", () => {
   });
 });
 
-describe("describeBatchApi", () => {
+describe("describeIconApi", () => {
   let pngDir: string;
   beforeEach(() => {
     pngDir = mkdtempSync(join(tmpdir(), "icon-png-"));
@@ -258,44 +259,39 @@ describe("describeBatchApi", () => {
     server.use(
       http.post("https://api.anthropic.com/v1/messages", async ({ request }) => {
         seen = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(
-          JSON.parse(reply(described({ fireball: "A ball.", broadsword: "A sword." }))),
-        );
+        return HttpResponse.json(JSON.parse(reply(described({ fireball: "A ball." }))));
       }),
     );
     return { body: () => seen };
   };
 
-  test("returns the described icons and what they cost", async () => {
+  test("returns the described icon and what it cost", async () => {
     capture();
-    const result = await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
+    const result = await describeIconApi("fireball", { pngDir, model: "sonnet", cache: "1h" });
 
-    expect(result.descriptions).toEqual({ fireball: "A ball.", broadsword: "A sword." });
+    expect(result.description).toBe("A ball.");
     expect(result.cost).toBeCloseTo(0.036, 6);
   });
 
   const content = (captured: { body: () => Record<string, unknown> }) =>
     (captured.body().messages as { content: Record<string, unknown>[] }[])[0].content;
 
-  // Nothing in an inline image carries its filename, so the label immediately
-  // before it is the only thing tying a description back to an icon. The
-  // instructions lead rather than trail so they can be cached: the key is
+  // The instructions lead rather than trail so they can be cached: the key is
   // everything up to the marked block, so a per-request byte ahead of it would
-  // change the key on every request and never hit.
-  test("opens with the marked instructions, then labels each image", async () => {
+  // change the key on every request and never hit. The filename still labels the
+  // image, because it is what the reply echoes back for the harness to check.
+  test("opens with the marked instructions, then labels the image", async () => {
     const captured = capture();
-    await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
+    await describeIconApi("fireball", { pngDir, model: "sonnet", cache: "1h" });
 
     expect(content(captured)).toEqual([
       {
         type: "text",
         text: ATTACHED_INSTRUCTIONS,
-        cache_control: { type: "ephemeral" },
+        cache_control: { type: "ephemeral", ttl: "1h" },
       },
       { type: "text", text: "fireball.png" },
       { type: "image", source: { type: "base64", media_type: "image/png", data: "AQID" } },
-      { type: "text", text: "broadsword.png" },
-      { type: "image", source: { type: "base64", media_type: "image/png", data: "BAUG" } },
     ]);
   });
 
@@ -304,26 +300,27 @@ describe("describeBatchApi", () => {
   test("marks the prefix with the requested window, or leaves it unmarked", async () => {
     const captured = capture();
 
-    await describeBatchApi(["fireball"], { pngDir, model: "sonnet", cache: "1h" });
-    expect(content(captured)[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+    await describeIconApi("fireball", { pngDir, model: "sonnet", cache: "5m" });
+    expect(content(captured)[0].cache_control).toEqual({ type: "ephemeral" });
 
-    await describeBatchApi(["fireball"], { pngDir, model: "sonnet", cache: "off" });
+    await describeIconApi("fireball", { pngDir, model: "sonnet", cache: "off" });
     expect(content(captured)[0]).not.toHaveProperty("cache_control");
   });
 
   test("sends the alias's concrete model id", async () => {
     const captured = capture();
-    await describeBatchApi(["fireball"], { pngDir, model: "sonnet" });
+    await describeIconApi("fireball", { pngDir, model: "sonnet", cache: "1h" });
 
     expect(captured.body().model).toBe("claude-sonnet-5");
   });
 
   // Grammars are cached per schema structure against a limit of 20 compilations
-  // a minute, so a request carrying a schema that named its own icons would put
-  // the run back where it errored 102 of 138 requests.
+  // a minute, so a request carrying a schema that named its own icon would put
+  // the run back where it errored 102 of 138 requests — and there are now 4,134
+  // requests rather than 138.
   test("constrains the response with the shared schema", async () => {
     const captured = capture();
-    await describeBatchApi(["fireball", "broadsword"], { pngDir, model: "sonnet" });
+    await describeIconApi("fireball", { pngDir, model: "sonnet", cache: "1h" });
 
     expect(captured.body().output_config).toEqual({
       format: { type: "json_schema", schema: RESPONSE_SCHEMA },
@@ -336,13 +333,13 @@ describe("describeBatchApi", () => {
         HttpResponse.text("upstream overloaded", { status: 529, headers: { "retry-after": "12" } }),
       ),
     );
-    await expect(describeBatchApi(["fireball"], { pngDir, model: "sonnet" })).rejects.toMatchObject(
-      {
-        message: expect.stringMatching(/HTTP 529/),
-        fatal: false,
-        retryAfterMs: 12_000,
-      },
-    );
+    await expect(
+      describeIconApi("fireball", { pngDir, model: "sonnet", cache: "1h" }),
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(/HTTP 529/),
+      fatal: false,
+      retryAfterMs: 12_000,
+    });
   });
 
   // A rejected key fails every remaining batch the same way; retrying is 25s of
@@ -353,11 +350,11 @@ describe("describeBatchApi", () => {
         HttpResponse.text("invalid x-api-key", { status: 401 }),
       ),
     );
-    await expect(describeBatchApi(["fireball"], { pngDir, model: "sonnet" })).rejects.toMatchObject(
-      {
-        fatal: true,
-      },
-    );
+    await expect(
+      describeIconApi("fireball", { pngDir, model: "sonnet", cache: "1h" }),
+    ).rejects.toMatchObject({
+      fatal: true,
+    });
   });
 
   // Every PNG is read and base64-encoded before the request; discovering the
@@ -366,9 +363,9 @@ describe("describeBatchApi", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-    await expect(describeBatchApi(["fireball"], { pngDir, model: "sonnet" })).rejects.toThrow(
-      /ANTHROPIC_API_KEY is not set/,
-    );
+    await expect(
+      describeIconApi("fireball", { pngDir, model: "sonnet", cache: "1h" }),
+    ).rejects.toThrow(/ANTHROPIC_API_KEY is not set/);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
