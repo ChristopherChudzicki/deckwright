@@ -2,7 +2,6 @@
   "default": "claude-opus-5",
   "choices": {
     "clout": "claude-sonnet-5",
-    "egypt": "claude-sonnet-5",
     "fire-dash": "claude-sonnet-5",
     "flying-fox": "claude-sonnet-5",
     "frog-foot": "claude-sonnet-5",
