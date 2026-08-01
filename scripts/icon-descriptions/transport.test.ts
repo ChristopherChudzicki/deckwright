@@ -61,6 +61,28 @@ describe("pickDescription", () => {
     ).toBe("A ball of flame.");
   });
 
+  // The prompt asks for the name without the extension and a live run got
+  // `logging.png` back anyway, losing a paid, correct description. That string is
+  // the label the request sends ahead of the image, so it names this icon and
+  // nothing else.
+  test("accepts the name echoed back with the .png the request labelled it with", () => {
+    expect(
+      pickDescription(
+        described([{ name: "logging.png", description: "A cut tree stump." }]),
+        "logging",
+      ),
+    ).toBe("A cut tree stump.");
+  });
+
+  // The other live failure was `olt-drop` for `bolt-drop`. It stays a failure:
+  // 455 pairs of real icon names are one deletion apart, so tolerating a dropped
+  // character could accept another icon's description.
+  test("returns null for a name one deleted character away", () => {
+    expect(
+      pickDescription(described([{ name: "olt-drop", description: "A droplet." }]), "bolt-drop"),
+    ).toBeNull();
+  });
+
   // The schema constrains the shape, not the contents: nothing stops the model
   // naming an icon nobody asked for, and a wrong name silently lost butter-toast
   // in a measured run. At one icon per request there is nothing else in the

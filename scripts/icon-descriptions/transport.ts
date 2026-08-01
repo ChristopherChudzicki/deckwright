@@ -103,18 +103,27 @@ export const RESPONSE_SCHEMA: Record<string, unknown> = {
 
 type Described = { name?: unknown; description?: unknown };
 
-// The schema guarantees the shape but not the contents: nothing stops the model
-// returning a name nobody asked for, and a wrong name silently lost butter-toast
-// in a measured run. One image per request turns that name from a channel the
-// model has to keep straight into a redundant one the harness checks by string
-// equality — anything else is not this icon's description, so there is nothing
-// to salvage from it.
+// At 30 icons per request the reply's `name` was the key — the only thing saying
+// which of 30 sentences belonged to which icon. One icon per request retired that
+// job: `custom_id` under `batch`, the loop variable elsewhere. What the echo still
+// audits is that key itself. If the API ever returned one icon's response under
+// another's `custom_id`, nothing else here would notice, and that is the same
+// shape as the displacement defect this design exists to rule out.
+//
+// It cannot audit the image. `buildContent` reads the PNG and writes the filename
+// label from one variable, so a wrong image arrives under a right name and passes.
+//
+// A trailing `.png` is accepted because it is the label the request itself sends
+// ahead of the image, so taking it back identifies the same icon and gives up
+// none of the check. Nothing looser: 455 pairs of real icon names are one
+// deletion apart (`abstract-001`/`abstract-002`), so tolerating a dropped
+// character could accept a description belonging to a different icon.
 export function pickDescription(output: object, name: string): string | null {
   const { descriptions: listed } = output as { descriptions?: unknown };
   for (const entry of Array.isArray(listed) ? (listed as Described[]) : []) {
     const { name: entryName, description } = entry ?? {};
     if (typeof entryName !== "string" || typeof description !== "string") continue;
-    if (entryName === name) return description.trim();
+    if (entryName.replace(/\.png$/, "") === name) return description.trim();
   }
   return null;
 }
