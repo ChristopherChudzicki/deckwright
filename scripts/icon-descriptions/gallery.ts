@@ -38,32 +38,31 @@ const STYLES = `
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
-header { position: sticky; top: 0; z-index: 1; background: var(--bg); border-bottom: 1px solid var(--line); padding: 12px 16px; }
+.wrap { max-width: 940px; margin: 0 auto; padding: 0 24px; }
+header { position: sticky; top: 0; z-index: 1; background: var(--bg); border-bottom: 1px solid var(--line); padding: 12px 0; }
 h1 { font-size: 16px; margin: 0 0 8px; }
 .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 input[type=search] { flex: 1 1 260px; min-width: 0; padding: 6px 10px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
 label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 #count { color: var(--muted); font-variant-numeric: tabular-nums; }
-.legend, .row { display: grid; gap: 16px; grid-template-columns: 96px repeat(var(--models), minmax(0, 1fr)); }
-.legend { padding: 8px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-.row { padding: 14px 16px; border-bottom: 1px solid var(--line); content-visibility: auto; contain-intrinsic-size: auto 116px; }
+.row { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--line); content-visibility: auto; contain-intrinsic-size: auto 140px; }
 .row[hidden] { display: none; }
-.art { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.art { display: flex; flex-direction: column; gap: 6px; align-items: center; }
 .art svg { width: 64px; height: 64px; fill: currentColor; }
-.name { font: 12px/1.3 ui-monospace, monospace; color: var(--muted); word-break: break-all; }
+.name { font: 12px/1.3 ui-monospace, monospace; color: var(--muted); text-align: center; word-break: break-all; }
+.cells { display: flex; flex-direction: column; gap: 10px; }
 .cell p { margin: 0; }
 .cell .missing { color: var(--muted); font-style: italic; }
+/* Stacked rather than side by side, so every cell has to name its own arm —
+   there is no column position left to infer it from. */
+.model { display: block; font: 12px/1.3 ui-monospace, monospace; color: var(--muted); margin-bottom: 2px; }
 .shipped { color: var(--accent); font-weight: 600; }
 .badge { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; background: var(--mark); color: var(--fg); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-.model { display: none; font: 12px/1.3 ui-monospace, monospace; color: var(--muted); margin-bottom: 4px; }
-/* The legend names the columns, so per-cell model labels are redundant — except
-   on a row where choices.json overrides the default, which is exactly where you
-   need to see which arm won without counting columns. */
-.row[data-exception="1"] .model { display: block; }
-@media (max-width: 720px) {
-  .legend { display: none; }
-  .row { grid-template-columns: 1fr; }
-  .model { display: block; }
+@media (max-width: 640px) {
+  .wrap { padding: 0 16px; }
+  .row { grid-template-columns: 1fr; gap: 12px; }
+  .art { align-items: flex-start; }
+  .name { text-align: left; }
 }
 `;
 
@@ -96,7 +95,6 @@ apply();
 
 export function renderGallery({ collection, names, arms, choices }: GalleryOptions): string {
   const models = Object.keys(arms).sort();
-  const columns = `--models: ${models.length}`;
 
   const rows = names.flatMap((name) => {
     const svg = iconSvg(collection, name);
@@ -106,7 +104,10 @@ export function renderGallery({ collection, names, arms, choices }: GalleryOptio
 
     const cells = models.map((model) => {
       const description = arms[model]?.[name];
-      const label = `<span class="model${model === shipped ? " shipped" : ""}">${escapeHtml(model)}</span>`;
+      const won = model === shipped;
+      const label =
+        `<span class="model${won ? " shipped" : ""}">${escapeHtml(model)}` +
+        `${won ? '<span class="badge">shipped</span>' : ""}</span>`;
       const body =
         description === undefined
           ? '<p class="missing">not described</p>'
@@ -121,20 +122,12 @@ export function renderGallery({ collection, names, arms, choices }: GalleryOptio
       .toLowerCase();
 
     return [
-      `<div class="row" style="${columns}" data-exception="${isException ? "1" : "0"}" data-text="${escapeHtml(haystack)}">` +
+      `<div class="row" data-exception="${isException ? "1" : "0"}" data-text="${escapeHtml(haystack)}">` +
         `<div class="art">${svg}<span class="name">${escapeHtml(name)}</span></div>` +
-        cells.join("") +
+        `<div class="cells">${cells.join("")}</div>` +
         "</div>",
     ];
   });
-
-  const legend = models
-    .map(
-      (model) =>
-        `<span${model === choices.default ? ' class="shipped"' : ""}>${escapeHtml(model)}` +
-        `${model === choices.default ? '<span class="badge">default</span>' : ""}</span>`,
-    )
-    .join("");
 
   return `<!doctype html>
 <html lang="en">
@@ -146,15 +139,16 @@ export function renderGallery({ collection, names, arms, choices }: GalleryOptio
 </head>
 <body>
 <header>
+<div class="wrap">
 <h1>Icon descriptions by arm</h1>
 <div class="controls">
 <input type="search" id="q" placeholder="Filter by name or description" autocomplete="off">
 <label><input type="checkbox" id="exceptions"> only choices.json exceptions</label>
 <span id="count"></span>
 </div>
+</div>
 </header>
-<div class="legend" style="${columns}"><span>icon</span>${legend}</div>
-<main>
+<main class="wrap">
 ${rows.join("\n")}
 </main>
 <script>${SCRIPT}</script>
