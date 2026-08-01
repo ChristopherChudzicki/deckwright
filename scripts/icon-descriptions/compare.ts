@@ -153,11 +153,11 @@ export function formatReport(opts: {
     "",
     `A is \`${a}\`; B is \`${b}\`. ${judged.length} of ${pairs.length} pairs judged.`,
     "",
-    // Stated wherever this is reported: conditioning on disagreement cannot see
-    // correlated error, which is the failure a shared prompt makes likeliest.
-    // Icons both arms get wrong in the same way agree, and agreement is the one
-    // bucket this file does not list.
-    "This is triage for human attention, not a measure of corpus quality: two arms sharing a prompt can be wrong together, and a pair that agrees is not listed here whether or not it is right.",
+    // The one thing a reader of this file could get wrong: an icon both arms
+    // misread the same way agrees, and agreement is the bucket this file does
+    // not quote. Measured at 7.8x chance on style words — see the README — so
+    // it is a real gap, not a formality.
+    "Agreement is not evidence: two arms sharing a prompt can be wrong together, and those pairs sort into `agree` unquoted. Use this to choose what to open in the gallery, not to decide what is right.",
     "",
   ];
 
