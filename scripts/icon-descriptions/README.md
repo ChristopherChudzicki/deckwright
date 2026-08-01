@@ -375,7 +375,9 @@ Grade by what the corpus is for. It backs fuzzy search, so `substantial` means t
 
 Every pair goes, because there is no cheap pre-filter. Lexical overlap does not separate paraphrase from disagreement — mean Jaccard on content words is 0.265, and the zero-overlap bucket holds `french-fries` (pure paraphrase) beside `abstract-048` (a real disagreement). Sorting by overlap would drop real conflicts and spend the budget on rewordings.
 
-The prompt is one unmarked block of about 284 tokens, and `--cache-ttl` is not a flag here: Sonnet caches nothing under 1,024 tokens, and padding up to that floor would bill ~492 tokens a request at an 80% hit rate — more than the whole prompt costs uncached. Caching only pays once the prefix you actually need is larger than the floor's amortised cost, which the icon prompt's 1,228 tokens clear and this one does not.
+The judge sees the icon's **name** alongside the two descriptions, because the picker searches a description together with its name and never on its own. Without it, an arm that leans on the name rather than repeating it reads as describing something else — "a wyvern, wings spread" against "a horned winged dragon, wings spread" — and `isNameEcho` is a validator here, so the arms comply unevenly on exactly this point.
+
+The prompt is one unmarked block of about 620 tokens and `--cache-ttl` is not a flag here: Sonnet caches nothing under 1,024 tokens, so the marker would be ignored without an error. Padding up to that floor *would* now pay — a cached prefix bills 1.25× on a write and 0.1× on a read, so at Sonnet's measured 83.1% hit rate 1,024 tokens cost ~300 a request against the ~620 an uncached send costs, roughly $1.30 over the corpus. It is not done because 400 tokens of filler inside a prompt whose wording is load-bearing is a bad trade for $1.30 on a run that happens once. The crossover is around 340 tokens at that hit rate, so a prompt that grows much further should revisit this.
 
 The output is `corpus/choices.json`, which records which model won:
 

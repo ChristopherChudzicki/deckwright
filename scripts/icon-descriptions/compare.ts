@@ -19,6 +19,10 @@ export type Comparison = { verdict: Verdict; difference: string };
 // the whole point of the pass is to rank pairs for a human to look at.
 export const COMPARE_INSTRUCTIONS = `Two descriptions of the same icon, written independently from the same artwork. You cannot see the artwork.
 
+The icon's name is given, and it is part of what is being compared: in the picker a description is searched together with its name, never on its own. So judge "name + A" against "name + B". A description that leans on the name instead of repeating it is not thereby describing something different — if the name is "wyvern", then "a wyvern, wings spread" and "a horned winged dragon, wings spread" are the same thing said twice.
+
+Judge whether the two agree, not whether either is right. Two descriptions of the same wrong subject agree.
+
 These descriptions back fuzzy text search in an icon picker, so judge by one question: would someone searching for this icon be misled? Naming the wrong subject misleads them. Getting a detail wrong about the right subject does not.
 
 agree — the same subject, with no difference worth remarking on.
@@ -30,12 +34,17 @@ Most pairs are agree or trivial. Reserve substantial for a genuine difference of
 When the verdict is not "agree", name what differs in a few words; when it is, leave "difference" empty. Write nothing else.`;
 
 // One text block, unmarked. Sonnet's minimum cacheable length is 1,024 tokens and
-// these instructions are nowhere near it, so a cache_control marker here would be
-// ignored without an error. Padding up to the floor is a loss on a prompt this
-// short: 1,024 tokens cached at an 80% hit rate still bill ~492 per request, more
-// than the whole prompt costs uncached.
-export const comparePrompt = (a: string, b: string): string =>
-  `${COMPARE_INSTRUCTIONS}\n\nA: ${a}\nB: ${b}`;
+// this prompt counts ~620, so a cache_control marker here would be ignored
+// without an error.
+//
+// Padding up to the floor would now pay, which it did not when this prompt was
+// half the length. A cached prefix bills 1.25x on a write and 0.1x on a read, so
+// at Sonnet's measured 83.1% hit rate 1,024 tokens cost ~300 a request against
+// the ~620 an uncached send costs — about $1.30 over the whole corpus. It is not
+// done because 400 tokens of filler inside a prompt whose wording is
+// load-bearing is a bad trade for $1.30 on a run that happens once.
+export const comparePrompt = (name: string, a: string, b: string): string =>
+  `${COMPARE_INSTRUCTIONS}\n\nname: ${name}\nA: ${a}\nB: ${b}`;
 
 export const COMPARE_SCHEMA: Record<string, unknown> = {
   type: "object",
@@ -53,7 +62,7 @@ export function buildCompareParams(pair: Pair, modelId: string): Record<string, 
   return {
     model: modelId,
     max_tokens: MAX_TOKENS,
-    messages: [{ role: "user", content: comparePrompt(pair.a, pair.b) }],
+    messages: [{ role: "user", content: comparePrompt(pair.name, pair.a, pair.b) }],
     output_config: { format: { type: "json_schema", schema: COMPARE_SCHEMA } },
   };
 }

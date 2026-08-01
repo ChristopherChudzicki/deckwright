@@ -62,10 +62,15 @@ describe("extractVerdict", () => {
   });
 });
 
-test("buildCompareParams sends both descriptions under the instructions, unlabelled", () => {
+// The name goes with them because the picker searches a description together
+// with its name, so an arm that leans on the name rather than repeating it is
+// not describing something else.
+test("buildCompareParams sends the name and both descriptions, unlabelled", () => {
   const params = buildCompareParams({ name: "sword", a: "A blade.", b: "A sharp blade." }, "judge");
   const [message] = params.messages as [{ content: string }];
-  expect(message.content).toBe(`${COMPARE_INSTRUCTIONS}\n\nA: A blade.\nB: A sharp blade.`);
+  expect(message.content).toBe(
+    `${COMPARE_INSTRUCTIONS}\n\nname: sword\nA: A blade.\nB: A sharp blade.`,
+  );
   expect(message.content).not.toContain("claude-");
 });
 
