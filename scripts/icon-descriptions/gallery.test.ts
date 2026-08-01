@@ -32,10 +32,12 @@ const defaulting = (choices: Record<string, string> = {}): Choices => ({ default
 // The filter is client-side JS embedded as a string, so asserting on the markup
 // alone would pass on a page whose script throws. Mounting it and running the
 // script is what actually exercises the behaviour.
-const mount = (choices: Choices) => {
-  const html = render(choices);
+const mount = (choices: Choices, shown?: string[]) => {
+  const html = render(choices, shown);
   document.body.innerHTML = html.slice(html.indexOf("<body>") + 6, html.indexOf("</body>"));
-  new Function(document.querySelector("script")?.textContent ?? "")();
+  // Not the first script — the choices the page was built from ride along in a
+  // JSON block ahead of it.
+  new Function(document.querySelector("script:not([type])")?.textContent ?? "")();
   const names = document.getElementById("names") as HTMLTextAreaElement;
   return {
     names,
@@ -48,6 +50,17 @@ const mount = (choices: Choices) => {
         .filter((row) => !row.hidden)
         .map((row) => row.dataset.name),
     missed: () => document.getElementById("missed")?.textContent ?? "",
+    changed: () => document.getElementById("changed")?.textContent ?? "",
+    pick: (name: string, model: string) => {
+      const radio = document.querySelector<HTMLInputElement>(
+        `input[name="pick:${name}"][value="${model}"]`,
+      );
+      if (!radio) throw new Error(`no radio for ${name}/${model}`);
+      radio.checked = true;
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    exported: (): Choices =>
+      JSON.parse((document.getElementById("exported") as HTMLTextAreaElement).value),
   };
 };
 
@@ -79,6 +92,55 @@ describe("the name-list filter", () => {
 
     expect(page.visible()).toEqual(["fireball"]);
     expect(page.missed()).toContain("frieball");
+  });
+});
+
+describe("picking an arm per icon", () => {
+  test("starts on what choices.json says, exceptions included", () => {
+    const page = mount(defaulting({ fireball: SONNET }));
+
+    expect(page.exported()).toEqual({ default: OPUS, choices: { fireball: SONNET } });
+    expect(page.changed()).toBe("");
+  });
+
+  test("a pick away from the default becomes an exception", () => {
+    const page = mount(defaulting());
+    page.pick("broadsword", SONNET);
+
+    expect(page.exported()).toEqual({ default: OPUS, choices: { broadsword: SONNET } });
+    expect(page.changed()).toBe("1 changed");
+  });
+
+  // The file's invariant: `choices` lists only what goes against the default, so
+  // an icon picked back to it has to leave rather than be restated.
+  test("a pick back to the default drops its exception", () => {
+    const page = mount(defaulting({ fireball: SONNET }));
+    page.pick("fireball", OPUS);
+
+    expect(page.exported()).toEqual({ default: OPUS, choices: {} });
+  });
+
+  // A page built with --only shows a handful of icons; exporting through it must
+  // not silently discard every exception it did not render.
+  test("keeps exceptions for icons the page never rendered", () => {
+    const page = mount(defaulting({ fireball: SONNET, "not-rendered": SONNET }), ["fireball"]);
+    page.pick("fireball", OPUS);
+
+    expect(page.exported()).toEqual({ default: OPUS, choices: { "not-rendered": SONNET } });
+  });
+
+  // Promotion refuses a choice whose model never described the icon, so the pick
+  // has to be unavailable rather than exportable.
+  test("cannot pick an arm that has no description for the icon", () => {
+    const sparse: Arms = { [SONNET]: { fireball: "A ball of flame." }, [OPUS]: {} };
+    const html = renderGallery({
+      collection,
+      names: ["fireball"],
+      arms: sparse,
+      choices: defaulting(),
+    });
+
+    expect(html).toMatch(/<input type="radio"[^>]*value="claude-opus-5"[^>]*disabled>/);
   });
 });
 

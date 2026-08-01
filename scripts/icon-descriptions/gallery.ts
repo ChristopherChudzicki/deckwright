@@ -16,6 +16,11 @@ const HTML_ESCAPES: Record<string, string> = {
 const escapeHtml = (text: string): string =>
   text.replace(/[&<>"]/g, (ch) => HTML_ESCAPES[ch] ?? ch);
 
+// Inside a <script> element the parser is looking for `</script`, not for JSON,
+// so a `<` anywhere in the data would end the block early and spill the rest
+// into the document as markup.
+const embedJson = (value: unknown): string => JSON.stringify(value).replaceAll("<", "\\u003c");
+
 export type GalleryOptions = {
   collection: IconifyJSON;
   names: readonly string[];
@@ -47,8 +52,15 @@ label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 #count { color: var(--muted); font-variant-numeric: tabular-nums; }
 details { margin-top: 8px; }
 summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.hint { margin: 6px 0; color: var(--muted); font-size: 13px; }
 textarea { display: block; width: 100%; margin-top: 6px; padding: 6px 10px; font: 12px/1.5 ui-monospace, monospace; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; resize: vertical; }
 .missed { color: var(--accent); }
+button { font: inherit; padding: 5px 12px; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+#changed { color: var(--accent); font-variant-numeric: tabular-nums; }
+.pick { display: flex; gap: 6px; align-items: center; cursor: pointer; margin-bottom: 2px; }
+.pick .model { margin-bottom: 0; }
+.row.edited { box-shadow: inset 3px 0 0 var(--accent); padding-left: 10px; }
 .row { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--line); content-visibility: auto; contain-intrinsic-size: auto 140px; }
 .row[hidden] { display: none; }
 .art { display: flex; flex-direction: column; gap: 6px; align-items: center; }
@@ -112,6 +124,61 @@ search.addEventListener('input', apply);
 names.addEventListener('input', apply);
 exceptionsOnly.addEventListener('change', apply);
 apply();
+
+const original = JSON.parse(document.getElementById('choices-data').textContent);
+const exported = document.getElementById('exported');
+const changed = document.getElementById('changed');
+const picked = (row) => row.querySelector('input[type=radio]:checked')?.value;
+
+// Layered over the choices the page was generated from rather than rebuilt from
+// the rows, because a page built with --only renders a handful of icons and the
+// rest of the file's exceptions must survive being exported through it.
+function currentChoices() {
+  const choices = { ...original.choices };
+  for (const row of rows) {
+    const value = picked(row);
+    if (value === undefined) continue;
+    if (value === original.default) delete choices[row.dataset.name];
+    else choices[row.dataset.name] = value;
+  }
+  const sorted = {};
+  for (const name of Object.keys(choices).sort()) sorted[name] = choices[name];
+  return { default: original.default, choices: sorted };
+}
+
+function review() {
+  let edits = 0;
+  for (const row of rows) {
+    const isEdit = picked(row) !== row.dataset.original;
+    row.classList.toggle('edited', isEdit);
+    if (isEdit) edits++;
+  }
+  changed.textContent = edits ? edits + ' changed' : '';
+  exported.value = JSON.stringify(currentChoices(), null, 2);
+  return edits;
+}
+
+for (const input of document.querySelectorAll('input[type=radio]')) {
+  input.addEventListener('change', review);
+}
+
+document.getElementById('download').addEventListener('click', () => {
+  const blob = new Blob([exported.value + '\\n'], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'choices.json';
+  link.click();
+  URL.revokeObjectURL(url);
+});
+
+// The picks live only in this page until they are exported, and a curation pass
+// over 4,134 icons is a long time to lose to a stray reload.
+window.addEventListener('beforeunload', (event) => {
+  if (review()) event.preventDefault();
+});
+
+review();
 `;
 
 export function renderGallery({ collection, names, arms, choices }: GalleryOptions): string {
@@ -133,7 +200,13 @@ export function renderGallery({ collection, names, arms, choices }: GalleryOptio
         description === undefined
           ? '<p class="missing">not described</p>'
           : `<p>${escapeHtml(description)}</p>`;
-      return `<div class="cell">${label}${body}</div>`;
+      // An arm with no description for this icon cannot win it: promotion
+      // refuses a choice whose model never described the icon, so allowing the
+      // pick would only produce a choices file that fails at the last step.
+      const radio =
+        `<input type="radio" name="pick:${escapeHtml(name)}" value="${escapeHtml(model)}"` +
+        `${won ? " checked" : ""}${description === undefined ? " disabled" : ""}>`;
+      return `<div class="cell"><label class="pick">${radio}${label}</label>${body}</div>`;
     });
 
     // One lowercase haystack per row so the filter is a substring test rather
@@ -143,7 +216,8 @@ export function renderGallery({ collection, names, arms, choices }: GalleryOptio
       .toLowerCase();
 
     return [
-      `<div class="row" data-name="${escapeHtml(name)}" data-exception="${isException ? "1" : "0"}" data-text="${escapeHtml(haystack)}">` +
+      `<div class="row" data-name="${escapeHtml(name)}" data-original="${escapeHtml(shipped)}"` +
+        ` data-exception="${isException ? "1" : "0"}" data-text="${escapeHtml(haystack)}">` +
         `<div class="art">${svg}<span class="name">${escapeHtml(name)}</span></div>` +
         `<div class="cells">${cells.join("")}</div>` +
         "</div>",
@@ -167,13 +241,21 @@ export function renderGallery({ collection, names, arms, choices }: GalleryOptio
 <label><input type="checkbox" id="exceptions"> only choices.json exceptions</label>
 <span id="count"></span>
 <span id="missed" class="missed"></span>
+<span id="changed"></span>
 </div>
 <details>
 <summary>Filter by name list</summary>
 <textarea id="names" rows="3" placeholder="Paste icon names, separated by commas or newlines — e.g. from the substantial section of corpus/tmp/disagreements.md" autocomplete="off" spellcheck="false"></textarea>
 </details>
+<details>
+<summary>Export choices.json</summary>
+<p class="hint">Pick an arm per row above. This is the whole file, including exceptions for icons not shown here — save it over <code>corpus/choices.json</code>.</p>
+<button type="button" id="download">Download choices.json</button>
+<textarea id="exported" rows="8" readonly spellcheck="false"></textarea>
+</details>
 </div>
 </header>
+<script type="application/json" id="choices-data">${embedJson(choices)}</script>
 <main class="wrap">
 ${rows.join("\n")}
 </main>

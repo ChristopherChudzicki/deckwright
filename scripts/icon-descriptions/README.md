@@ -352,7 +352,7 @@ Do this **before** the cross-arm comparison in step 9. That pass ranks the arms'
 
 Work the audit's findings against the image. **Read "Two arms, and each method sees what the other cannot" and "Comparing model outputs" below first** — agreement between the arms is not evidence about the image, and an unpaired comparison at n≈30 is noise. Each finding resolves three ways: the shipped arm is right and nothing changes; the other arm is right, which is an entry in `choices.json`; or both are wrong, which is a hand-written entry in `overrides.json`.
 
-The surface for this is a generated page — every icon beside what each arm said about it, with a text filter, a toggle for the rows `choices.json` already overrides, and a name-list box that takes the comma-separated lists the comparison report prints:
+The surface for this is a generated page — every icon beside what each arm said about it, with a text filter, a toggle for the rows `choices.json` already overrides, a name-list box that takes the comma-separated lists the comparison report prints, and a radio per arm so the page **is** the editor for `choices.json`:
 
 ```sh
 npm run gallery:icon-descriptions
@@ -378,6 +378,10 @@ Every pair goes, because there is no cheap pre-filter. Lexical overlap does not 
 The judge sees the icon's **name** alongside the two descriptions, because the picker searches a description together with its name and never on its own. Without it, an arm that leans on the name rather than repeating it reads as describing something else — "a wyvern, wings spread" against "a horned winged dragon, wings spread" — and `isNameEcho` is a validator here, so the arms comply unevenly on exactly this point.
 
 The prompt is one unmarked block of about 620 tokens and `--cache-ttl` is not a flag here: Sonnet caches nothing under 1,024 tokens, so the marker would be ignored without an error. Padding up to that floor *would* now pay — a cached prefix bills 1.25× on a write and 0.1× on a read, so at Sonnet's measured 83.1% hit rate 1,024 tokens cost ~300 a request against the ~620 an uncached send costs, roughly $1.30 over the corpus. It is not done because 400 tokens of filler inside a prompt whose wording is load-bearing is a bad trade for $1.30 on a run that happens once. The crossover is around 340 tokens at that hit rate, so a prompt that grows much further should revisit this.
+
+The radios start on whatever `choices.json` currently says, edited rows get an accent bar and a count, and **Export choices.json** hands back the whole file — not a diff — either as a download or as text to copy. Two things it does on your behalf: an icon picked back to the default leaves `choices` rather than being restated, keeping the file's "only the exceptions" invariant; and exceptions for icons the page never rendered survive being exported through it, so exporting from a `--only` page does not silently wipe the rest. An arm that has no description for an icon cannot be picked for it, because promotion would refuse that choice anyway.
+
+The picks live in the page until exported, so it warns before a reload discards them. Save the export over `corpus/choices.json`.
 
 The output is `corpus/choices.json`, which records which model won:
 
