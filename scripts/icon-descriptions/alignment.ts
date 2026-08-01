@@ -1,11 +1,15 @@
-// A run describes up to 30 icons in one request, each image preceded by its own
-// filename, and the model labels every description with the name it belongs to.
-// Twice in 138 requests Opus lost that correspondence partway through and
+// Descriptions can end up on the wrong icons, shifted by one, and nothing else
+// in the pipeline can see it: the validators read one entry at a time, and
+// promotion only checks that a chosen model has *a* description. Every name is
+// present and every description is valid prose.
+//
+// The arms on disk were generated 30 icons to a request, where the model owned
+// that correspondence. Twice in 138 requests Opus lost it partway through and
 // labelled each remaining description with the *following* icon's name, so 36
-// icons shipped holding their predecessor's description. Every name was present
-// and every description was valid prose, so nothing else in the pipeline could
-// see it: the validators read one entry at a time, and promotion only checks
-// that a chosen model has *a* description.
+// icons shipped holding their predecessor's. One icon per request moves the
+// correspondence to the harness, which is why the gate is kept rather than
+// retired: it now checks the harness's `custom_id` bookkeeping against a second
+// arm, and a collection path that shifted by one would look the same from here.
 //
 // This finds it by asking whether a description is aligned, never whether it is
 // correct — no judgement, no model call. Scored against a second arm that

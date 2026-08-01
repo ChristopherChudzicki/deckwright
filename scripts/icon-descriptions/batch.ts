@@ -18,7 +18,7 @@ import {
 } from "./transport";
 
 const BATCHES_URL = "https://api.anthropic.com/v1/messages/batches";
-// The submit POST uploads ~100MB of base64, so this is far longer than the
+// The submit POST uploads ~114MB of base64, so this is far longer than the
 // synchronous transport's ceiling. An unbounded wait would hang holding the run
 // lockfile, blocking every later invocation with no indication why.
 const HTTP_TIMEOUT_MS = 900_000;

@@ -21,10 +21,12 @@ const program = new Command()
       "nothing — the shipped corpus is derived, and this is what derives it.\n\n" +
       "Hand-written descriptions do not belong here: overrides.json is merged at read " +
       "time by src/data/iconDescriptions/load.ts and is never baked in.\n\n" +
-      "Requires a second arm to check alignment against: a model can lose track of " +
-      "which image it is describing partway through a request and label every " +
-      "description after that with the following icon's name. Nothing about a " +
-      "single arm reveals it — the names are all present and the prose is all valid.",
+      "Requires a second arm to check alignment against: descriptions can end up on " +
+      "the wrong icons, shifted by one, and nothing about a single arm reveals it — " +
+      "the names are all present and the prose is all valid. The arms on disk were " +
+      "generated 30 icons to a request, where a model could lose track of which image " +
+      "it was on; one icon per request moves that bookkeeping to the harness, and this " +
+      "is the check on the harness.",
   )
   .option("--choices <path>", "which model won each icon", CHOICES)
   .option("--out <path>", "corpus to write", SHIPPED_CORPUS)
