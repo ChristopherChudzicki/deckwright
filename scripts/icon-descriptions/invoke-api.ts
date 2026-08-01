@@ -101,12 +101,12 @@ export function pricingFor(
 // thinking, so even the upper bound is not a hard ceiling.
 const INPUT_TOKENS_PER_ICON = 361;
 const OUTPUT_TOKENS_PER_ICON = 45;
-// The invariant prefix, measured with the token-counting endpoint rather than
-// estimated from its 2,933 characters — an earlier chars/3.7 guess put it at 793
-// and understated every request's largest single input by 20%. It also sits
-// below Claude Sonnet 5's 1024-token minimum cacheable length, so that arm sends
-// a cache_control marker the API ignores; Opus 5's minimum is 512.
-const INSTRUCTION_TOKENS = 948;
+// The invariant prefix, taken from what a live batch was billed for: 30 requests
+// reported 18,420 cache-creation and 18,420 cache-read tokens, which is 15 writes
+// and 15 reads of 1,228 tokens each. Two earlier figures were wrong — 793 from
+// chars/3.7, then 948 from the token-counting endpoint — and only this one is
+// what the prefix actually costs. Re-derive it the same way if the prompt changes.
+const INSTRUCTION_TOKENS = 1_228;
 
 // Two numbers, because a cached run's cost is not knowable before it runs. Every
 // request after the first either re-reads the prefix at a tenth of an input

@@ -83,14 +83,14 @@ describe("assertApiKey", () => {
 });
 
 describe("estimateCost", () => {
-  // One icon per request means one 948-token instruction prefix per icon, which
-  // is a bigger input than the image. A flat per-icon estimate misses it, and
-  // that is what --max-cost is compared against.
+  // One icon per request means one 1,228-token instruction prefix per icon,
+  // which is a bigger input than the image. A flat per-icon estimate misses it,
+  // and that is what --max-cost is compared against.
   test("charges the instruction prefix once per icon", () => {
     const { floor, ceiling } = estimateCost(1_000, SONNET, "off");
 
-    // 1,000 × (361 input + 45 output) tokens, plus 1,000 × 948 for the prefix.
-    expect(ceiling).toBeCloseTo(3.068, 6);
+    // 1,000 × (361 input + 45 output) tokens, plus 1,000 × 1,228 for the prefix.
+    expect(ceiling).toBeCloseTo(3.628, 6);
     // With no prefix cached there is nothing left for the run to vary.
     expect(floor).toBe(ceiling);
   });
@@ -100,8 +100,8 @@ describe("estimateCost", () => {
   test("brackets a cached run between every request re-reading the prefix and none", () => {
     const { floor, ceiling } = estimateCost(1_000, SONNET, "1h");
 
-    expect(floor).toBeCloseTo(1.3652024, 6);
-    expect(ceiling).toBeCloseTo(4.964, 6);
+    expect(floor).toBeCloseTo(1.4222664, 6);
+    expect(ceiling).toBeCloseTo(6.084, 6);
   });
 });
 

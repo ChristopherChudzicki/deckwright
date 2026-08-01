@@ -92,31 +92,35 @@ What this costs: 4,134 requests instead of 138, and the instruction prefix sent 
 
 ### Prompt caching
 
-The instruction block is invariant — 2,933 characters, **948 tokens**, identical on every request. That figure is measured with the token-counting endpoint, not divided out of the character count; an earlier chars/3.7 guess said 793 and understated by 20% the largest single input each request sends. At 30 icons per request the prefix was rounding error. At one it dominates.
+The instruction block is invariant — 2,933 characters, **1,228 tokens**, identical on every request. At 30 icons per request the prefix was rounding error. At one it dominates, so getting that number right matters more than it looks.
+
+**It is read off a bill, not off a tokenizer, and that took three tries.** Dividing the character count by 3.7 gave 793. The token-counting endpoint gave 948. The first live batch reported 18,420 cache-creation and 18,420 cache-read tokens over 30 requests — 15 writes and 15 reads of 1,228 each — and that is the figure the API charges for. Why `count_tokens` underreports by 280 is unexplained; the billed number governs, and a prompt change means re-deriving it the same way rather than re-measuring it.
 
 So the API path leads with the instructions and marks them `cache_control`, rather than trailing them after the images as the first arms did. **Order is what makes caching possible at all**: the cache key is everything up to and including the marked block, so a single per-request byte ahead of it would change the key on every request and never hit. `ATTACHED_INSTRUCTIONS` is that prefix, and nothing about it may vary with the request.
 
 The schema cannot join that prefix, however convenient it would be. Caching renders `tools` → `system` → `messages`, and `output_config` is in none of them.
 
-#### The Sonnet arm does not cache, and cannot be made to
+#### Minimum cacheable length, and why the prefix size is load-bearing
 
-A model ignores `cache_control` on a prefix shorter than its **minimum cacheable length** — silently, with no error and no warning, exactly as if the marker had never been sent. That minimum is per-model and not ordered by model size: **Opus 5 is 512 tokens, Sonnet 5 is 1024**. At 948 tokens this prefix clears Opus and misses Sonnet.
+A model ignores `cache_control` on a prefix shorter than its **minimum cacheable length** — silently, with no error and no warning, exactly as if the marker had never been sent. That minimum is per-model and not ordered by model size: **Opus 5 is 512 tokens, Sonnet 5 is 1024**. At 1,228 tokens this prefix clears both, with 204 tokens of headroom on the tighter one.
 
-So the Opus arm — the one that ships — caches, and the Sonnet arm pays full input price for the prefix on all 4,134 requests. That is about **$3.50** on top of what a caching Sonnet arm would cost, and it is accepted rather than fixed. The fixes all fail on inspection: the schema cannot be moved into the prefix (above); padding the prompt with filler to clear 1024 is gaming a threshold with text the model has to read; and adding real content worth 76 tokens is a prompt change, which means regenerating every entry written under the old wording.
+That headroom is the reason the prefix size is worth pinning rather than estimating. Under the discarded 948-token figure this arithmetic came out the other way, and a whole section of this file argued that the Sonnet arm could not cache and that its extra ~$3.50 was a cost to accept. The Opus batch billed 1,228 and retired the argument. **Sonnet caching is expected, not yet observed** — the first full Sonnet run is what confirms it, and if that run reports `nothing cached` then something about the prefix has moved and this section is what to re-derive.
 
-`formatCacheUsage` reports this rather than letting it read as silence: a run that asked for caching and cached nothing prints **`prompt cache: nothing cached — the prefix is below this model's minimum cacheable length`**. On Sonnet that line is the expected output. On Opus it is a finding.
+`formatCacheUsage` exists so that outcome cannot read as silence: a run that asked for caching and cached nothing prints **`prompt cache: nothing cached — the prefix may be below this model's minimum cacheable length`**. On either arm that line is now a finding.
 
-This is derived from the documented minimums and a measured token count. It has not yet been seen on a live run — step 2 of the runbook is where it will be.
+Shrinking the prompt is therefore not free in a way that is easy to miss. Cutting ~200 tokens of instructions would put the prefix back under Sonnet's floor and silently stop that arm caching, on top of whatever it does to the descriptions.
 
 #### 5m versus 1h
 
 Reads cost a tenth of an ordinary input token under either window, so the choice is only about the write: **1.25×** for the 5-minute window against **2×** for the hour.
 
-The comparison that decides it is the two windows against *each other*, not each against no cache at all. Over R requests writing W times, 5m bills `0.1R + 1.15·W₅` and 1h bills `0.1R + 1.9·W₁`, both in units of prefix input tokens. **5m is cheaper only if it writes fewer than 1.65× as often as 1h does.** Every hit refreshes the window for free, so a run that keeps touching its prefix holds either one and the two write once each — but the batch endpoint schedules requests as it likes and promises no such continuity.
+The comparison that decides it is the two windows against *each other*, not each against no cache at all. Over R requests writing W times, 5m bills `0.1R + 1.15·W₅` and 1h bills `0.1R + 1.9·W₁`, both in units of prefix input tokens. **5m is cheaper only if it writes fewer than 1.65× as often as 1h does.** The payoff is lopsided: if both write once, `5m` saves about $0.003 on the Opus arm; if the 5-minute window lapses where the hour holds, it costs around $15. The default is `1h` for that reason, and it is what the docs recommend for batches.
 
-The payoff is lopsided. If both windows write once, `5m` saves about **$0.002** on the Opus arm. If the 5-minute window lapses between requests and the hour holds, it costs about **$11.30**. The default is `1h` because that is the side of the bet worth being on, and it is what the docs recommend for batches.
+**What a batch's writes are actually caused by.** The 30-request smoke wrote 15 times inside a batch that finished in nine minutes, so no window of either length was ever close to expiring. Expiry is not what drives writes here; the likeliest explanation is that requests are spread across several cache nodes and each one has to be warmed once. That reading predicts the write count is roughly fixed by the number of nodes rather than by the request count — 15 writes in 30 requests is a 50% hit rate, but the same 15 writes in 4,134 requests would be **99.6%**. It also cuts against ever switching to `5m`: a node that goes untouched for six minutes during a long batch has to be rewritten under the short window and does not under the long one.
 
-`off` sends no marker at all rather than a shorter one, because a marked block pays the write premium whether or not anything ever re-reads it. It is not the right setting for the Sonnet arm, tempting as that looks: an ignored marker and no marker cost the same, so `off` saves nothing there, and it would forfeit the cache outright if the 1024-token minimum ever stopped binding. Reach for `off` when you want to hold the prefix uncached deliberately — not as a workaround for an arm that already isn't caching.
+Treat that as a hypothesis with one batch behind it. The full runs are what test it, and the hit rate they report is the measurement worth keeping.
+
+`off` sends no marker at all rather than a shorter one, because a marked block pays the write premium whether or not anything ever re-reads it. That premium is real: at a 50% hit rate `1h` costs slightly *more* than sending nothing, since break-even against no cache is a 52.6% hit rate. Reach for `off` deliberately, on a run short enough that the prefix will never be re-read.
 
 **The hit rate is measured, not assumed.** Every run reports its cache line — after the run on `api`, after `--fetch` on `batch`. The docs put batch hit rates at 30–98% and call them best-effort, and nothing smaller predicts what a 4,134-request batch will get. This is why `--dry-run` prints a *range* rather than a single estimate: the floor assumes every request after the first re-reads the prefix, the ceiling assumes each one writes it again at the ttl's premium. For a full Opus arm on `batch` those are **$7.04 and $25.65**. `--max-cost` refuses a `batch` submit against the ceiling, since a batch cannot be stopped once it is away.
 
@@ -248,7 +252,7 @@ Pilot on whichever transport produced the baseline you are scoring against, sinc
 
 Do not skip this because step 1 passed. `batch` fails in ways `api` does not, and the failures are only visible after you have paid for a day of latency: the first full submit on this branch errored 102 of its 138 requests against an org-wide grammar-compilation limit. Thirty requests exercise the entire path — schema compiles, `custom_id`s round-trip, PNGs inline under the 256 MB cap, record round-trips, parse accepts — and they are the only place the prefix cache can be observed before 4,134 requests are away.
 
-**Smoke on Opus, not Sonnet.** Opus is the arm that ships, and it is the only one whose cache can be seen at all: at 948 tokens the prefix clears Opus's 512-token minimum and misses Sonnet's 1024, so a Sonnet smoke reports `nothing cached` no matter how healthy the pipeline is. Under $0.20 either way.
+**Smoke on Opus.** It is the arm that ships, and its 512-token minimum cacheable length is the one this prefix clears by the widest margin, so a cache failure there is unambiguous. Under $0.20.
 
 ```sh
 npm run gen:icon-descriptions -- --transport batch --model opus --limit 30 --out corpus/tmp/smoke.json --dry-run
@@ -259,7 +263,9 @@ npm run gen:icon-descriptions -- --fetch <smoke-batch-id>
 
 **Pass condition: `Described 30 of 30`, with no `dropped` and no failure lines.** Anything less is a finding — read it before spending on step 4.
 
-The `prompt cache:` line beneath it is the second thing to read, and on Opus it is close to a pass condition. A low hit rate on 30 requests does not predict one on 4,134 — batch scheduling is its own thing at each scale — but `nothing cached` on Opus means the marker is not being honoured at all, and that is the one cache outcome worth chasing before submitting 4,134 requests that would each pay the write premium. It is also the first live check on the 948-token measurement: if the prefix has drifted under 512 tokens or the marker has stopped being sent, this is where it shows.
+The `prompt cache:` line beneath it is the second thing to read, and it is close to a pass condition. A low hit rate on 30 requests does not predict one on 4,134 — see "5m versus 1h" for why the write count may barely move with scale — but `nothing cached` means the marker is not being honoured at all, and that is worth chasing before submitting 4,134 requests that would each pay the write premium.
+
+It is also where the prefix size gets re-derived, which is the more valuable output. `written ÷ writes` is the billed token count of the prefix, and nothing else in the pipeline reports it. **2026-08-01, 30 requests on Opus at `1h`:** `Described 30 of 30`, $0.150 billed, 18,420 read and 18,420 written — 15 writes, 15 reads, **1,228 tokens per prefix**, a 50% hit rate. That is where `INSTRUCTION_TOKENS` comes from.
 
 Into `corpus/tmp/` on purpose. A smoke test you may want to throw away does not belong in an arm, where clearing it would need `--force`, and a separate corpus keeps rail 4 from blocking the full submit. The cost is re-describing those same 30 icons in step 4, which the seeded shuffle guarantees are the first 30 either way.
 
@@ -270,16 +276,14 @@ npm run gen:icon-descriptions -- --transport batch --model sonnet --dry-run
 npm run gen:icon-descriptions -- --transport batch --model opus   --dry-run
 ```
 
-Expect **4,134 requests, one icon each**, and these estimates at the default `1h`:
+Expect **4,134 requests, one icon each**, and these ranges at the default `1h`:
 
-| arm | printed range | expect to be billed |
+| arm | printed range | where to expect it to land |
 |---|---|---|
-| Sonnet | $2.82–$10.26 | **~$6.34** — the marker is ignored, so every request pays the prefix as ordinary input |
-| Opus | $7.04–$25.65 | somewhere in the range, and the run reports where |
+| Sonnet | $2.93–$12.58 | near the floor if the node-warming reading holds |
+| Opus | $7.33–$31.44 | same |
 
-Both arms keep the default `1h` rather than dropping Sonnet to `off`. The two cost the same on an arm whose marker is ignored, so `off` buys nothing — and if the documented 1024-token minimum turns out not to bind, `1h` caches and `off` would have forfeited it. Leave it on and let the cache line report what happened.
-
-Read the Sonnet ceiling as a bound rather than a forecast: it prices 4,134 write premiums that arm will not be charged. `--max-cost` refuses against it all the same, so size that flag against $10.26, not $6.34. This is the last free look.
+Both arms run at `1h`. The ceilings price 4,134 write premiums, which only happens if the prefix is never re-read once; the smoke's 15 writes suggest the real write count is closer to fixed than proportional. Read the ceiling as a bound rather than a forecast — but `--max-cost` refuses against it, so size that flag against the ceiling and not against your hopes. This is the last free look.
 
 ### 4. Submit both
 
@@ -403,19 +407,19 @@ A random audit measures whether the *model* understands the artwork. It is close
 
 A full run of both arms on `batch` at the default `1h`, before Sonnet's introductory rate lapses:
 
-| arm | `--dry-run` prints | what to actually expect |
-|---|---|---|
-| Sonnet | $2.82–$10.26 | **~$6.34**, and the range is noise — the marker is ignored, so the prefix bills as ordinary input on all 4,134 requests |
-| Opus | $7.04–$25.65 | inside the range; only the run can say where |
-| both | $9.86–$35.91 | ~$13–$32 |
+| arm | `--dry-run` prints | at a 50% hit rate | with `--cache-ttl off` |
+|---|---|---|---|
+| Sonnet | $2.93–$12.58 | $7.75 | $7.50 |
+| Opus | $7.33–$31.44 | $19.38 | $18.75 |
+| both | $10.26–$44.02 | $27.13 | $26.25 |
 
 Every figure counts image and text tokens only, and nothing for thinking tokens, so even the ceiling is not a hard ceiling. All of them come from `estimateCost`, so `--dry-run` is the authority and this table is a copy — if the two disagree, the code is right.
 
-The width of the Opus range is entirely the prefix cache, and it is wide because nobody can predict a batch's hit rate: the low end assumes every request after the first re-reads the instructions, the high end assumes each one writes them again at 2×. Note where that leaves the top of the range — **$25.65 against $15.85 for the same arm with `--cache-ttl off`**. A cache that never hits is worse than no cache, which is why the run reports the rate it got rather than assuming one.
+The width of those ranges is entirely the prefix cache: the low end assumes every request after the first re-reads the instructions, the high end assumes each one writes them again at 2×. The middle column is why the ranges are not decoration. **At the 50% hit rate the smoke measured, `1h` costs slightly more than sending no marker at all** — break-even against `off` is a 52.6% hit rate. The cache only pays above that, which is why the run reports the rate it got instead of assuming one, and why the node-warming reading in "5m versus 1h" matters: if it holds, 4,134 requests land near 99% and near the floor.
 
-Sonnet's introductory rate lapses **2026-08-31**, after which that arm goes to $4.22–$15.39 with ~$9.51 expected. `resolveModel` switches on the date on its own; nothing needs updating on the day.
+Sonnet's introductory rate lapses **2026-08-31**, after which that arm goes to $4.40–$18.86. `resolveModel` switches on the date on its own; nothing needs updating on the day.
 
-For scale, the same corpus at 30 icons per request and no caching would be about **$8.94** today — Sonnet $2.55, Opus $6.38. One icon per request is not free, and the cache is what decides how unfree: a well-cached Opus arm lands at $7.04 against that $6.38, and a badly-cached one at $25.65. What the money buys is a defect class becoming unrepresentable. On Sonnet, where the cache never engages, the premium over 30-per-request is a flat ~$3.80 with no upside case, and that is the price of the finding rather than a bug to fix — see "The Sonnet arm does not cache".
+For scale, the same corpus at 30 icons per request and no caching would be about **$9.07** today — Sonnet $2.59, Opus $6.48. One icon per request is not free, and the cache is what decides how unfree: a well-cached pair of arms lands slightly above that, a never-cached pair at roughly triple. What the money buys is a defect class becoming unrepresentable.
 
 Prices live in `invoke-api.ts` and only models whose rates were confirmed against the pricing page belong there — a guessed rate would report a run's spend as fact while being wrong about it.
 
@@ -426,8 +430,9 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 - **The n=100 paired audit was measured out of band.** The claim that no icon had both models wrong (23 had at least one error; in 21 of those the other model was accurate) has no artifact in this repo and cannot be re-derived from it. Given the 67% self-agreement finding, treat it as an indication, not a result. It is no longer the only evidence for the Opus pick — see "Auditing the shipped corpus".
 - **`choices.json` ships the Opus arm wholesale, and that is a decision rather than a placeholder.** It says `default: claude-opus-5` with no exceptions. The grounds: 9 adjudicated cross-arm conflicts going 7–1 to Opus with one wash, and Opus naming the place in all four place-outline icons where Sonnet manages one. The 20-icon random audit is weaker evidence than it looked — see "Auditing the shipped corpus" — and the displacement above is a point against Opus that Sonnet does not share, though it is a mechanical failure rather than a comprehension one. What has *not* been done is a systematic pass over all 4,134; `choices` stays empty until some icon earns an exception.
 - **The cross-arm flag pass was removed, not kept as dead code.** It ran only at 50-icon scale, its verdict files were gitignored, and it had unfixed defects — `--max-cost` skipped on a failed chunk, no consecutive-failure brake, and a verdict parser that type-checked only `name`, so a reply with non-boolean fields banked every icon as clean permanently. None of that is why it went: conditioning on disagreement cannot see correlated error, which is the failure a shared prompt makes likeliest. Anyone rebuilding it should make `runRequests` generic and reuse it rather than copying it, and should read "Two arms, and each method sees what the other cannot" first.
-- **The Sonnet arm pays for a prompt cache it cannot use — about $3.50 more than the same arm caching — and nothing here fixes it.** The prefix is 948 tokens against Sonnet 5's 1024-token minimum, and the ways to close a 76-token gap are all worse than the gap: padding is gaming a threshold, moving the schema into the prefix is impossible, and adding real instruction content means regenerating every entry. A tag vocabulary was explored as principled padding and rejected on its own merits — tags turn out to be derivable from the descriptions alone, which makes them a separate text-only job over the finished corpus rather than something to bolt onto the prefix. See "The Sonnet arm does not cache".
-- **The 948-token measurement has never been checked against a live run.** It comes from the token-counting endpoint and the documented per-model minimums, and everything downstream of it — the estimates, the Sonnet finding, step 2's pass conditions — inherits that. The first `--fetch` on a real Opus batch is what confirms or breaks it.
+- **`count_tokens` underreported the prefix by 280 tokens and nobody knows why.** It said 948; the batch billed 1,228. The gap is not a rounding artifact — it is 23% of the number, it flipped the Sonnet caching conclusion, and it means the token-counting endpoint is not a substitute for a billed measurement when the answer has to be right. Anything here that turns on prefix size should be re-derived from a real run's `written ÷ writes`, not re-measured.
+- **Sonnet caching is expected but unobserved.** At 1,228 tokens the prefix clears Sonnet 5's 1024-token minimum with 204 to spare, so that arm should cache. The prediction that it would *not* was also made confidently, from a number that turned out wrong. The first full Sonnet run settles it.
+- **The hit rate has been measured once, at n=30, and the reading of it is a hypothesis.** 15 writes in 30 requests inside a nine-minute batch says writes are not driven by window expiry; cache nodes each needing one warm-up is the likeliest explanation and predicts ~99% at 4,134 requests. It could instead be that writes scale with requests, in which case both arms land near their ceilings and `1h` is the wrong default. The full runs decide it. Until then the cost table's middle column is the honest planning number, not the floor.
 - **Rail 5 does not apply to the shipped corpus, by design.** It refuses a run that would mix two models in one file — which is exactly what promotion does on purpose. The shipped corpus carries no `.model` sidecar and should not: it is not a run target, and a run that wrote to it would be overwritten wholesale by the next `promote` anyway.
 - **`IconDebugView` is the only review surface**, and it shows only the rule icons it happens to have descriptions for, silently, in one column. Curation needs a row per rule icon with an explicit empty state and more than one description column.
 - **The rails' wiring has no tests.** Their mechanisms do: rail 1's fail-closed in `confirm.test.ts`, rail 2's ceiling in `run.test.ts`, rail 4's outstanding-batch check in `batch.test.ts`, rail 5's model guard in `store.test.ts`. What is untested is the top-level code in `gen-icon-descriptions.ts` that decides when each fires, because it only runs as a script. Extracting an args→plan function would reach it.

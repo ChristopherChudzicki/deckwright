@@ -43,10 +43,10 @@ export function formatCacheUsage(cache: CacheUsage, ttl: CacheTtl): string | nul
     // A run that asked for caching and cached nothing has found something, and
     // reporting it as silence hides it: below a model's minimum cacheable
     // length the marker is ignored without an error, which looks exactly like
-    // never having asked. Sonnet 5 needs 1024 tokens and this prefix is 948.
+    // never having asked.
     return ttl === "off"
       ? null
-      : "prompt cache: nothing cached — the prefix is below this model's minimum cacheable length";
+      : "prompt cache: nothing cached — the prefix may be below this model's minimum cacheable length";
   }
   const rate = ((cache.read / total) * 100).toFixed(1);
   return `prompt cache: ${cache.read} read, ${cache.created} written (${rate}% hit rate)`;
