@@ -17,11 +17,15 @@ export type Comparison = { verdict: Verdict; difference: string };
 // The arms are unlabelled on purpose. Told which model wrote which sentence, the
 // judge has a reason to prefer one that has nothing to do with the sentences, and
 // the whole point of the pass is to rank pairs for a human to look at.
-export const COMPARE_INSTRUCTIONS = `Two descriptions of the same icon, written independently from the same artwork. You cannot see the artwork. Judge only whether a reader of each would picture the same thing.
+export const COMPARE_INSTRUCTIONS = `Two descriptions of the same icon, written independently from the same artwork. You cannot see the artwork.
 
-agree — the same subject and the same salient details, however differently worded.
-trivial — the same subject, differing only in details a reader would not act on: the count of a repeated element, an orientation word, or how much one leaves unsaid.
-substantial — they name different subjects, or disagree about a detail that changes what a reader pictures.
+These descriptions back fuzzy text search in an icon picker, so judge by one question: would someone searching for this icon be misled? Naming the wrong subject misleads them. Getting a detail wrong about the right subject does not.
+
+agree — the same subject, with no difference worth remarking on.
+trivial — the same subject, but some detail differs: how many of a repeated element, the shape or placement of a part, what an association clause invokes, or how much one description leaves unsaid. "three knives" against "two knives" is trivial. So is "mounted in a square frame" against "ringed by a round frame" — it is a fan either way.
+substantial — they name different subjects, so a searcher would be looking for two different things. "a round robotic head" against "an abstract emblem of arcs and a spike" is substantial.
+
+Most pairs are agree or trivial. Reserve substantial for a genuine difference of subject.
 
 When the verdict is not "agree", name what differs in a few words; when it is, leave "difference" empty. Write nothing else.`;
 
