@@ -173,6 +173,7 @@ export function extractApiDescription(
 //
 // `cacheTtl` has no default on purpose: it has to be the ttl the request was
 // actually sent with, and a wrong one silently reprices every cached token.
+//
 // What every request of every kind shares: price it, classify the ways it can
 // fail before it says anything, and hand back the JSON object it did say. What
 // that object is supposed to contain is the caller's business — the icon run

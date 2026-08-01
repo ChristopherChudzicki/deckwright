@@ -346,7 +346,7 @@ FAIL and MISSING block; WARN does not. This is regex pattern matching and says n
 
 Draw a random sample, open the PNGs, and read each description against its icon. This is the measurement that decides whether an arm is good enough to ship, and it costs nothing. See "Auditing the shipped corpus" below for how to draw the sample and what to count as an error.
 
-Do this **before** reaching for any automated check. An earlier version of this pipeline included a cross-arm pass that asked a model to flag icons where the two arms disagreed; it was abandoned. "Two arms, and each method sees what the other cannot" below explains why, and it is the more useful half of the finding.
+Do this **before** the cross-arm comparison in step 9. That pass ranks the arms' disagreements for a human to read; it is conditioned on the arms differing, so it cannot see the two of them being wrong the same way. This sample is the only thing here that can. "Two arms, and each method sees what the other cannot" below is the longer version.
 
 ### 9. Curate — free, and the only step with judgement in it
 
@@ -360,6 +360,20 @@ open corpus/tmp/gallery.html
 ```
 
 It reads the arms `choices.json` names, calls no model, and writes one self-contained file with the SVGs inlined — around 10 MB for the full collection, which is why it belongs in the gitignored scratch directory. `--only <name>` narrows it to a handful. It deliberately shows *both* arms for every icon rather than only the disagreements: conditioning on disagreement cannot see correlated error, which is the failure a shared prompt makes likeliest.
+
+4,134 rows is more than anyone reads. To rank them, ask a model which pairs actually disagree:
+
+```sh
+npm run compare:icon-descriptions -- --dry-run     # counts the pairs, prices them, sends nothing
+npm run compare:icon-descriptions                  # submits; ~$2–3 for the full corpus
+npm run compare:icon-descriptions -- --fetch <batch-id>
+```
+
+It pairs every icon both arms describe, sends the two sentences with no images and no model names attached, and classifies each pair `agree`, `trivial` (same subject, differing on something a reader would not act on — a count of repeated elements, an orientation word) or `substantial` (different subjects, or a detail that changes what a reader pictures). The report lands at `corpus/tmp/disagreements.md` with both sentences quoted under each disagreement, so it reads straight through. Take it to the gallery: **the verdict says which rows to look at, the artwork says which arm is right.**
+
+Every pair goes, because there is no cheap pre-filter. Lexical overlap does not separate paraphrase from disagreement — mean Jaccard on content words is 0.265, and the zero-overlap bucket holds `french-fries` (pure paraphrase) beside `abstract-048` (a real disagreement). Sorting by overlap would drop real conflicts and spend the budget on rewordings.
+
+The prompt is one unmarked block of about 284 tokens, and `--cache-ttl` is not a flag here: Sonnet caches nothing under 1,024 tokens, and padding up to that floor would bill ~492 tokens a request at an 80% hit rate — more than the whole prompt costs uncached. Caching only pays once the prefix you actually need is larger than the floor's amortised cost, which the icon prompt's 1,228 tokens clear and this one does not.
 
 The output is `corpus/choices.json`, which records which model won:
 
@@ -412,7 +426,11 @@ Neither available method is sufficient alone, and their blind spots are compleme
 
 So: run the random audit for judgement about the artwork, and the alignment gate for mechanical divergence. Curation still needs **image + name + both texts**, never the two texts alone.
 
-A separate cross-arm *flag* pass — an LLM judging whether the arms disagree — was built and removed. It worked as specified: a seeded 50-icon sample flagged 13 icons at ~$0.054, extrapolating to ~1,000 icons and ~$4.50, corroborating the out-of-band n=100 audit's 23% error rate by a different method. It went because it cost $4.45 to answer a question a deterministic lexical comparison answers for free and more precisely — the gate in `alignment.ts` found both displaced runs exactly, with no model call and no false positives. Its verdict files were never committed, so the 13-of-50 figure is an out-of-band measurement like the n=100 audit: an indication, not something this repo can re-derive.
+An earlier cross-arm *flag* pass — an LLM judging whether the arms disagree — was built and removed, and it is worth being clear about which of its two jobs came back. It was sold as a way to find *defects*, and at that it lost outright: it cost $4.45 to answer a question `alignment.ts` answers for free and more precisely, finding both displaced runs exactly with no model call and no false positives. A conditioned check cannot see correlated error either way. That verdict stands, and nothing about the pass in step 9 disturbs it.
+
+What came back is the other job: **ranking 4,134 rows so a human knows which to open.** That is not a measurement and is not competing with the alignment gate — it is a reading order for the gallery, and no deterministic check produces one, since lexical overlap does not track meaning here. It is also much cheaper than the removed pass, at ~$2–3 for the whole corpus against $4.45 for an extrapolation over ~1,000 icons, because the pairs are text-only, the prompt is short, and every request goes through the Batch API at half rate.
+
+The removed pass's own numbers were an out-of-band measurement: a seeded 50-icon sample flagged 13 icons at ~$0.054, corroborating the n=100 audit's 23% error rate by a different method. Its verdict files were never committed, so that figure is an indication, not something this repo can re-derive.
 
 ## Comparing model outputs — read this before running any comparison
 
@@ -464,7 +482,8 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 - **`metal-hand` and `stone-bust` came back holding each other's descriptions**, at adjacent request indices in the same Opus request. A mutual swap is invisible to the shift detector by construction: it asks whether description *k* resembles reference *k−1*, and a swap presents as a run of length 1, below the run-length floor. A detector for it was designed and measured — 1 hit across 4,134 at margin 0.05, zero false positives — and deliberately not built, because one icon per request retires the whole class. The two icons are pinned in `choices.json` instead. Anyone reintroducing grouping needs that detector as well as the gate.
 - **The n=100 paired audit was measured out of band.** The claim that no icon had both models wrong (23 had at least one error; in 21 of those the other model was accurate) has no artifact in this repo and cannot be re-derived from it. Given the 67% self-agreement finding, treat it as an indication, not a result. It is no longer the only evidence for the Opus pick — see "Auditing the shipped corpus".
 - **`choices.json` ships the Opus arm wholesale, and that is a decision rather than a placeholder.** It says `default: claude-opus-5` with no exceptions. The grounds: 9 adjudicated cross-arm conflicts going 7–1 to Opus with one wash, and Opus naming the place in all four place-outline icons where Sonnet manages one. The 20-icon random audit is weaker evidence than it looked — see "Auditing the shipped corpus" — and the displacement above is a point against Opus that Sonnet does not share, though it is a mechanical failure rather than a comprehension one. What has *not* been done is a systematic pass over all 4,134; `choices` stays empty until some icon earns an exception.
-- **The cross-arm flag pass was removed, not kept as dead code.** It ran only at 50-icon scale, its verdict files were gitignored, and it had unfixed defects — `--max-cost` skipped on a failed chunk, no consecutive-failure brake, and a verdict parser that type-checked only `name`, so a reply with non-boolean fields banked every icon as clean permanently. None of that is why it went: conditioning on disagreement cannot see correlated error, which is the failure a shared prompt makes likeliest. Anyone rebuilding it should make `runRequests` generic and reuse it rather than copying it, and should read "Two arms, and each method sees what the other cannot" first.
+- **The comparison pass in step 9 has no live run behind it.** Its parts are tested and a `--dry-run` prices the full corpus at $2.00 against 284 counted input tokens per pair, but nothing has been submitted, so the verdict distribution, the real bill, and how well `trivial` versus `substantial` matches human judgement are all unmeasured. The floor also omits thinking, which is billed as output at 5× the input rate — expect to overshoot it.
+- **The pass that preceded it was removed for a reason that still holds.** It ran only at 50-icon scale, its verdict files were gitignored, and it had unfixed defects — `--max-cost` skipped on a failed chunk, no consecutive-failure brake, and a verdict parser that type-checked only `name`, so a reply with non-boolean fields banked every icon as clean permanently. None of that is why it went: conditioning on disagreement cannot see correlated error. The new pass shares that blind spot and does not claim otherwise; it is a reading order, not a measurement, and its report says so in its own header.
 - **`count_tokens` underreported the prefix by 280 tokens and nobody knows why.** It said 948; the batch billed 1,228. The gap is not a rounding artifact — it is 23% of the number, it flipped the Sonnet caching conclusion, and it means the token-counting endpoint is not a substitute for a billed measurement when the answer has to be right. Anything here that turns on prefix size should be re-derived from a real run's `written ÷ writes`, not re-measured.
 - **Why writes scale the way they do is unexplained, and it varies more between arms than the scaling story suggests.** 15 writes at 30 requests, then 698 and 1,486 at 4,134 — sublinear, but far from the fixed count a simple pool of cache nodes would give, and the two full arms differ by a factor of 2.1 at identical size, window, and time of night. Plan against 60–85%, read the cache line, and update the table rather than the model. Whether `5m` changes any of this is unmeasured: it is now the default on the strength of the *cause* of those writes not being expiry, which is an argument rather than an observation.
 - **The reply's `name` field is a vestige carrying a smaller job than it was built for.** At 30 icons per request it was the key. Now `custom_id` is, and the echo only audits *that* — it cannot catch a wrong image, since the PNG and its label come from one variable. Designed fresh, the schema would probably carry no name at all: one less thing to get wrong, and a shorter prefix. Removing it means editing the prompt, which means regenerating both arms, so it stays.
@@ -479,7 +498,9 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 | `../gen-icon-descriptions.ts` | entry point: rails, mode dispatch |
 | `../promote-icon-descriptions.ts` | entry point: arms + choices → the shipped corpus |
 | `../icon-gallery.ts` | entry point: arms → a standalone HTML review page |
+| `../compare-arms.ts` | entry point: two arms → a batch of pairwise verdicts → the disagreement report |
 | `gallery.ts` | icons + arms + choices → the page's markup |
+| `compare.ts` | the comparison prompt and schema, pairing, verdict extraction, report markup |
 | `cli.ts` | flag definitions, coercion, mode exclusivity, corpus path defaults |
 | `confirm.ts` | y/N prompt; false when there is no TTY |
 | `prompt.ts` | the prompt. See above before editing |
@@ -487,7 +508,7 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 | `rasterize.ts` | icon → cached PNG |
 | `invoke.ts` | `cli` transport |
 | `invoke-api.ts` | `api` transport, model pricing, cost estimates |
-| `batch.ts` | `batch` transport: submit, record, collect |
+| `batch.ts` | `batch` transport: submit, record, collect. Generic over the payload, so descriptions and verdicts share it |
 | `run.ts` | per-icon request loop, retries, running cost, cache totals, `--max-cost` abort |
 | `store.ts` | corpus read/merge/write, model sidecar |
 | `promote.ts` | `choices.json` → which model's description each icon ships |

@@ -24,7 +24,8 @@
     "gen:og": "tsx scripts/generate-og.ts",
     "gen:icon-descriptions": "tsx scripts/gen-icon-descriptions.ts",
     "promote:icon-descriptions": "tsx scripts/promote-icon-descriptions.ts",
-    "gallery:icon-descriptions": "tsx scripts/icon-gallery.ts"
+    "gallery:icon-descriptions": "tsx scripts/icon-gallery.ts",
+    "compare:icon-descriptions": "tsx scripts/compare-arms.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
