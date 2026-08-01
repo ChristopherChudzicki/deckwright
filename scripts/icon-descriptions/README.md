@@ -96,7 +96,7 @@ The instruction block is invariant — 2,933 characters, **1,228 tokens**, ident
 
 **It is read off a bill, not off a tokenizer, and that took three tries.** Dividing the character count by 3.7 gave 793. The token-counting endpoint gave 948. The first live batch reported 18,420 cache-creation and 18,420 cache-read tokens over 30 requests — 15 writes and 15 reads of 1,228 each — and that is the figure the API charges for. Why `count_tokens` underreports by 280 is unexplained; the billed number governs, and a prompt change means re-deriving it the same way rather than re-measuring it.
 
-Three runs have now confirmed it, and the arithmetic is exact rather than approximate. The full Sonnet arm billed 857,144 written and 4,219,408 read, which is **698 and 3,436 prefixes of 1,228** — summing to 4,134, the request count, with nothing left over. A two-icon `api` run wrote 1,228 and read 1,228. Any run's `written ÷ writes` re-derives the constant, which is why the cache line is worth reading even when the hit rate is fine.
+Four runs have now confirmed it, and the arithmetic is exact rather than approximate. The full Sonnet arm billed 857,144 written and 4,219,408 read, which is **698 and 3,436 prefixes of 1,228** — summing to 4,134, the request count, with nothing left over. The full Opus arm billed 1,824,808 and 3,251,744, which is **1,486 and 2,648**, again summing to exactly 4,134. A two-icon `api` run wrote 1,228 and read 1,228. Any run's `written ÷ writes` re-derives the constant, which is why the cache line is worth reading even when the hit rate is fine.
 
 So the API path leads with the instructions and marks them `cache_control`, rather than trailing them after the images as the first arms did. **Order is what makes caching possible at all**: the cache key is everything up to and including the marked block, so a single per-request byte ahead of it would change the key on every request and never hit. `ATTACHED_INSTRUCTIONS` is that prefix, and nothing about it may vary with the request.
 
@@ -124,9 +124,9 @@ The comparison that decides it is the two windows against *each other*, not each
 |---|---|---|---|---|
 | smoke, Opus | 30 | 15 | 50.0% | 9 min |
 | full arm, Sonnet | 4,134 | 698 | **83.1%** | 12 min |
-| full arm, Opus | 4,134 | ~1,490 | **64.0%** | 10 min |
+| full arm, Opus | 4,134 | 1,486 | **64.1%** | 10 min |
 
-An hour-long window cannot expire inside a twelve-minute run, so **every write in that table was paid for something other than expiry.** Whatever the short window would have changed, it would not have changed those. Priced against what `1h` actually billed, `5m` only has to hold **40.5%** on the Opus arm or **72.1%** on Sonnet to come out ahead — against the 64.0% and 83.1% the hour delivered. At those rates it saves about **$3.43** on an Opus arm and **$0.64** on Sonnet.
+An hour-long window cannot expire inside a twelve-minute run, so **every write in that table was paid for something other than expiry.** Whatever the short window would have changed, it would not have changed those. Repricing the Opus arm's actual 1,486 writes and 2,648 reads at 5m gives **$12.57 against the $15.99 the hour modelled** — a $3.42 saving on one arm, for a window that arm never used. The break-even is a long way off: 5m loses only if it writes more than 1.65× as often, which on that arm means more than **2,452** writes, a hit rate below 40.7%. On Sonnet the same threshold is 72.1%, against the 83.1% it delivered.
 
 What makes that the right default rather than a gamble is that the downside is bounded: a prefix written and never once re-read bills 1.25× against 1× for `off`, so the worst case is a 25% overpay on the prefix — about $3 on an Opus arm — and not a blowup. The upside is bounded too. This flag is worth a few dollars either way.
 
@@ -134,7 +134,7 @@ What makes that the right default rather than a gamble is that the downside is b
 
 **What a batch's writes are actually caused by, and how the rate scales.** Since expiry is ruled out, how a batch is spread across cache nodes is the likeliest cause, each one needing warming before anything routed to it can hit. That does not mean a fixed pool: a fixed pool would predict the same ~15 writes at any size and a 99.6% hit rate on a full arm, where 138× the requests instead produced 47× the writes. Writes grow **sublinearly but not negligibly**.
 
-The two full arms are the caution against reading any of this as a law. Same request count, same window, same evening, and they came in 19 points apart — 83.1% against 64.0%. **Plan a full run at 60–85% and read the line afterwards**; nothing here predicts which end.
+The two full arms are the caution against reading any of this as a law. Same request count, same window, same evening, and they came in 19 points apart — 83.1% against 64.1%. **Plan a full run at 60–85% and read the line afterwards**; nothing here predicts which end.
 
 `off` sends no marker at all rather than a shorter one, because a marked block pays the write premium whether or not anything ever re-reads it. That premium is real, and it is what the short window mostly buys back: break-even against no cache at all is a **52.6%** hit rate under `1h` but only **21.7%** under `5m`. The 30-request smoke came in at 50.0% — under `1h` that was the wrong side of the line, and under the new default it is comfortably the right one. Reach for `off` deliberately, on a run short enough that the prefix will never be re-read.
 
@@ -298,14 +298,14 @@ Expect **4,134 requests, one icon each**, and these ranges at the default `5m`:
 
 | arm | printed range | expect | billed at `1h` on 2026-08-01 |
 |---|---|---|---|
-| Sonnet | $2.93–$8.77 | ~$4 | **$5.046** at 83.1% |
-| Opus | $7.33–$21.92 | ~$13 | at 64.0% |
+| Sonnet | $2.93–$8.77 | ~$4.50 | **$5.046** at 83.1% |
+| Opus | $7.33–$21.92 | ~$14 | **$17.519** at 64.1% |
 
-Read the ceiling as a bound rather than a forecast: it prices 4,134 write premiums, and the Sonnet arm wrote 698. The billed column is what the two arms cost under the old `1h` default, kept because it is the only measured data there is — the expectation column reprices those same hit rates at `5m`.
+Read the ceiling as a bound rather than a forecast: it prices 4,134 write premiums, and the arms wrote 698 and 1,486. The billed column is what the two arms cost under the old `1h` default, kept because it is the only measured data there is — the expectation column reprices those same runs at `5m` and adds thinking.
 
 **`--max-cost` compares against the ceiling, so size it there and not against the expectation.** `--max-cost 20` refuses the Opus submit outright, even though that run should cost around $13 — a rail behaving correctly, and an easy way to lose an afternoon. Have headroom above the ceiling available before submitting Opus, or submit without a ceiling and accept that nothing will stop it. This is the last free look.
 
-**Do not carry one arm's hit rate over to the other.** Budgeting Opus at Sonnet's 83.1% put its expected spend at $12.70 when the run actually cached at 64.0% and billed against $16.01. The arms are not interchangeable evidence.
+**Do not carry one arm's hit rate over to the other.** Budgeting Opus at Sonnet's 83.1% put its expected spend at $12.70; it cached at 64.1% and billed **$17.519**, a 38% miss. The arms are not interchangeable evidence.
 
 ### 4. Submit both
 
@@ -429,17 +429,17 @@ A random audit measures whether the *model* understands the artwork. It is close
 
 ## Cost
 
-A full run of both arms on `batch` at the default `5m`, before Sonnet's introductory rate lapses. Each arm is priced at the hit rate it actually measured — 83.1% for Sonnet, 64.0% for Opus:
+A full run of both arms on `batch` at the default `5m`, before Sonnet's introductory rate lapses. Each arm is priced at the hit rate it actually measured — 83.1% for Sonnet, 64.1% for Opus:
 
-| arm | `--dry-run` prints | at its measured rate | what `1h` billed there | with `--cache-ttl off` |
+| arm | `--dry-run` prints | at its measured rate | what `1h` modelled | with `--cache-ttl off` |
 |---|---|---|---|---|
 | Sonnet | $2.93–$8.77 | $3.92 | $4.56 | $7.50 |
-| Opus | $7.33–$21.92 | $12.58 | $16.01 | $18.75 |
-| both | $10.26–$30.69 | $16.50 | $20.57 | $26.25 |
+| Opus | $7.33–$21.92 | $12.57 | $15.99 | $18.75 |
+| both | $10.26–$30.69 | $16.49 | $20.55 | $26.25 |
 
-Every figure counts image and text tokens only, and nothing for thinking tokens, so even the ceiling is not a hard ceiling. Budget about **25 output tokens per request** for thinking on top — measured at 23.6 on the Sonnet arm and 24.8 on the Opus smoke. All the token figures come from `estimateCost`, so `--dry-run` is the authority and this table is a copy; if the two disagree, the code is right.
+Every figure counts image and text tokens only, and nothing for thinking tokens, so even the ceiling is not a hard ceiling. Budget **~25 output tokens per request on Sonnet and ~30 on Opus** for thinking on top — 23.6 measured on the Sonnet arm, 29.5 on the Opus arm. All the token figures come from `estimateCost`, so `--dry-run` is the authority and this table is a copy; if the two disagree, the code is right.
 
-**The Sonnet arm billed $5.046 against a $4.56 model** — the gap is the thinking. Take that as the calibration: the measured-rate column plus thinking is the number to plan against, and it is nowhere near either end of the printed range.
+**Both arms billed above their models, and the gap is the thinking:** Sonnet $5.046 against $4.56, Opus $17.519 against $15.99. Take that as the calibration — the measured-rate column plus thinking is the number to plan against, and it is nowhere near either end of the printed range. On Opus at `5m` that is $12.57 plus $1.53 of thinking, so about **$14.10** — against the $17.519 the same run billed at `1h`.
 
 The width of that range is entirely the prefix cache: the low end assumes every request after the first re-reads the instructions, the high end assumes each one writes them again at the window's premium. Neither happens. The fourth column is what the same runs cost under the old `1h` default; the roughly $4 between the two is the whole reason for the change — see "5m versus 1h".
 
@@ -457,7 +457,7 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 - **`choices.json` ships the Opus arm wholesale, and that is a decision rather than a placeholder.** It says `default: claude-opus-5` with no exceptions. The grounds: 9 adjudicated cross-arm conflicts going 7–1 to Opus with one wash, and Opus naming the place in all four place-outline icons where Sonnet manages one. The 20-icon random audit is weaker evidence than it looked — see "Auditing the shipped corpus" — and the displacement above is a point against Opus that Sonnet does not share, though it is a mechanical failure rather than a comprehension one. What has *not* been done is a systematic pass over all 4,134; `choices` stays empty until some icon earns an exception.
 - **The cross-arm flag pass was removed, not kept as dead code.** It ran only at 50-icon scale, its verdict files were gitignored, and it had unfixed defects — `--max-cost` skipped on a failed chunk, no consecutive-failure brake, and a verdict parser that type-checked only `name`, so a reply with non-boolean fields banked every icon as clean permanently. None of that is why it went: conditioning on disagreement cannot see correlated error, which is the failure a shared prompt makes likeliest. Anyone rebuilding it should make `runRequests` generic and reuse it rather than copying it, and should read "Two arms, and each method sees what the other cannot" first.
 - **`count_tokens` underreported the prefix by 280 tokens and nobody knows why.** It said 948; the batch billed 1,228. The gap is not a rounding artifact — it is 23% of the number, it flipped the Sonnet caching conclusion, and it means the token-counting endpoint is not a substitute for a billed measurement when the answer has to be right. Anything here that turns on prefix size should be re-derived from a real run's `written ÷ writes`, not re-measured.
-- **Why writes scale the way they do is unexplained.** 15 writes at 30 requests, 698 at 4,134 — sublinear, but far from the fixed count a simple pool of cache nodes would give. Both numbers are single observations on single batches, and nothing here predicts the Opus arm's rate. Plan against ~83%, read the cache line, and update the table rather than the model.
+- **Why writes scale the way they do is unexplained, and it varies more between arms than the scaling story suggests.** 15 writes at 30 requests, then 698 and 1,486 at 4,134 — sublinear, but far from the fixed count a simple pool of cache nodes would give, and the two full arms differ by a factor of 2.1 at identical size, window, and time of night. Plan against 60–85%, read the cache line, and update the table rather than the model. Whether `5m` changes any of this is unmeasured: it is now the default on the strength of the *cause* of those writes not being expiry, which is an argument rather than an observation.
 - **The reply's `name` field is a vestige carrying a smaller job than it was built for.** At 30 icons per request it was the key. Now `custom_id` is, and the echo only audits *that* — it cannot catch a wrong image, since the PNG and its label come from one variable. Designed fresh, the schema would probably carry no name at all: one less thing to get wrong, and a shorter prefix. Removing it means editing the prompt, which means regenerating both arms, so it stays.
 - **Rail 5 does not apply to the shipped corpus, by design.** It refuses a run that would mix two models in one file — which is exactly what promotion does on purpose. The shipped corpus carries no `.model` sidecar and should not: it is not a run target, and a run that wrote to it would be overwritten wholesale by the next `promote` anyway.
 - **`IconDebugView` is the only review surface**, and it shows only the rule icons it happens to have descriptions for, silently, in one column. Curation needs a row per rule icon with an explicit empty state and more than one description column.
