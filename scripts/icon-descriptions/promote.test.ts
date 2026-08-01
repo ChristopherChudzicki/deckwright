@@ -81,8 +81,12 @@ describe("readChoices", () => {
   });
 });
 
+// Named as the default rather than as a choice, so the missing model is the
+// first one looked up. Naming it as a choice would reach it only after the
+// default's corpus loaded, which makes the assertion depend on which arms
+// happen to be on disk — and it broke the moment one was retired for a re-run.
 test("loadArms names the corpus a model has no file for", () => {
-  expect(() => loadArms(choosing({ fireball: "claude-haiku-4-5" }))).toThrow(
+  expect(() => loadArms({ default: "claude-haiku-4-5", choices: {} })).toThrow(
     /no corpus at .*claude-haiku-4-5\.json/,
   );
 });
