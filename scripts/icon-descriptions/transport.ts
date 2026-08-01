@@ -21,12 +21,16 @@ export type DescribeIcon = (
 // How long a cached prefix survives, or `off` to send none. Reads cost a tenth
 // of an ordinary input token under either window, so the choice is only about
 // the write — and the windows compare against each other rather than against no
-// cache at all. Per write 5m bills 1.15x where 1h bills 1.9x, so 5m is cheaper
-// only if it writes fewer than 1.65 times as often. Every hit refreshes the
-// window for free, so a run that keeps touching its prefix holds either one; but
-// the batch endpoint schedules requests as it likes and promises no such
-// continuity. Winning that bet saves cents and losing it costs dollars, which is
-// why the default takes the longer window.
+// cache at all. Net of the read it displaces, 5m bills 1.15x where 1h bills
+// 1.9x, so 5m is cheaper unless it writes more than 1.65 times as often.
+//
+// The default is the short window because the runs are short: both 4,134-icon
+// arms finished inside 13 minutes, so nothing an hour long could have expired
+// and every write they paid for had some other cause. Priced against what those
+// runs actually billed, 5m need only hold 40.5% on Opus or 72.1% on Sonnet to
+// win. Losing that bet is bounded — a prefix written and never re-read bills
+// 1.25x against 1x for `off`. Reach for `1h` on a batch that queues for hours,
+// where a window can genuinely lapse mid-run.
 export type CacheTtl = "5m" | "1h" | "off";
 
 export const addCacheUsage = (total: CacheUsage, next?: CacheUsage): CacheUsage => ({

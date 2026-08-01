@@ -77,11 +77,11 @@ describe("coercion", () => {
 
   // A window the API does not recognize would be sent verbatim and rejected per
   // request, and a misspelt one would silently reprice the whole run. The default
-  // is the longer window: 5m only wins if it writes the prefix barely more often
-  // than 1h would, which saves cents, and loses dollars when it does not hold.
-  test("rejects an unknown --cache-ttl, and defaults to the window that survives a gap", () => {
+  // is the short window because it bills 1.25x per write against 2x, and the runs
+  // that pay for it have all finished inside 13 minutes.
+  test("rejects an unknown --cache-ttl, and defaults to the cheaper window", () => {
     expect(() => parse("--cache-ttl", "10m")).toThrow("must be one of: 5m, 1h, off");
-    expect(parse().cacheTtl).toBe("1h");
+    expect(parse().cacheTtl).toBe("5m");
   });
 
   test("collects a repeated --only", () => {

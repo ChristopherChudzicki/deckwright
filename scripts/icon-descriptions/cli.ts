@@ -130,7 +130,7 @@ export function buildProgram() {
           }
           return raw as CacheTtl;
         },
-        "1h" as CacheTtl,
+        "5m" as CacheTtl,
       )
       .option("--size <px>", "PNG render size", positiveInt, DEFAULT_RENDER_SIZE)
       .option("--max-cost <usd>", "spend ceiling", positiveDollars)
