@@ -15,7 +15,7 @@ import {
   submitBatch,
   writeRecord,
 } from "./batch";
-import { buildRequestParams } from "./invoke-api";
+import { buildRequestParams, extractDescription } from "./invoke-api";
 import type { CacheTtl } from "./transport";
 
 const BATCHES_URL = "https://api.anthropic.com/v1/messages/batches";
@@ -78,9 +78,11 @@ describe("readResults", () => {
         succeeded("broadsword", "A straight blade."),
       ),
       record(["fireball", "broadsword"]),
+
+      extractDescription,
     );
 
-    expect(collected.descriptions).toEqual({
+    expect(collected.values).toEqual({
       fireball: "A ball of flame.",
       broadsword: "A straight blade.",
     });
@@ -106,9 +108,11 @@ describe("readResults", () => {
         succeeded("broadsword", "A straight blade."),
       ),
       record(["fireball", "broadsword"]),
+
+      extractDescription,
     );
 
-    expect(collected.descriptions).toEqual({ broadsword: "A straight blade." });
+    expect(collected.values).toEqual({ broadsword: "A straight blade." });
     expect(collected.failures).toEqual(["fireball: errored — too large"]);
   });
 
@@ -119,9 +123,11 @@ describe("readResults", () => {
     const collected = readResults(
       jsonl(succeeded("fireball", "A ball of flame.")),
       record(["fireball", "broadsword"]),
+
+      extractDescription,
     );
 
-    expect(collected.descriptions).toEqual({ fireball: "A ball of flame." });
+    expect(collected.values).toEqual({ fireball: "A ball of flame." });
     expect(collected.failures).toEqual([expect.stringContaining("broadsword")]);
   });
 
@@ -129,9 +135,11 @@ describe("readResults", () => {
     const collected = readResults(
       `${succeeded("fireball", "A ball of flame.")}\n{"custom_id": "broadsw`,
       record(["fireball"]),
+
+      extractDescription,
     );
 
-    expect(collected.descriptions).toEqual({ fireball: "A ball of flame." });
+    expect(collected.values).toEqual({ fireball: "A ball of flame." });
     expect(collected.failures).toEqual([expect.stringContaining("line 2")]);
   });
 
@@ -153,6 +161,8 @@ describe("readResults", () => {
         }),
       ),
       { ...record(["fireball", "broadsword"]), cacheTtl: "1h" },
+
+      extractDescription,
     );
 
     expect(collected.cache).toEqual({ created: 800, read: 800 });
@@ -179,9 +189,11 @@ describe("readResults", () => {
         }),
       ),
       { ...record(["fireball"]), cacheTtl: "1h" },
+
+      extractDescription,
     );
 
-    expect(collected.descriptions).toEqual({});
+    expect(collected.values).toEqual({});
     expect(collected.cost).toBeCloseTo(COST_PER_REQUEST + 0.00008, 6);
     expect(collected.cache).toEqual({ created: 0, read: 800 });
     expect(collected.failures).toEqual([expect.stringContaining("max_tokens")]);
@@ -193,9 +205,11 @@ describe("readResults", () => {
     const collected = readResults(
       jsonl(succeeded("fireball", "A ball of flame.", USAGE, "firebal")),
       record(["fireball"]),
+
+      extractDescription,
     );
 
-    expect(collected.descriptions).toEqual({});
+    expect(collected.values).toEqual({});
     expect(collected.failures).toEqual([expect.stringContaining("named no requested icon")]);
   });
 });
@@ -321,7 +335,7 @@ describe("submitBatch", () => {
   const submit = (icons: string[], cacheTtl: CacheTtl = "1h") =>
     submitBatch({
       icons,
-      pngDir,
+      buildParams: (name) => buildRequestParams(name, pngDir, "claude-sonnet-5", cacheTtl),
       modelId: "claude-sonnet-5",
       price: PRICE,
       cacheTtl,
@@ -391,7 +405,7 @@ describe("collectBatch", () => {
       http.get(RESULTS_URL, results),
     );
 
-    const collected = await collectBatch(record([]), "sk-test");
+    const collected = await collectBatch(record([]), "sk-test", extractDescription);
 
     expect(collected).toEqual({ ended: false, status: "in_progress" });
     expect(results).not.toHaveBeenCalled();
@@ -405,11 +419,11 @@ describe("collectBatch", () => {
       ),
     );
 
-    const collected = await collectBatch(record(["fireball"]), "sk-test");
+    const collected = await collectBatch(record(["fireball"]), "sk-test", extractDescription);
 
     expect(collected).toMatchObject({
       ended: true,
-      descriptions: { fireball: "A ball of flame." },
+      values: { fireball: "A ball of flame." },
     });
   });
 
@@ -421,7 +435,7 @@ describe("collectBatch", () => {
       http.get(RESULTS_URL, () => HttpResponse.text("gateway error", { status: 502 })),
     );
 
-    await expect(collectBatch(record([]), "sk-test")).rejects.toThrow(
+    await expect(collectBatch(record([]), "sk-test", extractDescription)).rejects.toThrow(
       /Downloading results.*HTTP 502/,
     );
   });
@@ -431,6 +445,8 @@ describe("collectBatch", () => {
       http.get(`${BATCHES_URL}/msgbatch_01`, () => HttpResponse.text("gone", { status: 404 })),
     );
 
-    await expect(collectBatch(record([]), "sk-test")).rejects.toThrow(/Retrieving batch.*HTTP 404/);
+    await expect(collectBatch(record([]), "sk-test", extractDescription)).rejects.toThrow(
+      /Retrieving batch.*HTTP 404/,
+    );
   });
 });

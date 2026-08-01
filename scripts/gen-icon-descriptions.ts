@@ -22,9 +22,11 @@ import { confirm } from "./icon-descriptions/confirm";
 import { assertClaudeAvailable, describeIcon } from "./icon-descriptions/invoke";
 import {
   assertApiKey,
+  buildRequestParams,
   canonicalModel,
   describeIconApi,
   estimateCost,
+  extractDescription,
   type Price,
   pricingFor,
 } from "./icon-descriptions/invoke-api";
@@ -136,7 +138,7 @@ process.on("SIGHUP", () => process.exit(129));
 if (values.fetch !== undefined) {
   try {
     const record = readRecord(BATCH_DIR, values.fetch);
-    const collected = await collectBatch(record, assertApiKey());
+    const collected = await collectBatch(record, assertApiKey(), extractDescription);
     if (!collected.ended) {
       console.log(
         `Batch ${record.id} is ${collected.status}; re-run --fetch later. ` +
@@ -145,7 +147,7 @@ if (values.fetch !== undefined) {
       process.exit(0);
     }
 
-    const { accepted, dropped } = acceptCollected(collected.descriptions, validateEntry);
+    const { accepted, dropped } = acceptCollected(collected.values, validateEntry);
     // The record's own path, not this run's --out: the submit chose where these
     // descriptions belong, and the model that wrote them cannot be changed now.
     mergeDescriptions(record.out, accepted, canonicalModel(record.model));
@@ -347,7 +349,7 @@ if (transport === "batch") {
   try {
     const record = await submitBatch({
       icons,
-      pngDir,
+      buildParams: (name) => buildRequestParams(name, pngDir, modelId, cacheTtl),
       modelId,
       price: rate,
       cacheTtl,

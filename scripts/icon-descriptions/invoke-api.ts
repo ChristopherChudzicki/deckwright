@@ -173,12 +173,23 @@ export function extractApiDescription(
 //
 // `cacheTtl` has no default on purpose: it has to be the ttl the request was
 // actually sent with, and a wrong one silently reprices every cached token.
-export function extractMessage(
+// What every request of every kind shares: price it, classify the ways it can
+// fail before it says anything, and hand back the JSON object it did say. What
+// that object is supposed to contain is the caller's business — the icon run
+// wants a description, the cross-arm comparison wants a verdict, and neither
+// concern belongs in the billing and stop_reason handling both depend on.
+export type ExtractedPayload = {
+  output: object;
+  cost: number;
+  thinkingTokens?: number;
+  cache: CacheUsage;
+};
+
+export function extractPayload(
   message: unknown,
-  name: string,
   price: Price,
   cacheTtl: CacheTtl,
-): IconResult {
+): ExtractedPayload {
   const payload = (message ?? {}) as Payload;
   const snippet = () => JSON.stringify(message)?.slice(0, 200);
 
@@ -241,12 +252,25 @@ export function extractMessage(
   if (typeof output !== "object" || output === null || Array.isArray(output)) {
     throw failed(`text block is not a JSON object: ${text.slice(0, 200)}`);
   }
+  return { output, cost, thinkingTokens, cache };
+}
+
+export function extractMessage(
+  message: unknown,
+  name: string,
+  price: Price,
+  cacheTtl: CacheTtl,
+): IconResult {
+  const { output, cost, thinkingTokens, cache } = extractPayload(message, price, cacheTtl);
+  const failed = (detail: string) => requestFailure(detail, { cost, cache });
+  const snippet = JSON.stringify(output).slice(0, 200);
+
   // Without this a reply carrying no `descriptions` array is indistinguishable
   // from one carrying an empty list, and under `batch` that is recorded as a
   // succeeded request with nothing merged and nothing in `failures` — a paid
   // request lost silently, which is what the schema exists to prevent.
   if (!Array.isArray((output as { descriptions?: unknown }).descriptions)) {
-    throw failed(`text block carries no "descriptions" array: ${text.slice(0, 200)}`);
+    throw failed(`text block carries no "descriptions" array: ${snippet}`);
   }
 
   const description = pickDescription(output, name);
@@ -254,11 +278,22 @@ export function extractMessage(
   // not ask for is not a shortfall to re-describe later — it is a paid answer
   // with nothing in it, which would otherwise be dropped without a word.
   if (description === null) {
-    throw failed(`response named no requested icon (${name}): ${text.slice(0, 200)}`);
+    throw failed(`response named no requested icon (${name}): ${snippet}`);
   }
 
   return { description, cost, thinkingTokens, cache };
 }
+
+// The shape `readResults` consumes, so `batch.ts` carries nothing icon-specific.
+export const extractDescription = (
+  message: unknown,
+  name: string,
+  price: Price,
+  cacheTtl: CacheTtl,
+): { value: string; cost: number; cache: CacheUsage } => {
+  const { description, cost, cache } = extractMessage(message, name, price, cacheTtl);
+  return { value: description, cost, cache: cache ?? { created: 0, read: 0 } };
+};
 
 // Over HTTP the bytes are inline and nothing carries a filename, so each image
 // is preceded by its own name. With one image per request that label is

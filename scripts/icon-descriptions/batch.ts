@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { apiHeaders, buildRequestParams, extractMessage, type Price } from "./invoke-api";
+import { apiHeaders, type Price } from "./invoke-api";
 import {
   addCacheUsage,
   type CacheTtl,
@@ -136,7 +136,12 @@ async function assertOk(response: Response, what: string): Promise<string> {
 
 export async function submitBatch(opts: {
   icons: readonly string[];
-  pngDir: string;
+  // What one request's body should be for a given id. A callback rather than a
+  // fixed builder because two kinds of batch now go through here — an icon and
+  // its PNG, and a pair of descriptions to compare — and everything below this
+  // line is the same for both: the pending record, the failure modes of the
+  // POST, and the mapping that makes a batch collectable at all.
+  buildParams: (id: string) => Promise<Record<string, unknown>>;
   modelId: string;
   price: Price;
   cacheTtl: CacheTtl;
@@ -144,10 +149,10 @@ export async function submitBatch(opts: {
   key: string;
   recordDir: string;
 }): Promise<BatchRecord> {
-  const { icons, pngDir, modelId, price, cacheTtl, out, key, recordDir } = opts;
+  const { icons, buildParams, modelId, price, cacheTtl, out, key, recordDir } = opts;
 
-  // Built one at a time: each request reads and base64-encodes its own PNG, and
-  // resolving them all concurrently would hold 4,134 file descriptors open.
+  // Built one at a time: each icon request reads and base64-encodes its own PNG,
+  // and resolving them all concurrently would hold 4,134 file descriptors open.
   //
   // custom_id must match ^[a-zA-Z0-9_-]{1,64}$, which every icon name does — the
   // longest is 33 characters — so with one icon per request the name itself ties
@@ -155,10 +160,7 @@ export async function submitBatch(opts: {
   // in any order, which is why the tie has to be carried explicitly.
   const requests = [];
   for (const name of icons) {
-    requests.push({
-      custom_id: name,
-      params: await buildRequestParams(name, pngDir, modelId, cacheTtl),
-    });
+    requests.push({ custom_id: name, params: await buildParams(name) });
   }
 
   const submittedAt = new Date().toISOString();
@@ -223,18 +225,32 @@ type ResultLine = {
   result?: { type?: unknown; message?: unknown; error?: { error?: { message?: unknown } } };
 };
 
-export type Collected = {
-  descriptions: Record<string, string>;
+export type Collected<T> = {
+  values: Record<string, T>;
   cost: number;
   cache: CacheUsage;
   failures: string[];
 };
 
+// How a succeeded message becomes the thing this batch was for. It throws to
+// reject a paid-for reply, and the throw carries the cost so the total still
+// counts it — see `requestFailure`.
+export type ExtractValue<T> = (
+  message: unknown,
+  id: string,
+  price: Price,
+  cacheTtl: CacheTtl,
+) => { value: T; cost: number; cache: CacheUsage };
+
 // Pure so the envelope handling can be tested without a server: the JSONL is
 // the only place per-request outcomes (errored, canceled, expired) surface, and
 // the only place a batch's cache hit rate can be counted.
-export function readResults(jsonl: string, record: BatchRecord): Collected {
-  const descriptions: Record<string, string> = {};
+export function readResults<T>(
+  jsonl: string,
+  record: BatchRecord,
+  extract: ExtractValue<T>,
+): Collected<T> {
+  const values: Record<string, T> = {};
   const failures: string[] = [];
   const seen = new Set<string>();
   const submitted = new Set(record.requests);
@@ -257,10 +273,10 @@ export function readResults(jsonl: string, record: BatchRecord): Collected {
         failures.push(`${id}: ${String(result?.type)}${detail ? ` — ${String(detail)}` : ""}`);
         continue;
       }
-      const extracted = extractMessage(result.message, id, record.price, record.cacheTtl ?? "off");
+      const extracted = extract(result.message, id, record.price, record.cacheTtl ?? "off");
       cost += extracted.cost;
       cache = addCacheUsage(cache, extracted.cache);
-      descriptions[id] = extracted.description;
+      values[id] = extracted.value;
     } catch (err) {
       // A request that reached the model was billed whether or not anything
       // usable came back, and it wrote or read its prefix either way.
@@ -279,7 +295,7 @@ export function readResults(jsonl: string, record: BatchRecord): Collected {
     if (!seen.has(name)) failures.push(`${name}: no result line in the downloaded results`);
   }
 
-  return { descriptions, cost, cache, failures };
+  return { values, cost, cache, failures };
 }
 
 // Validation is what stands between a paid-for response and the shipped corpus,
@@ -298,10 +314,11 @@ export function acceptCollected(
   return { accepted, dropped };
 }
 
-export async function collectBatch(
+export async function collectBatch<T>(
   record: BatchRecord,
   key: string,
-): Promise<{ ended: false; status: string } | ({ ended: true } & Collected)> {
+  extract: ExtractValue<T>,
+): Promise<{ ended: false; status: string } | ({ ended: true } & Collected<T>)> {
   const get = (url: string) =>
     fetch(url, { headers: apiHeaders(key), signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) });
 
@@ -321,5 +338,5 @@ export async function collectBatch(
 
   const results = await get(resultsUrl);
   const jsonl = await assertOk(results, `Downloading results for batch ${record.id}`);
-  return { ended: true, ...readResults(jsonl, record) };
+  return { ended: true, ...readResults(jsonl, record, extract) };
 }
