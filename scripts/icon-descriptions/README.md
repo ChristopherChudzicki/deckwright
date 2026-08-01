@@ -352,6 +352,15 @@ Do this **before** reaching for any automated check. An earlier version of this 
 
 Work the audit's findings against the image. **Read "Two arms, and each method sees what the other cannot" and "Comparing model outputs" below first** — agreement between the arms is not evidence about the image, and an unpaired comparison at n≈30 is noise. Each finding resolves three ways: the shipped arm is right and nothing changes; the other arm is right, which is an entry in `choices.json`; or both are wrong, which is a hand-written entry in `overrides.json`.
 
+The surface for this is a generated page — every icon beside what each arm said about it, with a filter and a toggle for the rows `choices.json` already overrides:
+
+```sh
+npm run gallery:icon-descriptions
+open corpus/tmp/gallery.html
+```
+
+It reads the arms `choices.json` names, calls no model, and writes one self-contained file with the SVGs inlined — around 10 MB for the full collection, which is why it belongs in the gitignored scratch directory. `--only <name>` narrows it to a handful. It deliberately shows *both* arms for every icon rather than only the disagreements: conditioning on disagreement cannot see correlated error, which is the failure a shared prompt makes likeliest.
+
 The output is `corpus/choices.json`, which records which model won:
 
 ```json
@@ -460,7 +469,7 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 - **Why writes scale the way they do is unexplained, and it varies more between arms than the scaling story suggests.** 15 writes at 30 requests, then 698 and 1,486 at 4,134 — sublinear, but far from the fixed count a simple pool of cache nodes would give, and the two full arms differ by a factor of 2.1 at identical size, window, and time of night. Plan against 60–85%, read the cache line, and update the table rather than the model. Whether `5m` changes any of this is unmeasured: it is now the default on the strength of the *cause* of those writes not being expiry, which is an argument rather than an observation.
 - **The reply's `name` field is a vestige carrying a smaller job than it was built for.** At 30 icons per request it was the key. Now `custom_id` is, and the echo only audits *that* — it cannot catch a wrong image, since the PNG and its label come from one variable. Designed fresh, the schema would probably carry no name at all: one less thing to get wrong, and a shorter prefix. Removing it means editing the prompt, which means regenerating both arms, so it stays.
 - **Rail 5 does not apply to the shipped corpus, by design.** It refuses a run that would mix two models in one file — which is exactly what promotion does on purpose. The shipped corpus carries no `.model` sidecar and should not: it is not a run target, and a run that wrote to it would be overwritten wholesale by the next `promote` anyway.
-- **`IconDebugView` is the only review surface**, and it shows only the rule icons it happens to have descriptions for, silently, in one column. Curation needs a row per rule icon with an explicit empty state and more than one description column.
+- **`IconDebugView` shows only the rule icons it happens to have descriptions for, silently, in one column.** It reads the shipped corpus, which records one description per icon and nothing about who wrote it, so it cannot compare arms at all — `gallery.ts` exists for that and is a generated file rather than app UI, since the arms are experiment data that nothing shipping should import. What `IconDebugView` still needs is a row per rule icon with an explicit empty state.
 - **The rails' wiring has no tests.** Their mechanisms do: rail 1's fail-closed in `confirm.test.ts`, rail 2's ceiling in `run.test.ts`, rail 4's outstanding-batch check in `batch.test.ts`, rail 5's model guard in `store.test.ts`. What is untested is the top-level code in `gen-icon-descriptions.ts` that decides when each fires, because it only runs as a script. Extracting an args→plan function would reach it.
 
 ## Files
@@ -469,6 +478,8 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 |---|---|
 | `../gen-icon-descriptions.ts` | entry point: rails, mode dispatch |
 | `../promote-icon-descriptions.ts` | entry point: arms + choices → the shipped corpus |
+| `../icon-gallery.ts` | entry point: arms → a standalone HTML review page |
+| `gallery.ts` | icons + arms + choices → the page's markup |
 | `cli.ts` | flag definitions, coercion, mode exclusivity, corpus path defaults |
 | `confirm.ts` | y/N prompt; false when there is no TTY |
 | `prompt.ts` | the prompt. See above before editing |
