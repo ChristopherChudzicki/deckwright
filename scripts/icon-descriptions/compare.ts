@@ -163,11 +163,19 @@ export function formatReport(opts: {
     // it is a real gap, not a formality.
     "Agreement is not evidence: two arms sharing a prompt can be wrong together, and those pairs sort into `agree` unquoted. Use this to choose what to open in the gallery, not to decide what is right.",
     "",
+    "Each section starts with its icon names, comma-separated. Paste one into the gallery's “Filter by name list” box (`npm run gallery:icon-descriptions`) to see just those rows beside the artwork.",
+    "",
   ];
+
+  // Fenced and comma-separated because its destination is the gallery's name
+  // filter, which is where the artwork is — the verdicts say what to look at and
+  // only the drawing says which arm was right.
+  const nameList = (entries: readonly [string, Comparison][]): string[] =>
+    entries.length ? ["```", entries.map(([name]) => name).join(", "), "```", ""] : [];
 
   for (const verdict of ["substantial", "trivial"] as const) {
     const entries = of(verdict);
-    lines.push(heading(verdict, entries.length), "");
+    lines.push(heading(verdict, entries.length), "", ...nameList(entries));
     for (const [name, entry] of entries) {
       const pair = byName.get(name);
       lines.push(`### ${name}`, "");
@@ -176,13 +184,8 @@ export function formatReport(opts: {
     }
   }
 
-  lines.push(heading("agree", of("agree").length), "");
-  lines.push(
-    of("agree")
-      .map(([name]) => name)
-      .join(" "),
-    "",
-  );
+  const agreed = of("agree");
+  lines.push(heading("agree", agreed.length), "", ...nameList(agreed));
 
   if (failures.length) {
     lines.push(`## failed (${failures.length})`, "", ...failures.map((line) => `- ${line}`), "");

@@ -45,6 +45,10 @@ h1 { font-size: 16px; margin: 0 0 8px; }
 input[type=search] { flex: 1 1 260px; min-width: 0; padding: 6px 10px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
 label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 #count { color: var(--muted); font-variant-numeric: tabular-nums; }
+details { margin-top: 8px; }
+summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+textarea { display: block; width: 100%; margin-top: 6px; padding: 6px 10px; font: 12px/1.5 ui-monospace, monospace; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; resize: vertical; }
+.missed { color: var(--accent); }
 .row { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--line); content-visibility: auto; contain-intrinsic-size: auto 140px; }
 .row[hidden] { display: none; }
 .art { display: flex; flex-direction: column; gap: 6px; align-items: center; }
@@ -72,23 +76,40 @@ label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 // layout and paint until scrolled to.
 const SCRIPT = `
 const rows = [...document.querySelectorAll('.row')];
+const known = new Set(rows.map((row) => row.dataset.name));
 const search = document.getElementById('q');
+const names = document.getElementById('names');
 const exceptionsOnly = document.getElementById('exceptions');
 const count = document.getElementById('count');
+const missed = document.getElementById('missed');
+// Commas, newlines and stray spaces all separate, so a list pasted out of the
+// comparison report works as-is and so does one typed by hand.
+function parseNames(text) {
+  return new Set(text.split(/[\\s,]+/).map((word) => word.toLowerCase()).filter(Boolean));
+}
 function apply() {
   const needle = search.value.trim().toLowerCase();
   const only = exceptionsOnly.checked;
+  const wanted = parseNames(names.value);
   let shown = 0;
   for (const row of rows) {
     const hit =
       (!only || row.dataset.exception === '1') &&
+      (wanted.size === 0 || wanted.has(row.dataset.name)) &&
       (needle === '' || row.dataset.text.includes(needle));
     row.hidden = !hit;
     if (hit) shown++;
   }
   count.textContent = shown + ' of ' + rows.length;
+  // A misspelled name filters to nothing and looks exactly like a name whose
+  // row is legitimately absent, so the ones that matched nothing are named.
+  const absent = [...wanted].filter((name) => !known.has(name));
+  missed.textContent = absent.length
+    ? absent.length + ' not found: ' + absent.slice(0, 8).join(' ')
+    : '';
 }
 search.addEventListener('input', apply);
+names.addEventListener('input', apply);
 exceptionsOnly.addEventListener('change', apply);
 apply();
 `;
@@ -122,7 +143,7 @@ export function renderGallery({ collection, names, arms, choices }: GalleryOptio
       .toLowerCase();
 
     return [
-      `<div class="row" data-exception="${isException ? "1" : "0"}" data-text="${escapeHtml(haystack)}">` +
+      `<div class="row" data-name="${escapeHtml(name)}" data-exception="${isException ? "1" : "0"}" data-text="${escapeHtml(haystack)}">` +
         `<div class="art">${svg}<span class="name">${escapeHtml(name)}</span></div>` +
         `<div class="cells">${cells.join("")}</div>` +
         "</div>",
@@ -145,7 +166,12 @@ export function renderGallery({ collection, names, arms, choices }: GalleryOptio
 <input type="search" id="q" placeholder="Filter by name or description" autocomplete="off">
 <label><input type="checkbox" id="exceptions"> only choices.json exceptions</label>
 <span id="count"></span>
+<span id="missed" class="missed"></span>
 </div>
+<details>
+<summary>Filter by name list</summary>
+<textarea id="names" rows="3" placeholder="Paste icon names, separated by commas or newlines — e.g. from the substantial section of corpus/tmp/disagreements.md" autocomplete="off" spellcheck="false"></textarea>
+</details>
 </div>
 </header>
 <main class="wrap">

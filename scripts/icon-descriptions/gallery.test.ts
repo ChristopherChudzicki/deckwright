@@ -1,3 +1,6 @@
+/// <reference lib="dom" />
+// The page's own script runs under jsdom below, and `scripts/` is otherwise
+// typechecked as Node with no DOM lib.
 import type { IconifyJSON } from "@iconify/types";
 import { describe, expect, test } from "vitest";
 import { renderGallery } from "./gallery";
@@ -26,6 +29,59 @@ const render = (choices: Choices, names = ["fireball", "broadsword"]) =>
 
 const defaulting = (choices: Record<string, string> = {}): Choices => ({ default: OPUS, choices });
 
+// The filter is client-side JS embedded as a string, so asserting on the markup
+// alone would pass on a page whose script throws. Mounting it and running the
+// script is what actually exercises the behaviour.
+const mount = (choices: Choices) => {
+  const html = render(choices);
+  document.body.innerHTML = html.slice(html.indexOf("<body>") + 6, html.indexOf("</body>"));
+  new Function(document.querySelector("script")?.textContent ?? "")();
+  const names = document.getElementById("names") as HTMLTextAreaElement;
+  return {
+    names,
+    type: (value: string) => {
+      names.value = value;
+      names.dispatchEvent(new Event("input"));
+    },
+    visible: () =>
+      [...document.querySelectorAll<HTMLElement>(".row")]
+        .filter((row) => !row.hidden)
+        .map((row) => row.dataset.name),
+    missed: () => document.getElementById("missed")?.textContent ?? "",
+  };
+};
+
+describe("the name-list filter", () => {
+  test("shows only the pasted names, however they are separated", () => {
+    const page = mount(defaulting());
+    expect(page.visible()).toEqual(["fireball", "broadsword"]);
+
+    page.type("broadsword");
+    expect(page.visible()).toEqual(["broadsword"]);
+
+    page.type("broadsword,\nfireball");
+    expect(page.visible()).toEqual(["fireball", "broadsword"]);
+  });
+
+  test("shows everything again when the list is emptied", () => {
+    const page = mount(defaulting());
+    page.type("broadsword");
+    page.type("");
+
+    expect(page.visible()).toEqual(["fireball", "broadsword"]);
+  });
+
+  // A typo filters to nothing and looks identical to a name that is legitimately
+  // absent from the arms.
+  test("names the entries that matched no row", () => {
+    const page = mount(defaulting());
+    page.type("fireball, frieball");
+
+    expect(page.visible()).toEqual(["fireball"]);
+    expect(page.missed()).toContain("frieball");
+  });
+});
+
 describe("renderGallery", () => {
   test("inlines each icon's artwork beside every arm's description of it", () => {
     const html = render(defaulting());
@@ -33,6 +89,15 @@ describe("renderGallery", () => {
     expect(html).toContain('<path d="M1 2" fill="currentColor"/>');
     expect(html).toContain("A ball of flame.");
     expect(html).toContain("A sphere of fire.");
+  });
+
+  // The name-list filter matches against this attribute, so a row without one
+  // is unreachable from a list pasted out of the comparison report.
+  test("tags every row with its icon name for the name-list filter", () => {
+    const html = render(defaulting());
+
+    expect(html).toContain('data-name="fireball"');
+    expect(html).toContain('data-name="broadsword"');
   });
 
   // The page is opened to decide which arm was right, so the one currently

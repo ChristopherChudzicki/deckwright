@@ -352,7 +352,7 @@ Do this **before** the cross-arm comparison in step 9. That pass ranks the arms'
 
 Work the audit's findings against the image. **Read "Two arms, and each method sees what the other cannot" and "Comparing model outputs" below first** — agreement between the arms is not evidence about the image, and an unpaired comparison at n≈30 is noise. Each finding resolves three ways: the shipped arm is right and nothing changes; the other arm is right, which is an entry in `choices.json`; or both are wrong, which is a hand-written entry in `overrides.json`.
 
-The surface for this is a generated page — every icon beside what each arm said about it, with a filter and a toggle for the rows `choices.json` already overrides:
+The surface for this is a generated page — every icon beside what each arm said about it, with a text filter, a toggle for the rows `choices.json` already overrides, and a name-list box that takes the comma-separated lists the comparison report prints:
 
 ```sh
 npm run gallery:icon-descriptions
@@ -369,7 +369,9 @@ npm run compare:icon-descriptions                  # submits; ~$2–3 for the fu
 npm run compare:icon-descriptions -- --fetch <batch-id>
 ```
 
-It pairs every icon both arms describe, sends the two sentences with no images and no model names attached, and classifies each pair `agree`, `trivial` (same subject, differing on something a reader would not act on — a count of repeated elements, an orientation word) or `substantial` (different subjects, or a detail that changes what a reader pictures). The report lands at `corpus/tmp/disagreements.md` with both sentences quoted under each disagreement, so it reads straight through. Take it to the gallery: **the verdict says which rows to look at, the artwork says which arm is right.**
+It pairs every icon both arms describe, sends the two sentences with no images and no model names attached, and classifies each pair `agree`, `trivial` (same subject, differing on something a reader would not act on — a count of repeated elements, an orientation word) or `substantial` (different subjects, or a detail that changes what a reader pictures). The report lands at `corpus/tmp/disagreements.md` with both sentences quoted under each disagreement, so it reads straight through. Each section also opens with its icon names, comma-separated, to paste into the gallery's name-list box — which is the loop this is for: **the verdict says which rows to open, the artwork says which arm is right.**
+
+Grade by what the corpus is for. It backs fuzzy search, so `substantial` means the two arms name different *subjects* and a searcher would be misled; a differing count, part shape, or association clause is `trivial` however visible it is. An earlier rubric called any detail that "changes what a reader pictures" substantial, and it filed three knives against two — the worked example of a trivial difference — as substantial.
 
 Every pair goes, because there is no cheap pre-filter. Lexical overlap does not separate paraphrase from disagreement — mean Jaccard on content words is 0.265, and the zero-overlap bucket holds `french-fries` (pure paraphrase) beside `abstract-048` (a real disagreement). Sorting by overlap would drop real conflicts and spend the budget on rewordings.
 

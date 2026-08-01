@@ -101,6 +101,14 @@ describe("formatReport", () => {
     expect(report).toContain("- **B** A diamond kite on a string.");
   });
 
+  // The list is what gets pasted into the gallery's name filter, so the
+  // separator is part of the contract between the two.
+  test("heads each section with its names, comma-separated", () => {
+    const report = formatReport({ a: "alpha", b: "beta", pairs, comparisons, failures: [] });
+    expect(report).toContain("## substantial (1)\n\n```\nkite\n```");
+    expect(report).toContain("## agree (1)\n\n```\nsword\n```");
+  });
+
   test("counts the agreements without quoting them", () => {
     const report = formatReport({ a: "alpha", b: "beta", pairs, comparisons, failures: [] });
     expect(report).toContain("## agree (1)");
