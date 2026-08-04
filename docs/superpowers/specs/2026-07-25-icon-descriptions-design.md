@@ -298,7 +298,7 @@ Arguments via `commander` (`scripts/icon-descriptions/cli.ts`).
 
 **Selection pipeline, in order:** all 4,134 → seeded shuffle → `--only` filter →
 drop already-described (unless `--force`/`--only`) → `--limit` truncate → chunk
-by `--batch-size`. A final short batch is fine. The shuffle comes first and over
+into batches of 30. A final short batch is fine. The shuffle comes first and over
 the full collection so that batch *membership* is drawn from shuffled order;
 boundaries are recomputed on every resume, packing survivors densely.
 
