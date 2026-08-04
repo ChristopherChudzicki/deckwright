@@ -245,7 +245,7 @@ export function renderGallery({ collection, names, arms, choices }: GalleryOptio
 </div>
 <details>
 <summary>Filter by name list</summary>
-<textarea id="names" rows="3" placeholder="Paste icon names, separated by commas or newlines — e.g. from the substantial section of corpus/tmp/disagreements.md" autocomplete="off" spellcheck="false"></textarea>
+<textarea id="names" rows="3" placeholder="Paste icon names, separated by commas or newlines — e.g. from the substantial section of corpus/comparison.md" autocomplete="off" spellcheck="false"></textarea>
 </details>
 <details>
 <summary>Export choices.json</summary>

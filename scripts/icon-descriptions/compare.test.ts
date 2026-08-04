@@ -97,38 +97,44 @@ describe("formatReport", () => {
     kite: { verdict: "substantial", difference: "a bird, not a kite" },
     helm: { verdict: "trivial", difference: "plume count" },
   };
+  const report = (failures: string[] = []) =>
+    formatReport({
+      a: "alpha",
+      b: "beta",
+      judge: "gamma",
+      collectedAt: "2026-08-01T15:01:02.371Z",
+      pairs,
+      comparisons,
+      failures,
+    });
 
   test("quotes both descriptions under each disagreement", () => {
-    const report = formatReport({ a: "alpha", b: "beta", pairs, comparisons, failures: [] });
-    expect(report).toContain("### kite");
-    expect(report).toContain("_a bird, not a kite_");
-    expect(report).toContain("- **A** A bird of prey.");
-    expect(report).toContain("- **B** A diamond kite on a string.");
+    expect(report()).toContain("### kite");
+    expect(report()).toContain("_a bird, not a kite_");
+    expect(report()).toContain("- **A** A bird of prey.");
+    expect(report()).toContain("- **B** A diamond kite on a string.");
   });
 
   // The list is what gets pasted into the gallery's name filter, so the
   // separator is part of the contract between the two.
   test("heads each section with its names, comma-separated", () => {
-    const report = formatReport({ a: "alpha", b: "beta", pairs, comparisons, failures: [] });
-    expect(report).toContain("## substantial (1)\n\n```\nkite\n```");
-    expect(report).toContain("## agree (1)\n\n```\nsword\n```");
+    expect(report()).toContain("## substantial (1)\n\n```\nkite\n```");
+    expect(report()).toContain("## agree (1)\n\n```\nsword\n```");
   });
 
   test("counts the agreements without quoting them", () => {
-    const report = formatReport({ a: "alpha", b: "beta", pairs, comparisons, failures: [] });
-    expect(report).toContain("## agree (1)");
-    expect(report).not.toContain("A blade.");
+    expect(report()).toContain("## agree (1)");
+    expect(report()).not.toContain("A blade.");
+  });
+
+  // The judge defaults to the same model as arm A, so a reader who cannot see
+  // which model graded the file cannot weigh that confound.
+  test("records the judge and the date it was collected", () => {
+    expect(report()).toContain("Judged by `gamma` on 2026-08-01.");
   });
 
   test("lists the requests that failed, so a short collection is visible", () => {
-    const report = formatReport({
-      a: "alpha",
-      b: "beta",
-      pairs,
-      comparisons,
-      failures: ["axe: errored"],
-    });
-    expect(report).toContain("## failed (1)");
-    expect(report).toContain("- axe: errored");
+    expect(report(["axe: errored"])).toContain("## failed (1)");
+    expect(report(["axe: errored"])).toContain("- axe: errored");
   });
 });

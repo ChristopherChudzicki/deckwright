@@ -45,7 +45,7 @@ const program = new Command()
   .option("--a <model>", "the arm reported as A", "claude-sonnet-5")
   .option("--b <model>", "the arm reported as B", "claude-opus-5")
   .option("--judge <model>", "model that compares the pairs", "sonnet")
-  .option("--out <path>", "where to write the report", "corpus/tmp/disagreements.md")
+  .option("--out <path>", "where to write the report", "corpus/comparison.md")
   .option("--limit <n>", "compare at most n pairs", positiveInt)
   .option(
     "--only <name>",
@@ -99,13 +99,20 @@ if (opts.fetch !== undefined) {
     }
 
     const comparisons = collected.values as Record<string, Comparison>;
+    const collectedAt = new Date().toISOString();
     mkdirSync(dirname(record.out), { recursive: true });
     writeFileSync(
       record.out,
-      formatReport({ ...submission, comparisons, failures: collected.failures }),
+      formatReport({
+        ...submission,
+        judge: record.model,
+        collectedAt,
+        comparisons,
+        failures: collected.failures,
+      }),
       "utf8",
     );
-    writeRecord(BATCH_DIR, { ...record, collectedAt: new Date().toISOString() });
+    writeRecord(BATCH_DIR, { ...record, collectedAt });
 
     const counts = { agree: 0, trivial: 0, substantial: 0 };
     for (const { verdict } of Object.values(comparisons)) counts[verdict] += 1;

@@ -114,6 +114,11 @@ export function pairArms(arms: Arms, a: string, b: string): Pair[] {
 // estimate here divided characters by 3.7 and came out 35% under what the same
 // prompt was billed for. The output side is still a guess, so the total is a
 // floor — thinking tokens are billed as output and nothing predicts them.
+//
+// count_tokens is itself known to run under the bill: it reported the describe
+// prefix 23% low against what the batch charged for it, unexplained. That is
+// tolerable here, where it feeds an estimate already labelled a floor, and is
+// not tolerable anywhere the number has to be right.
 const OUTPUT_TOKENS_PER_PAIR = 40;
 
 export async function countPromptTokens(
@@ -152,11 +157,13 @@ const heading = (verdict: Verdict, count: number): string => `## ${verdict} (${c
 export function formatReport(opts: {
   a: string;
   b: string;
+  judge: string;
+  collectedAt: string;
   pairs: readonly Pair[];
   comparisons: Record<string, Comparison>;
   failures: readonly string[];
 }): string {
-  const { a, b, pairs, comparisons, failures } = opts;
+  const { a, b, judge, collectedAt, pairs, comparisons, failures } = opts;
   const byName = new Map(pairs.map((pair) => [pair.name, pair]));
   const judged = Object.entries(comparisons);
   const of = (verdict: Verdict) => judged.filter(([, entry]) => entry.verdict === verdict);
@@ -165,6 +172,11 @@ export function formatReport(opts: {
     `# Cross-arm disagreements`,
     "",
     `A is \`${a}\`; B is \`${b}\`. ${judged.length} of ${pairs.length} pairs judged.`,
+    "",
+    // The judge is provenance, not trivia: it defaults to the same model as arm
+    // A, and a judge reading its own prose as the baseline is a confound a
+    // reader of this file cannot rule out without knowing who wrote it.
+    `Judged by \`${judge}\` on ${collectedAt.slice(0, 10)}.`,
     "",
     // The one thing a reader of this file could get wrong: an icon both arms
     // misread the same way agrees, and agreement is the bucket this file does
