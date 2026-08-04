@@ -256,7 +256,7 @@ console.log(
 if (total === 0) process.exit(0);
 
 // Up front so a missing key or binary surfaces before every PNG has been
-// rendered, rather than as three retries per batch with backoff.
+// rendered, rather than as three retries per request with backoff.
 let price: Price | undefined;
 try {
   if (paid) {

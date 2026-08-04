@@ -66,7 +66,7 @@ export function extractDescription(stdout: string, name: string): IconResult {
 }
 
 // Without this, a missing binary surfaces only after every PNG has been
-// rendered, and then as 3 retries per batch with real backoff between them.
+// rendered, and then as 3 retries per request with real backoff between them.
 export async function assertClaudeAvailable(): Promise<void> {
   try {
     await execFileP("claude", ["--version"]);
