@@ -4,6 +4,24 @@
 > transports, rails, the runbook, and the measured baselines all live there. This
 > document records how those decisions were reached, and is the place to look
 > when you want to know *why* rather than *how*.
+>
+> **Three decisions below were later reversed, and the text still argues for
+> them.** Where this document and the README disagree, the README is right.
+>
+> - **Requests carry one icon, not 30.** The cost argument for grouping was made
+>   before prompt caching entered the design and does not survive it. There is no
+>   `--batch-size` flag and there never was one.
+> - **The instruction block is a cached prefix**, 1,228 tokens, with a per-model
+>   minimum cacheable length and a `--cache-ttl` flag. None of that appears
+>   below; it is the spine of the implementation.
+> - **`custom_id` is the icon name.** The batch record's manifest survives for a
+>   different reason — results bodies are short and the name has to come back
+>   somehow — not to map a request to the 30 icons it asked for.
+>
+> What forced the first two: the model twice lost track, mid-request, of which of
+> 30 images it was describing, and shipped 36 descriptions on the wrong icons.
+> One icon per request makes that unrepresentable. See the README's "One icon per
+> request" and its known-gaps entry on displacement.
 
 ## Problem
 
@@ -267,7 +285,6 @@ Arguments via `commander` (`scripts/icon-descriptions/cli.ts`).
 | flag | default | effect |
 |---|---|---|
 | `--only <name>` | all | repeatable (`multiple: true`); implies `--force` for the named icons. An unknown name is a hard error listing the offenders. |
-| `--batch-size <n>` | 30 | icons per invocation; see the measured curve below |
 | `--force` | off | re-describe icons that already have entries |
 | `--validate` | off | run per-entry checks over the merged generated+overrides map, list icons with no entry at all, and exit non-zero on either; exclusive — combining it with any flag other than `--out` is an error (exit 2) |
 | `--fetch <batch-id>` | none | collect a batch submitted earlier by `--transport batch` and exit; exclusive, for the same reason as `--validate` |
