@@ -3,13 +3,17 @@
 // promotion only checks that a chosen model has *a* description. Every name is
 // present and every description is valid prose.
 //
-// The arms on disk were generated 30 icons to a request, where the model owned
-// that correspondence. Twice in 138 requests Opus lost it partway through and
-// labelled each remaining description with the *following* icon's name, so 36
-// icons shipped holding their predecessor's. One icon per request moves the
-// correspondence to the harness, which is why the gate is kept rather than
-// retired: it now checks the harness's `custom_id` bookkeeping against a second
-// arm, and a collection path that shifted by one would look the same from here.
+// This was built when the arms were generated 30 icons to a request and the
+// model owned that correspondence. Twice in 138 requests Opus lost it partway
+// through and labelled each remaining description with the *following* icon's
+// name, so 36 icons shipped holding their predecessor's. One icon per request
+// moves the correspondence to the harness and retires that class.
+//
+// It does not audit the harness, which is the tempting thing to assume. Both
+// arms are drawn in the same seeded order by the same code, so a harness that
+// shifted by one would shift subject and reference alike and this would see a
+// perfect match. It is kept as the check on re-promoting the committed 30-era
+// history, and as the regression guard if grouping ever returns.
 //
 // This finds it by asking whether a description is aligned, never whether it is
 // correct — no judgement, no model call. Scored against a second arm that
@@ -74,7 +78,7 @@ export type ShiftRun = { startIndex: number; names: string[] };
 // `order` must be the order the icons were *requested* in, not sorted or corpus
 // order: "the icon before this one" is only meaningful there. That is
 // `shuffleSeeded(iconNames(collection), SHUFFLE_SEED)`, the same expression
-// selection.ts batches from.
+// selection.ts draws from.
 //
 // An icon either arm leaves undescribed is skipped and breaks the run, since a
 // gap makes "the icon before this one" the wrong question.

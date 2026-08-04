@@ -23,10 +23,12 @@ const program = new Command()
       "time by src/data/iconDescriptions/load.ts and is never baked in.\n\n" +
       "Requires a second arm to check alignment against: descriptions can end up on " +
       "the wrong icons, shifted by one, and nothing about a single arm reveals it — " +
-      "the names are all present and the prose is all valid. The arms on disk were " +
-      "generated 30 icons to a request, where a model could lose track of which image " +
-      "it was on; one icon per request moves that bookkeeping to the harness, and this " +
-      "is the check on the harness.",
+      "the names are all present and the prose is all valid. That happened when the " +
+      "arms were generated 30 icons to a request and a model could lose track of which " +
+      "image it was on. One icon per request retires it, so on today's arms this check " +
+      "is expected to pass; it guards re-promotions from the 30-era history and any " +
+      "return to grouping. It cannot audit the harness — both arms go through it in " +
+      "the same order, so a shift there would move subject and reference alike.",
   )
   .option("--choices <path>", "which model won each icon", CHOICES)
   .option("--out <path>", "corpus to write", SHIPPED_CORPUS)
@@ -88,7 +90,7 @@ if (opts.reference !== undefined) {
   }
   // The order the icons were requested in, which is the only order in which
   // "the icon before this one" means anything. Same expression selection.ts
-  // batches from.
+  // draws from.
   const order = shuffleSeeded(iconNames(loadCollection()), SHUFFLE_SEED);
   const runs = detectShiftRuns({ order, subject: corpus, reference });
   if (runs.length) {

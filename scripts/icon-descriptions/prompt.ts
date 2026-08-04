@@ -2,6 +2,12 @@
 // leaves the file a mix of two versions with no marker distinguishing them, so
 // any change here means regenerating all 4,134 entries. See the design doc,
 // "Risks and follow-ups".
+//
+// That rule is why the wording below is still plural — "each one", "for each
+// icon", "one entry per icon" — after the transport went to one image per
+// request. It addresses a request that now carries exactly one icon, and the
+// mismatch is deliberate: reframing it costs a regeneration of both arms and
+// buys nothing the schema does not already enforce.
 
 // The CLI runs with `--allowedTools Read` and its cwd set to the PNG directory,
 // so there the files are work to fetch. Over HTTP the bytes are already in the
