@@ -158,12 +158,17 @@ export function formatReport(opts: {
   a: string;
   b: string;
   judge: string;
-  collectedAt: string;
+  // When the pairs went to the judge, not when the results were downloaded.
+  // Collection is repeatable — results are retained 29 days and re-fetching an
+  // already-collected batch rewrites this file — so a collection timestamp would
+  // date the report to whenever someone last re-fetched it rather than to when
+  // the verdicts were formed.
+  judgedAt: string;
   pairs: readonly Pair[];
   comparisons: Record<string, Comparison>;
   failures: readonly string[];
 }): string {
-  const { a, b, judge, collectedAt, pairs, comparisons, failures } = opts;
+  const { a, b, judge, judgedAt, pairs, comparisons, failures } = opts;
   const byName = new Map(pairs.map((pair) => [pair.name, pair]));
   const judged = Object.entries(comparisons);
   const of = (verdict: Verdict) => judged.filter(([, entry]) => entry.verdict === verdict);
@@ -176,7 +181,7 @@ export function formatReport(opts: {
     // The judge is provenance, not trivia: it defaults to the same model as arm
     // A, and a judge reading its own prose as the baseline is a confound a
     // reader of this file cannot rule out without knowing who wrote it.
-    `Judged by \`${judge}\` on ${collectedAt.slice(0, 10)}.`,
+    `Judged by \`${judge}\` on ${judgedAt.slice(0, 10)}.`,
     "",
     // The one thing a reader of this file could get wrong: an icon both arms
     // misread the same way agrees, and agreement is the bucket this file does

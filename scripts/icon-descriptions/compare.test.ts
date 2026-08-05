@@ -102,7 +102,7 @@ describe("formatReport", () => {
       a: "alpha",
       b: "beta",
       judge: "gamma",
-      collectedAt: "2026-08-01T15:01:02.371Z",
+      judgedAt: "2026-08-01T14:55:42.207Z",
       pairs,
       comparisons,
       failures,
@@ -129,7 +129,7 @@ describe("formatReport", () => {
 
   // The judge defaults to the same model as arm A, so a reader who cannot see
   // which model graded the file cannot weigh that confound.
-  test("records the judge and the date it was collected", () => {
+  test("records the judge and the date the pairs were judged", () => {
     expect(report()).toContain("Judged by `gamma` on 2026-08-01.");
   });
 

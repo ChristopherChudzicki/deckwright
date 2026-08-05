@@ -383,7 +383,7 @@ It reads the arms `choices.json` names, calls no model, and writes one self-cont
 
 ```sh
 npm run compare:icon-descriptions -- --dry-run     # counts the pairs, prices them, sends nothing
-npm run compare:icon-descriptions                  # submits; ~$2–3 for the full corpus
+npm run compare:icon-descriptions                  # submits; the full corpus billed $4.48
 npm run compare:icon-descriptions -- --fetch <batch-id>
 ```
 
@@ -473,7 +473,11 @@ The tautologies show the mechanism plainly. The prompt asks for a closing associ
 
 What this does **not** measure is correlated *wrong-object* error, which is the only failure that breaks search. That cannot be seen from the text alone — it needs eyes on artwork, which is the random audit's whole job. The one measurement bearing on it is the out-of-band n=100 paired audit: 23 icons had at least one arm in error and in 21 of those the other arm was accurate. Discount it as the known gaps say to, and it still points the same way — correlated wrong-object error is rare, so a disagreement-conditioned pass sees most of what matters. That is the argument for running the comparison, and it is an empirical claim, not a logical one.
 
-An earlier cross-arm *flag* pass — an LLM judging whether the arms disagree — was built and removed, and the reason it went is now largely obsolete. It lost to `alignment.ts`, which answered the same question for free and more precisely, finding both displaced runs exactly with no model call and no false positives. But that question was displacement, and one icon per request retired it. The check that beat it no longer has the job it won with. What survives is the cost lesson, and the pass in step 9 is cheaper by an order of magnitude: ~$2–3 for the whole corpus against $4.45 for an extrapolation over ~1,000 icons, because the pairs are text-only, the prompt is short, and every request goes through the Batch API at half rate.
+An earlier cross-arm *flag* pass — an LLM judging whether the arms disagree — was built and removed, and the reason it went is now largely obsolete. It lost to `alignment.ts`, which answered the same question for free and more precisely, finding both displaced runs exactly with no model call and no false positives. But that question was displacement, and one icon per request retired it. The check that beat it no longer has the job it won with.
+
+The cost lesson did not survive either, once the replacement was measured. The step-9 pass was projected at ~$2–3 against the removed pass's $4.45 extrapolation over ~1,000 icons; it billed **$4.48** over all 4,134. Those are the same number, so the argument for running a comparison is not that it is cheaper — it is that it answers a different question.
+
+That projection was out by much more than the describe arms' were. Both arms billed about 10% over what their models said — $5.046 against $4.56, $17.519 against $15.99 — where this pass came in above the top of its whole range. `estimateCompareCost` allows 40 output tokens per pair and counts no thinking, and on this judge output bills at **5×** input, so the one term the estimate guesses at is the term the price weights hardest. It is labelled a floor in the code and in the run's own output; treat it as one.
 
 The removed pass's own numbers were an out-of-band measurement: a seeded 50-icon sample flagged 13 icons at ~$0.054, corroborating the n=100 audit's 23% error rate by a different method. Its verdict files were never committed, so that figure is an indication, not something this repo can re-derive.
 

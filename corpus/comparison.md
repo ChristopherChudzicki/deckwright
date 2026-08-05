@@ -2,6 +2,8 @@
 
 A is `claude-sonnet-5`; B is `claude-opus-5`. 4134 of 4134 pairs judged.
 
+Judged by `claude-sonnet-5` on 2026-08-01.
+
 Agreement is not evidence: two arms sharing a prompt can be wrong together, and those pairs sort into `agree` unquoted. Use this to choose what to open in the gallery, not to decide what is right.
 
 Each section starts with its icon names, comma-separated. Paste one into the gallery's “Filter by name list” box (`npm run gallery:icon-descriptions`) to see just those rows beside the artwork.

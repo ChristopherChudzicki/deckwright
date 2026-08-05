@@ -99,20 +99,22 @@ if (opts.fetch !== undefined) {
     }
 
     const comparisons = collected.values as Record<string, Comparison>;
-    const collectedAt = new Date().toISOString();
     mkdirSync(dirname(record.out), { recursive: true });
     writeFileSync(
       record.out,
       formatReport({
         ...submission,
         judge: record.model,
-        collectedAt,
+        // Submission rather than collection: a batch runs within 24h of going
+        // out, and re-fetching one rewrites this file, so the collection time
+        // would date the report to the last re-fetch instead of to the run.
+        judgedAt: record.submittedAt,
         comparisons,
         failures: collected.failures,
       }),
       "utf8",
     );
-    writeRecord(BATCH_DIR, { ...record, collectedAt });
+    writeRecord(BATCH_DIR, { ...record, collectedAt: new Date().toISOString() });
 
     const counts = { agree: 0, trivial: 0, substantial: 0 };
     for (const { verdict } of Object.values(comparisons)) counts[verdict] += 1;
