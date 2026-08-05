@@ -24,8 +24,18 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Command } from "@commander-js/extra-typings";
 import type { IconifyJSON } from "@iconify/types";
 import { chromium } from "@playwright/test";
+
+new Command()
+  .name("npm run gen:og")
+  .description(
+    "Renders public/og.png, the social-media link preview, by screenshotting a hand-rolled " +
+      "facsimile of <Card> in headless Chromium. The facsimile does not import Card's CSS and " +
+      "will drift from it — see the note at the top of this file before changing card design.",
+  )
+  .parse();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const out = resolve(__dirname, "../public/og.png");

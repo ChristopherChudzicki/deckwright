@@ -1,12 +1,23 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Command } from "@commander-js/extra-typings";
 import type { z } from "zod";
 import {
   magicItemListSchema,
   mundaneItemListSchema,
   spellListSchema,
 } from "../src/data/srd-schema";
+
+new Command()
+  .name("npm run fetch:srd")
+  .description(
+    "Re-fetches SRD spells, magic items, and mundane items from the Open5e API for both " +
+      "rulesets, writing the full response to data/ and the schema-validated subset the app " +
+      "reads to src/data/. Refuses a resource that has shrunk by more than 10% since the last " +
+      "fetch, so an upstream outage cannot quietly empty the app's data.",
+  )
+  .parse();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

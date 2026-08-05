@@ -1,0 +1,13 @@
+{
+  "default": "claude-opus-5",
+  "choices": {
+    "clout": "claude-sonnet-5",
+    "fire-dash": "claude-sonnet-5",
+    "flying-fox": "claude-sonnet-5",
+    "frog-foot": "claude-sonnet-5",
+    "gunshot": "claude-sonnet-5",
+    "lightning-shadow": "claude-sonnet-5",
+    "metal-hand": "claude-sonnet-5",
+    "stone-bust": "claude-sonnet-5"
+  }
+}

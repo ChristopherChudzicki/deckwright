@@ -11,10 +11,28 @@ coverage
 *.tsbuildinfo
 /generated/
 
+# Rendered icon PNGs for the description generator (not under /generated/,
+# which `cmk --clean` wipes on every build)
+/.icon-cache/
+src/data/iconDescriptions/*.json.tmp
+
+# Per-model description corpora from `--out` are committed: they are paid LLM
+# output that no amount of re-running restores for free, and the audit comparing
+# them is only re-derivable if the arms it graded are in the history. Scratch
+# goes in /corpus/tmp/ — probes, superseded runs, anything an `rm` should be
+# free to take. Kept as a subdirectory rather than a re-include rule, because git
+# does not descend into an excluded directory and `!` would not work here.
+/corpus/tmp/
+src/data/iconDescriptions/*.json.model
+
 # Claude Code: machine-local scratch
 .claude/settings.local.json
 .claude/worktrees/
 .claude/handoffs/
+
+# Session handoffs — notes to the next agent session, not project documentation
+docs/superpowers/handoff/
+docs/superpowers/handoffs/
 
 # Supabase
 supabase/.env
