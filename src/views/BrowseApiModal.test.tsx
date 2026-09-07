@@ -610,23 +610,23 @@ describe("<BrowseApiModal>", () => {
     expect(screen.getByRole("searchbox")).toHaveFocus();
   });
 
-  test.each([
-    "keyboard",
-    "virtual",
-  ] as const)("does not autofocus the search box when opened via %s", async (openPointerType) => {
-    const client = makeClient();
-    wrap(
-      <BrowseApiModal
-        deckId="d1"
-        openPointerType={openPointerType}
-        onClose={() => {}}
-        onSelected={() => {}}
-      />,
-      client,
-    );
+  test.each(["keyboard", "virtual"] as const)(
+    "does not autofocus the search box when opened via %s",
+    async (openPointerType) => {
+      const client = makeClient();
+      wrap(
+        <BrowseApiModal
+          deckId="d1"
+          openPointerType={openPointerType}
+          onClose={() => {}}
+          onSelected={() => {}}
+        />,
+        client,
+      );
 
-    expect(screen.getByRole("searchbox")).not.toHaveFocus();
-  });
+      expect(screen.getByRole("searchbox")).not.toHaveFocus();
+    },
+  );
 
   test("arrowing through the type control does not pull focus into the search box", async () => {
     // Regression guard: search used to live inside each tab panel, so switching
