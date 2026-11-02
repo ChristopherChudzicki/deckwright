@@ -4,28 +4,28 @@ Thin wrappers around `react-aria-components` (and a couple of native elements) t
 
 ## Catalog
 
-| Primitive | Use when |
-|---|---|
-| `Button` | Any button. Variants: `primary`, `secondary`, `danger`. Sizes: `sm`, `md`, `lg`. |
-| `IconButton` | An icon-only button. Pass an SVG component as children. |
-| `OAuthButton` | A sign-in button branded for an OAuth provider. |
-| `Input` | A single-line text field. |
-| `Link` | An `<a>` styled with the accent color and an underline. Use for inline external links; in-app navigation goes through TanStack Router's `<Link>`. |
-| `Textarea` | A multi-line text field. |
-| `TagInput` | A controlled chip-input field. Click a chip to edit in place; click between chips to insert; `×` removes. Full keyboard nav via ←/→ and Enter/Delete. |
-| `Switch` | An on/off toggle with a track + thumb. Children are the label. |
-| `Checkbox` | A checkbox. Supports `isIndeterminate` for tri-state (renders `aria-checked="mixed"`). Children are the label; omit them and pass `aria-label` for a label-less control. |
-| `ToggleButton` | A toggleable button (alone or inside a `ToggleButtonGroup`). |
-| `ToggleButtonGroup` | A segmented selector — wraps `ToggleButton` children. |
-| `RadioGroup` / `Radio` | A single-select control with true `radiogroup`/`radio` semantics. Use for a mutually-exclusive filter/choice where "exactly one selected" should be announced. Styled as a segmented control (no native circles). String `value`/`onChange`. |
-| `DialogShell` | The outer scaffolding (overlay + modal + dialog) for any modal. |
-| `DialogHeader` | The standard header strip for any dialog: title, optional middle slot, close X. |
-| `LoadingState` | A centered "Loading…" indicator (`role="status"`). Use whenever a view is waiting on a query. |
-| `EmptyHero` | A centered hero block for page-level empty states: title + optional description + actions. Inline "no rows yet" notes can stay as plain `<p>` — reach for this when the empty state replaces a whole view. |
-| `IconPickerDialog` | The game-icons picker (used by the card editor). |
-| `IconPreview` | A static icon render. |
-| `Select` | A value-select dropdown: a trigger showing "Label: value ▾" that opens a listbox of options (the current one marked selected). Pass `label`, `items` (`{id,label}[]`), `selectedKey`, `onSelectionChange`. Use for sort/filter/source pickers. For a command menu (actions, not a value), see `UserMenu`. |
-| `UserMenu` | The signed-in user dropdown. A command menu (single sign-out action), not a value-select — see `Select` for value pickers. |
+| Primitive              | Use when                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Button`               | Any button. Variants: `primary`, `secondary`, `danger`. Sizes: `sm`, `md`, `lg`.                                                                                                                                                                                                                          |
+| `IconButton`           | An icon-only button. Pass an SVG component as children.                                                                                                                                                                                                                                                   |
+| `OAuthButton`          | A sign-in button branded for an OAuth provider.                                                                                                                                                                                                                                                           |
+| `Input`                | A single-line text field.                                                                                                                                                                                                                                                                                 |
+| `Link`                 | An `<a>` styled with the accent color and an underline. Use for inline external links; in-app navigation goes through TanStack Router's `<Link>`.                                                                                                                                                         |
+| `Textarea`             | A multi-line text field.                                                                                                                                                                                                                                                                                  |
+| `TagInput`             | A controlled chip-input field. Click a chip to edit in place; click between chips to insert; `×` removes. Full keyboard nav via ←/→ and Enter/Delete.                                                                                                                                                     |
+| `Switch`               | An on/off toggle with a track + thumb. Children are the label.                                                                                                                                                                                                                                            |
+| `Checkbox`             | A checkbox. Supports `isIndeterminate` for tri-state (renders `aria-checked="mixed"`). Children are the label; omit them and pass `aria-label` for a label-less control.                                                                                                                                  |
+| `ToggleButton`         | A toggleable button (alone or inside a `ToggleButtonGroup`).                                                                                                                                                                                                                                              |
+| `ToggleButtonGroup`    | A segmented selector — wraps `ToggleButton` children.                                                                                                                                                                                                                                                     |
+| `RadioGroup` / `Radio` | A single-select control with true `radiogroup`/`radio` semantics. Use for a mutually-exclusive filter/choice where "exactly one selected" should be announced. Styled as a segmented control (no native circles). String `value`/`onChange`.                                                              |
+| `DialogShell`          | The outer scaffolding (overlay + modal + dialog) for any modal.                                                                                                                                                                                                                                           |
+| `DialogHeader`         | The standard header strip for any dialog: title, optional middle slot, close X.                                                                                                                                                                                                                           |
+| `LoadingState`         | A centered "Loading…" indicator (`role="status"`). Use whenever a view is waiting on a query.                                                                                                                                                                                                             |
+| `EmptyHero`            | A centered hero block for page-level empty states: title + optional description + actions. Inline "no rows yet" notes can stay as plain `<p>` — reach for this when the empty state replaces a whole view.                                                                                                |
+| `IconPickerDialog`     | The game-icons picker (used by the card editor).                                                                                                                                                                                                                                                          |
+| `IconPreview`          | A static icon render.                                                                                                                                                                                                                                                                                     |
+| `Select`               | A value-select dropdown: a trigger showing "Label: value ▾" that opens a listbox of options (the current one marked selected). Pass `label`, `items` (`{id,label}[]`), `selectedKey`, `onSelectionChange`. Use for sort/filter/source pickers. For a command menu (actions, not a value), see `UserMenu`. |
+| `UserMenu`             | The signed-in user dropdown. A command menu (single sign-out action), not a value-select — see `Select` for value pickers.                                                                                                                                                                                |
 
 ## Wrapper pattern
 

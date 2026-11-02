@@ -51,7 +51,10 @@ To add write support, update the relevant route handler in `fixtures.ts`:
 ```ts
 await page.route("**/rest/v1/cards*", (route) => {
   const method = route.request().method();
-  if (method === "GET") { route.fulfill({ json: cardRows }); return; }
+  if (method === "GET") {
+    route.fulfill({ json: cardRows });
+    return;
+  }
   if (method === "POST") {
     // echo body back, or maintain in-memory state for subsequent GETs
     route.fulfill({ status: 201, json: /* parsed request body */ [] });

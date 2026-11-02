@@ -42,21 +42,21 @@ Steps 1 and 4 are what make a run resumable: re-running after any failure picks 
 
 ## Flags
 
-| Flag | Default | Meaning |
-|---|---|---|
-| `--transport <cli\|api\|batch>` | `cli` | see below |
-| `--model <name>` | `sonnet` | `sonnet` or `opus`, or the concrete id (`claude-sonnet-5`). Under `cli` any string is accepted and names its own corpus |
-| `--out <path>` | `corpus/<model>.json` | which corpus to read for selection and write into. Resolved against your shell, not the script |
-| `--limit <n>` | — | describe at most n icons |
-| `--only <name>` | — | describe exactly these; repeatable. Implies `--force` for them, so a name that already has an entry is described again and billed again |
-| `--force` | off | re-describe icons that already have entries |
-| `--cache-ttl <5m\|1h\|off>` | `5m` | how long the API caches the invariant instruction prefix. `api` and `batch` only — `cli` sends no prefix to cache |
-| `--size <px>` | 512 | PNG render size |
-| `--max-cost <usd>` | — | spend ceiling: aborts a running `cli`/`api` total, refuses a `batch` submit pre-flight. Caps nothing once a batch is away |
-| `--dry-run` | — | print the selection and the estimate, then exit without sending |
-| `--validate` | — | score a corpus; writes nothing. Defaults `--out` to the shipped corpus |
-| `--fetch <batch-id>` | — | collect a submitted batch. Takes no other flags |
-| `-h`, `--help` | — | print the flags |
+| Flag                            | Default               | Meaning                                                                                                                                 |
+| ------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `--transport <cli\|api\|batch>` | `cli`                 | see below                                                                                                                               |
+| `--model <name>`                | `sonnet`              | `sonnet` or `opus`, or the concrete id (`claude-sonnet-5`). Under `cli` any string is accepted and names its own corpus                 |
+| `--out <path>`                  | `corpus/<model>.json` | which corpus to read for selection and write into. Resolved against your shell, not the script                                          |
+| `--limit <n>`                   | —                     | describe at most n icons                                                                                                                |
+| `--only <name>`                 | —                     | describe exactly these; repeatable. Implies `--force` for them, so a name that already has an entry is described again and billed again |
+| `--force`                       | off                   | re-describe icons that already have entries                                                                                             |
+| `--cache-ttl <5m\|1h\|off>`     | `5m`                  | how long the API caches the invariant instruction prefix. `api` and `batch` only — `cli` sends no prefix to cache                       |
+| `--size <px>`                   | 512                   | PNG render size                                                                                                                         |
+| `--max-cost <usd>`              | —                     | spend ceiling: aborts a running `cli`/`api` total, refuses a `batch` submit pre-flight. Caps nothing once a batch is away               |
+| `--dry-run`                     | —                     | print the selection and the estimate, then exit without sending                                                                         |
+| `--validate`                    | —                     | score a corpus; writes nothing. Defaults `--out` to the shipped corpus                                                                  |
+| `--fetch <batch-id>`            | —                     | collect a submitted batch. Takes no other flags                                                                                         |
+| `-h`, `--help`                  | —                     | print the flags                                                                                                                         |
 
 `--out` is the one flag whose default depends on the mode: a run writes to the workbench, and `--validate` reads what ships. The model in `corpus/<model>.json` is the canonical id, so `--model opus` and `--model claude-opus-5` name the same file.
 
@@ -66,11 +66,11 @@ Parsing, coercion, and `--help` come from `commander` (`cli.ts`). The exclusivit
 
 ## Transports
 
-| | spends | latency | image delivery |
-|---|---|---|---|
-| `cli` | subscription quota | seconds | model reads PNGs off disk with the `Read` tool |
-| `api` | tokens, full rate | seconds | PNG bytes inline in the request |
-| `batch` | tokens, **50% off** | up to 24h | PNG bytes inline in the request |
+|         | spends              | latency   | image delivery                                 |
+| ------- | ------------------- | --------- | ---------------------------------------------- |
+| `cli`   | subscription quota  | seconds   | model reads PNGs off disk with the `Read` tool |
+| `api`   | tokens, full rate   | seconds   | PNG bytes inline in the request                |
+| `batch` | tokens, **50% off** | up to 24h | PNG bytes inline in the request                |
 
 **Iterate on `api`; run on `batch`.** `cli` bills no money, which makes it look like the obvious iteration transport, and it is not: a 60-icon run draws enough subscription quota to be felt, and prompt work means running that repeatedly. The same 60 icons over `api` cost cents. `cli` is worth keeping for a handful of icons, or when you have no key to hand, but it is not where prompt iteration belongs. `batch` halves the token price and is what a full run should use.
 
@@ -82,11 +82,11 @@ A batch is capped at 100,000 requests **or 256 MB, whichever comes first**, and 
 
 This is not a tuning knob. There is no flag for it, and that is the point: the alternative makes a defect possible that nothing downstream can see.
 
-Sending 30 images in one request makes name↔image correspondence the model's job. Opus got it wrong twice in 138 requests: partway through, it began labelling each description with the *following* icon's name, and continued to the end of the request. 36 icons were displaced. Every description was valid prose carrying a real icon name, so validation passed, the schema was satisfied, and the corpus absorbed it silently. Sonnet received byte-identical requests in the same order and was unaffected. A separate pair, `metal-hand`/`stone-bust`, came back holding each other's descriptions — a mutual swap, which a shift detector structurally cannot see.
+Sending 30 images in one request makes name↔image correspondence the model's job. Opus got it wrong twice in 138 requests: partway through, it began labelling each description with the _following_ icon's name, and continued to the end of the request. 36 icons were displaced. Every description was valid prose carrying a real icon name, so validation passed, the schema was satisfied, and the corpus absorbed it silently. Sonnet received byte-identical requests in the same order and was unaffected. A separate pair, `metal-hand`/`stone-bust`, came back holding each other's descriptions — a mutual swap, which a shift detector structurally cannot see.
 
 At one icon per request the mapping is established by the request itself. `buildContent` pairs the image with the filename the harness asked for, and the reply's `name` field becomes a redundant channel that can be checked by string equality rather than scored — `extractMessage` fails a request whose reply names anything else. The failure stops being rare and becomes unrepresentable.
 
-`custom_id` carries that guarantee across the batch transport's asynchrony. It must match `^[a-zA-Z0-9_-]{1,64}$`, which every icon name does — the longest is 33 characters — so the id a result line comes back under *is* the icon it belongs to, whatever order the lines arrive in. The record still lists the icons it submitted, for a different job: a short results body has no failure lines of its own to report, so `readResults` counts what came back against that manifest and names whatever never arrived.
+`custom_id` carries that guarantee across the batch transport's asynchrony. It must match `^[a-zA-Z0-9_-]{1,64}$`, which every icon name does — the longest is 33 characters — so the id a result line comes back under _is_ the icon it belongs to, whatever order the lines arrive in. The record still lists the icons it submitted, for a different job: a short results body has no failure lines of its own to report, so `readResults` counts what came back against that manifest and names whatever never arrived.
 
 What this costs: 4,134 requests instead of 138, and the instruction prefix sent 4,134 times instead of 138. Prompt caching is the answer to the second half — on the arm where it works.
 
@@ -116,21 +116,21 @@ Shrinking the prompt is therefore not free in a way that is easy to miss. Cuttin
 
 Reads cost a tenth of an ordinary input token under either window, so the choice is only about the write: **1.25×** for the 5-minute window against **2×** for the hour.
 
-The comparison that decides it is the two windows against *each other*, not each against no cache at all. Over R requests writing W times, 5m bills `0.1R + 1.15·W₅` and 1h bills `0.1R + 1.9·W₁`, both in units of prefix input tokens. **5m is cheaper unless it writes more than 1.65× as often as 1h does.**
+The comparison that decides it is the two windows against _each other_, not each against no cache at all. Over R requests writing W times, 5m bills `0.1R + 1.15·W₅` and 1h bills `0.1R + 1.9·W₁`, both in units of prefix input tokens. **5m is cheaper unless it writes more than 1.65× as often as 1h does.**
 
 **The default is `5m`, because the runs are short.** All three measured runs went out at `1h` and none of them came near using it:
 
-| run | requests | writes | hit rate | submit → collect |
-|---|---|---|---|---|
-| smoke, Opus | 30 | 15 | 50.0% | 9 min |
-| full arm, Sonnet | 4,134 | 698 | **83.1%** | 12 min |
-| full arm, Opus | 4,134 | 1,486 | **64.1%** | 10 min |
+| run              | requests | writes | hit rate  | submit → collect |
+| ---------------- | -------- | ------ | --------- | ---------------- |
+| smoke, Opus      | 30       | 15     | 50.0%     | 9 min            |
+| full arm, Sonnet | 4,134    | 698    | **83.1%** | 12 min           |
+| full arm, Opus   | 4,134    | 1,486  | **64.1%** | 10 min           |
 
 An hour-long window cannot expire inside a twelve-minute run, so **every write in that table was paid for something other than expiry.** Whatever the short window would have changed, it would not have changed those. Repricing the Opus arm's actual 1,486 writes and 2,648 reads at 5m gives **$12.57 against the $15.99 the hour modelled** — a $3.42 saving on one arm, for a window that arm never used. The break-even is a long way off: 5m loses only if it writes more than 1.65× as often, which on that arm means more than **2,452** writes, a hit rate below 40.7%. On Sonnet the same threshold is 72.1%, against the 83.1% it delivered.
 
 What makes that the right default rather than a gamble is that the downside is bounded: a prefix written and never once re-read bills 1.25× against 1× for `off`, so the worst case is a 25% overpay on the prefix — about $3 on an Opus arm — and not a blowup. The upside is bounded too. This flag is worth a few dollars either way.
 
-`1h` is there for a batch that *queues* rather than runs. A node left untouched for six minutes has to be rewritten under the short window and does not under the long one, so the wall-clock column is the thing to check before assuming that will not happen — the queue makes no promises, and these three runs were all submitted late in the evening. It is one flag; if a run comes back slow and cheapened by a poor hit rate, that is the lever.
+`1h` is there for a batch that _queues_ rather than runs. A node left untouched for six minutes has to be rewritten under the short window and does not under the long one, so the wall-clock column is the thing to check before assuming that will not happen — the queue makes no promises, and these three runs were all submitted late in the evening. It is one flag; if a run comes back slow and cheapened by a poor hit rate, that is the lever.
 
 **What a batch's writes are actually caused by, and how the rate scales.** Since expiry is ruled out, how a batch is spread across cache nodes is the likeliest cause, each one needing warming before anything routed to it can hit. That does not mean a fixed pool: a fixed pool would predict the same ~15 writes at any size and a 99.6% hit rate on a full arm, where 138× the requests instead produced 47× the writes. Writes grow **sublinearly but not negligibly**.
 
@@ -138,7 +138,7 @@ The two full arms are the caution against reading any of this as a law. Same req
 
 `off` sends no marker at all rather than a shorter one, because a marked block pays the write premium whether or not anything ever re-reads it. That premium is real, and it is what the short window mostly buys back: break-even against no cache at all is a **52.6%** hit rate under `1h` but only **21.7%** under `5m`. The 30-request smoke came in at 50.0% — under `1h` that was the wrong side of the line, and under the new default it is comfortably the right one. Reach for `off` deliberately, on a run short enough that the prefix will never be re-read.
 
-**The hit rate is measured, not assumed.** Every run reports its cache line — after the run on `api`, after `--fetch` on `batch`. The docs put batch hit rates at 30–98% and call them best-effort, which is a range wide enough to be worth measuring rather than planning around, and the 19-point spread between the two arms is that range showing up in practice. This is why `--dry-run` prints a *range* rather than a single estimate: the floor assumes every request after the first re-reads the prefix, the ceiling assumes each one writes it again at the ttl's premium. For a full Opus arm on `batch` at the default those are **$7.33 and $21.92**, and neither is where a run lands — see "Cost". `--max-cost` refuses a `batch` submit against the ceiling, since a batch cannot be stopped once it is away.
+**The hit rate is measured, not assumed.** Every run reports its cache line — after the run on `api`, after `--fetch` on `batch`. The docs put batch hit rates at 30–98% and call them best-effort, which is a range wide enough to be worth measuring rather than planning around, and the 19-point spread between the two arms is that range showing up in practice. This is why `--dry-run` prints a _range_ rather than a single estimate: the floor assumes every request after the first re-reads the prefix, the ceiling assumes each one writes it again at the ttl's premium. For a full Opus arm on `batch` at the default those are **$7.33 and $21.92**, and neither is where a run lands — see "Cost". `--max-cost` refuses a `batch` submit against the ceiling, since a batch cannot be stopped once it is away.
 
 ### Why the response is a list, not an object keyed by icon
 
@@ -146,7 +146,7 @@ The obvious shape for a batch of descriptions is an object mapping each icon's n
 
 Structured outputs compile **one grammar per distinct schema**, cached 24 hours and invalidated by any change to the schema's structure, against an organisation limit of **20 compilations per minute**. A schema keyed by icon name embeds the request's own data in its keys, so a 138-request arm carries 138 distinct schemas — dispatched far faster than 20 a minute. The first live batch described **1,080 of 4,134** icons and errored the other 102 requests with `Grammar compilation rate limit exceeded`. The concurrent Opus arm reached 1,770: the limit is org-wide, so two arms in flight compete for one budget.
 
-Keeping the map shape and letting the schema name no icons is not expressible. It needs `additionalProperties` to be a type, and structured outputs reject that outright — *"For 'object' type, 'additionalProperties: object' is not supported. Please set 'additionalProperties' to false."*
+Keeping the map shape and letting the schema name no icons is not expressible. It needs `additionalProperties` to be a type, and structured outputs reject that outright — _"For 'object' type, 'additionalProperties: object' is not supported. Please set 'additionalProperties' to false."_
 
 Moving the names out of the keys and into values resolves both: one schema serves every request on every transport, so the grammar compiles once and the rest hit cache. Dropping the schema instead is not the cheaper option it looks like — a run with no `output_config` wrapped its reply in a markdown fence and lost **46 of 50** icons at `JSON.parse`, every one of them well formed and billed.
 
@@ -165,18 +165,18 @@ A **rail** keeps a run from spending more than you meant it to. Not error handli
 1. **Bare `--force` on a paid transport asks for confirmation.** Re-describing every already-described icon is one keystroke from a scoped re-run, so it is worth a question — but it is a thing an operator may genuinely mean, and the answer is a number they can see on a bill afterwards. The prompt comes after the count and the estimate are printed and before any PNG is rendered, so the question carries the figures it is about. **With no TTY it refuses**: an unanswerable prompt fails closed, because readline resolves immediately on EOF and treating that as consent would approve a spend nobody saw.
 2. **`--max-cost <usd>`** aborts a synchronous run partway once the running total reaches the ceiling.
 3. **An estimate is printed before every paid run**, and under `batch` the run refuses to submit if its **ceiling** exceeds `--max-cost`. Compared against the worst case rather than the best, because a submitted batch cannot be stopped partway and a limit only the luckiest cache outcome fits under is not a limit. A batch is billed only when its results come back, so refusing to submit is the only guarantee available there.
-4. **An uncollected batch blocks further runs against the same corpus.** Selection reads the corpus, which an in-flight batch has not written to yet, so running again re-describes and re-pays for the same icons. Scoped per corpus and checked on *every* transport, since the hazard belongs to the corpus.
+4. **An uncollected batch blocks further runs against the same corpus.** Selection reads the corpus, which an in-flight batch has not written to yet, so running again re-describes and re-pays for the same icons. Scoped per corpus and checked on _every_ transport, since the hazard belongs to the corpus.
 5. **A corpus records the model that wrote it** (a `<corpus>.model` sidecar) and refuses a write from a different one.
 
 Rails 1–3 guard money. Rails 4 and 5 guard something worse, and that is why they refuse instead of asking: a corpus holding two models' output is indistinguishable afterwards from one holding either, so "are you sure?" would be asking an operator to approve a result they cannot inspect later to find out whether they were right. Both are also trivially satisfiable — collect the batch, or name a different `--out`. Since `--out` now defaults to `corpus/<model>.json`, rail 5 should only ever fire on an explicit `--out` that names another model's file.
 
 **Dry run — `--dry-run`, on any transport.** Prints the selection and, on a paid transport, the estimate, then exits 0 before rendering a PNG or opening a connection. It is the only supported way to preview a run.
 
-Do not preview a run by giving it a `--max-cost` you expect it to refuse. That was the old advice and it is a trap: the refusal is rail 3 comparing `--max-cost` against the estimate's upper end, so it only fires when the estimate is *larger*. A selection small enough to fit underneath submits instead — which is how a command meant as a preview put a live batch in flight once the corpus was nearly full. Choosing a ceiling that refuses also requires already knowing the estimate, which is the thing a preview is for.
+Do not preview a run by giving it a `--max-cost` you expect it to refuse. That was the old advice and it is a trap: the refusal is rail 3 comparing `--max-cost` against the estimate's upper end, so it only fires when the estimate is _larger_. A selection small enough to fit underneath submits instead — which is how a command meant as a preview put a live batch in flight once the corpus was nearly full. Choosing a ceiling that refuses also requires already knowing the estimate, which is the thing a preview is for.
 
 ## Validation
 
-`--validate` is pattern matching, not judgement. It calls no model and knows nothing about whether a description is *correct* — only whether it trips one of a handful of regexes. Checking a description against its icon is a separate job with no tooling in this repo; see "Comparing model outputs" below.
+`--validate` is pattern matching, not judgement. It calls no model and knows nothing about whether a description is _correct_ — only whether it trips one of a handful of regexes. Checking a description against its icon is a separate job with no tooling in this repo; see "Comparing model outputs" below.
 
 It merges overrides over the corpus and reports three tiers:
 
@@ -186,23 +186,23 @@ It merges overrides over the corpus and reports three tiers:
 
 The warning tier is a **prompt-iteration metric first**, a triage list second. Three checks:
 
-| check | what it catches |
-|---|---|
-| name echo | the description adds nothing beyond the icon's own name |
-| style word | describes the drawing, not the subject (`stylized`, `silhouette`, `pictogram`…) |
-| tautological association | closes on "…, symbolizing <the thing it just described>" |
+| check                    | what it catches                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| name echo                | the description adds nothing beyond the icon's own name                         |
+| style word               | describes the drawing, not the subject (`stylized`, `silhouette`, `pictogram`…) |
+| tautological association | closes on "…, symbolizing <the thing it just described>"                        |
 
-Read the **rate** across prompt revisions, not the count as a defect list. The tautology check deliberately over-flags icons where naming the referent *is* the description (`sri-lanka`).
+Read the **rate** across prompt revisions, not the count as a defect list. The tautology check deliberately over-flags icons where naming the referent _is_ the description (`sri-lanka`).
 
 ### Baseline
 
 Measured over the 418 entries in `corpus/pilot-2026-07-26.json`, generated before 2026-07-27 under the previous prompt:
 
-| check | hits | rate |
-|---|---|---|
-| style word | 38 | 9.1% |
-| tautological association | 47 | 11.2% |
-| name echo | 0 | 0% |
+| check                    | hits | rate  |
+| ------------------------ | ---- | ----- |
+| style word               | 38   | 9.1%  |
+| tautological association | 47   | 11.2% |
+| name echo                | 0    | 0%    |
 
 Composition, which is what the current prompt is aimed at: `stylized` 25 / `silhouette*` 13; `symbolizing*` 26 / `representing` 11 / `evoking` 9 / `symbol of` 1.
 
@@ -220,23 +220,23 @@ These are regexes, so comparing a revision against them carries **zero grading n
 
 Only the first sits inside the rules, and it renames a pronoun. The other two are output format and image placement. That reading is the only thing standing between this table and the prompt actually in `prompt.ts`. A prompt edit with any semantic content is a different matter: re-pilot it.
 
-| check | old prompt | current prompt | fixed | introduced |
-|---|---|---|---|---|
-| style word | 9/60 | **3/60** | 7 | 1 |
-| tautological association | 7/60 | **0/60** | 7 | 0 |
-| name echo | 0/60 | 0/60 | 0 | 0 |
+| check                    | old prompt | current prompt | fixed | introduced |
+| ------------------------ | ---------- | -------------- | ----- | ---------- |
+| style word               | 9/60       | **3/60**       | 7     | 1          |
+| tautological association | 7/60       | **0/60**       | 7     | 0          |
+| name echo                | 0/60       | 0/60           | 0     | 0          |
 
 McNemar exact, two-sided: tautology **p = 0.016**, style **p = 0.07**. The tautology result is solid; the style result is suggestive at this n.
 
-`stylized` — 66% of the baseline style residue — went from 6.0% of entries to **0 of 60**, which is what the "how abstract or simplified it is" clause was added to do. The three surviving hits are largely detector false positives: `aries` reads *"the zodiac glyph for the sign Aries"*, where `glyph` is the correct technical noun, and the other two describe featureless human figures as `person silhouettes`. Tightening the prompt further would be arguing with the regex rather than with the descriptions.
+`stylized` — 66% of the baseline style residue — went from 6.0% of entries to **0 of 60**, which is what the "how abstract or simplified it is" clause was added to do. The three surviving hits are largely detector false positives: `aries` reads _"the zodiac glyph for the sign Aries"_, where `glyph` is the correct technical noun, and the other two describe featureless human figures as `person silhouettes`. Tightening the prompt further would be arguing with the regex rather than with the descriptions.
 
 ### The shipped corpus, and a regression
 
-| corpus | style | tautology |
-|---|---|---|
-| 418-entry baseline, pre-prompt-work | 9.1% | 11.2% |
-| shipped, 30 icons per request | 1.4% | 0.7% |
-| **shipped, one icon per request** | **3.1%** | **1.5%** |
+| corpus                              | style    | tautology |
+| ----------------------------------- | -------- | --------- |
+| 418-entry baseline, pre-prompt-work | 9.1%     | 11.2%     |
+| shipped, 30 icons per request       | 1.4%     | 0.7%      |
+| **shipped, one icon per request**   | **3.1%** | **1.5%**  |
 
 Both rates roughly doubled when the arms were regenerated. Same detectors on both, so the comparison carries no grading noise, and both are still far under the baseline the prompt work started from — but this is a regression against the corpus this replaced and it is not explained.
 
@@ -249,9 +249,9 @@ The prompt is not the candidate it looks like. Going to one image per request ch
 **The one finding that governs how to edit it:** the model reproduces an example's wording when it meets that example's icon. Every counter-example used to name a real icon, and all five came back carrying the exact clause the list forbade, with only "conventionally" spliced in — five for five. So:
 
 - **Counter-examples name no subject.** They are patterns with the subject blanked (`"A <tool>, symbolizing <the activity that tool performs>."`). Their verbs vary too, because once the subject is blank the verb is the only concrete thing left to read as the rule's scope.
-- **The style rule is described, never demonstrated.** Its forbidden vocabulary is generic rather than icon-bound, so a pattern cannot hide it. The old wording illustrated the rule *with* "depicted in bold silhouette", and `silhouette` then appeared in 8 entries.
+- **The style rule is described, never demonstrated.** Its forbidden vocabulary is generic rather than icon-bound, so a pattern cannot hide it. The old wording illustrated the rule _with_ "depicted in bold silhouette", and `silhouette` then appeared in 8 entries.
 
-The positive exemplars still name real icons, and they echo by the same mechanism. Mostly this is fine — `bat-wing` and `sparkles` came back as faithful echoes. But it is not uniformly benign: `berry-bush` came back *worse* than its own exemplar, having gained a style word. Their icons are not excluded from the residue counts above.
+The positive exemplars still name real icons, and they echo by the same mechanism. Mostly this is fine — `bat-wing` and `sparkles` came back as faithful echoes. But it is not uniformly benign: `berry-bush` came back _worse_ than its own exemplar, having gained a style word. Their icons are not excluded from the residue counts above.
 
 **The name is a hint; the image is authoritative.** This rule is deliberately not loosened for the 36 place-outline icons (0.87%) where the name carries information the shape does not — amending a rule governing 4,134 icons to fix roughly a dozen trades a contained problem for an uncontained one, and `overrides.json` exists for the residue.
 
@@ -314,10 +314,10 @@ npm run gen:icon-descriptions -- --transport batch --model opus   --dry-run
 
 Expect **4,134 requests, one icon each**, and these ranges at the default `5m`:
 
-| arm | printed range | expect | billed at `1h` on 2026-08-01 |
-|---|---|---|---|
-| Sonnet | $2.93–$8.77 | ~$4.50 | **$5.046** at 83.1% |
-| Opus | $7.33–$21.92 | ~$14 | **$17.519** at 64.1% |
+| arm    | printed range | expect | billed at `1h` on 2026-08-01 |
+| ------ | ------------- | ------ | ---------------------------- |
+| Sonnet | $2.93–$8.77   | ~$4.50 | **$5.046** at 83.1%          |
+| Opus   | $7.33–$21.92  | ~$14   | **$17.519** at 64.1%         |
 
 Read the ceiling as a bound rather than a forecast: it prices 4,134 write premiums, and the arms wrote 698 and 1,486. The billed column is what the two arms cost under the old `1h` default, kept because it is the only measured data there is — the expectation column reprices those same runs at `5m` and adds thinking.
 
@@ -345,7 +345,7 @@ npm run gen:icon-descriptions -- --fetch <opus-batch-id>
 
 ### 6. Close the residue
 
-**Expect one.** Under 30 icons per request a residue arrived silently, as short replies with *zero* failed requests — 4,124 and 4,123 of 4,134, 0.24%. One icon per request converts that class into visible failures: a reply that does not name this icon fails the request, so whatever is missing is missing loudly, in `--fetch`'s `Described N of M` line and its failure lines. What has *not* changed is the remedy.
+**Expect one.** Under 30 icons per request a residue arrived silently, as short replies with _zero_ failed requests — 4,124 and 4,123 of 4,134, 0.24%. One icon per request converts that class into visible failures: a reply that does not name this icon fails the request, so whatever is missing is missing loudly, in `--fetch`'s `Described N of M` line and its failure lines. What has _not_ changed is the remedy.
 
 Re-run the step-4 command verbatim: selection subtracts what the corpus already holds, so it picks up only the missing icons. Collect it, and repeat until step 7 reports 0 missing. A residue small enough to describe synchronously is worth `--transport api` instead — a second 24-hour wait to describe a dozen icons is the batch discount buying nothing.
 
@@ -358,7 +358,7 @@ npm run gen:icon-descriptions -- --validate --out corpus/claude-sonnet-5.json
 npm run gen:icon-descriptions -- --validate --out corpus/claude-opus-5.json
 ```
 
-FAIL and MISSING block; WARN does not. This is regex pattern matching and says nothing about whether a description is *correct* — that is steps 8 and 9.
+FAIL and MISSING block; WARN does not. This is regex pattern matching and says nothing about whether a description is _correct_ — that is steps 8 and 9.
 
 ### 8. Audit a random sample against the artwork — free
 
@@ -377,7 +377,7 @@ npm run gallery:icon-descriptions
 open corpus/tmp/gallery.html
 ```
 
-It reads the arms `choices.json` names, calls no model, and writes one self-contained file with the SVGs inlined — around 10 MB for the full collection, which is why it belongs in the gitignored scratch directory. `--only <name>` narrows it to a handful. It deliberately shows *both* arms for every icon rather than only the disagreements, because conditioning on disagreement cannot see the icons both arms read the same way and wrong. The comparison below ranks the rows; this page is what keeps the unranked ones reachable.
+It reads the arms `choices.json` names, calls no model, and writes one self-contained file with the SVGs inlined — around 10 MB for the full collection, which is why it belongs in the gitignored scratch directory. `--only <name>` narrows it to a handful. It deliberately shows _both_ arms for every icon rather than only the disagreements, because conditioning on disagreement cannot see the icons both arms read the same way and wrong. The comparison below ranks the rows; this page is what keeps the unranked ones reachable.
 
 4,134 rows is more than anyone reads. To rank them, ask a model which pairs actually disagree:
 
@@ -389,13 +389,13 @@ npm run compare:icon-descriptions -- --fetch <batch-id>
 
 It pairs every icon both arms describe, sends the two sentences with no images and no model names attached, and classifies each pair `agree`, `trivial` (same subject, differing on something a reader would not act on — a count of repeated elements, an orientation word) or `substantial` (different subjects, or a detail that changes what a reader pictures). The report lands at `corpus/comparison.md` with both sentences quoted under each disagreement, so it reads straight through. Each section also opens with its icon names, comma-separated, to paste into the gallery's name-list box — which is the loop this is for: **the verdict says which rows to open, the artwork says which arm is right.**
 
-Grade by what the corpus is for. It backs fuzzy search, so `substantial` means the two arms name different *subjects* and a searcher would be misled; a differing count, part shape, or association clause is `trivial` however visible it is. An earlier rubric called any detail that "changes what a reader pictures" substantial, and it filed three knives against two — the worked example of a trivial difference — as substantial.
+Grade by what the corpus is for. It backs fuzzy search, so `substantial` means the two arms name different _subjects_ and a searcher would be misled; a differing count, part shape, or association clause is `trivial` however visible it is. An earlier rubric called any detail that "changes what a reader pictures" substantial, and it filed three knives against two — the worked example of a trivial difference — as substantial.
 
 Every pair goes, because there is no cheap pre-filter. Lexical overlap does not separate paraphrase from disagreement — mean Jaccard on content words is 0.265, and the zero-overlap bucket holds `french-fries` (pure paraphrase) beside `abstract-048` (a real disagreement). Sorting by overlap would drop real conflicts and spend the budget on rewordings.
 
 The judge sees the icon's **name** alongside the two descriptions, because the picker searches a description together with its name and never on its own. Without it, an arm that leans on the name rather than repeating it reads as describing something else — "a wyvern, wings spread" against "a horned winged dragon, wings spread" — and `isNameEcho` is a validator here, so the arms comply unevenly on exactly this point.
 
-The prompt is one unmarked block of about 620 tokens and `--cache-ttl` is not a flag here: Sonnet caches nothing under 1,024 tokens, so the marker would be ignored without an error. Padding up to that floor *would* now pay — a cached prefix bills 1.25× on a write and 0.1× on a read, so at Sonnet's measured 83.1% hit rate 1,024 tokens cost ~300 a request against the ~620 an uncached send costs, roughly $1.30 over the corpus. It is not done because 400 tokens of filler inside a prompt whose wording is load-bearing is a bad trade for $1.30 on a run that happens once. The crossover is around 340 tokens at that hit rate, so a prompt that grows much further should revisit this.
+The prompt is one unmarked block of about 620 tokens and `--cache-ttl` is not a flag here: Sonnet caches nothing under 1,024 tokens, so the marker would be ignored without an error. Padding up to that floor _would_ now pay — a cached prefix bills 1.25× on a write and 0.1× on a read, so at Sonnet's measured 83.1% hit rate 1,024 tokens cost ~300 a request against the ~620 an uncached send costs, roughly $1.30 over the corpus. It is not done because 400 tokens of filler inside a prompt whose wording is load-bearing is a bad trade for $1.30 on a run that happens once. The crossover is around 340 tokens at that hit rate, so a prompt that grows much further should revisit this.
 
 The radios start on whatever `choices.json` currently says, edited rows get an accent bar and a count, and **Export choices.json** hands back the whole file — not a diff — either as a download or as text to copy. Two things it does on your behalf: an icon picked back to the default leaves `choices` rather than being restated, keeping the file's "only the exceptions" invariant; and exceptions for icons the page never rendered survive being exported through it, so exporting from a `--only` page does not silently wipe the rest. An arm that has no description for an icon cannot be picked for it, because promotion would refuse that choice anyway.
 
@@ -421,7 +421,7 @@ Promotion refuses rather than drops: an icon whose winning model never described
 
 The gate was built for a failure one icon per request has retired — a model losing track, mid-request, of which of 30 images it was on. Both arms have since been regenerated under one icon per request, so a clean result is now close to guaranteed rather than informative, and the gate is a cheap check to keep rather than a thing to organise the pipeline around.
 
-**It cannot audit the harness, and it is worth being precise about why**, because the opposite is easy to assume. `detectShiftRuns` is a *relative* comparison, and both arms run through the same collection path in the same seeded order — literally the same expression on both sides. A harness that shifted by one would shift both, subject and reference would match each other perfectly, and the detector would see nothing. It fires only on a shift that hits one arm and not the other. The fault that would do that at N=1 is a result returned under the wrong `custom_id`, and that one is already caught more precisely by the name echo: the reply's echoed filename must equal the `custom_id`, so a mis-routed message fails its request outright.
+**It cannot audit the harness, and it is worth being precise about why**, because the opposite is easy to assume. `detectShiftRuns` is a _relative_ comparison, and both arms run through the same collection path in the same seeded order — literally the same expression on both sides. A harness that shifted by one would shift both, subject and reference would match each other perfectly, and the detector would see nothing. It fires only on a shift that hits one arm and not the other. The fault that would do that at N=1 is a result returned under the wrong `custom_id`, and that one is already caught more precisely by the name echo: the reply's echoed filename must equal the `custom_id`, so a mis-routed message fails its request outright.
 
 What the gate is still worth: it is the only check standing between the committed 30-era history and anything re-promoted from it, and it is the regression guard if grouping is ever reintroduced — which needs a transposition detector alongside it, as the known gaps say.
 
@@ -464,16 +464,16 @@ So: run the random audit for judgement about the artwork, the comparison for a r
 
 Smaller than it sounds, but not zero, and it does not need a bug in this repo or at the API to exist — a shared prompt is sufficient. Measured over the 4,134 icons both arms describe, using the deterministic detectors in `entries.ts`:
 
-| detector | sonnet | opus | both | expected if independent | ratio |
-|---|---|---|---|---|---|
-| style word | 327 | 127 | 78 | 10.0 | 7.8× |
-| tautology | 125 | 62 | 7 | 1.9 | 3.7× |
+| detector   | sonnet | opus | both | expected if independent | ratio |
+| ---------- | ------ | ---- | ---- | ----------------------- | ----- |
+| style word | 327    | 127  | 78   | 10.0                    | 7.8×  |
+| tautology  | 125    | 62   | 7    | 1.9                     | 3.7×  |
 
-The tautologies show the mechanism plainly. The prompt asks for a closing association, so on an icon whose *name is* the association both arms write one that restates it: `bull-horns` closes on "bulls, minotaurs" in both arms, `idea` on "a bright idea" and "the standard sign for an idea", `matter-states` on "states of matter". Neither model malfunctioned. The instruction did, and both obeyed it. Ambiguous artwork is a second such source, and one no code change can remove: two vision models with overlapping training resolve an ambiguous 512px glyph the same way more often than chance.
+The tautologies show the mechanism plainly. The prompt asks for a closing association, so on an icon whose _name is_ the association both arms write one that restates it: `bull-horns` closes on "bulls, minotaurs" in both arms, `idea` on "a bright idea" and "the standard sign for an idea", `matter-states` on "states of matter". Neither model malfunctioned. The instruction did, and both obeyed it. Ambiguous artwork is a second such source, and one no code change can remove: two vision models with overlapping training resolve an ambiguous 512px glyph the same way more often than chance.
 
-What this does **not** measure is correlated *wrong-object* error, which is the only failure that breaks search. That cannot be seen from the text alone — it needs eyes on artwork, which is the random audit's whole job. The one measurement bearing on it is the out-of-band n=100 paired audit: 23 icons had at least one arm in error and in 21 of those the other arm was accurate. Discount it as the known gaps say to, and it still points the same way — correlated wrong-object error is rare, so a disagreement-conditioned pass sees most of what matters. That is the argument for running the comparison, and it is an empirical claim, not a logical one.
+What this does **not** measure is correlated _wrong-object_ error, which is the only failure that breaks search. That cannot be seen from the text alone — it needs eyes on artwork, which is the random audit's whole job. The one measurement bearing on it is the out-of-band n=100 paired audit: 23 icons had at least one arm in error and in 21 of those the other arm was accurate. Discount it as the known gaps say to, and it still points the same way — correlated wrong-object error is rare, so a disagreement-conditioned pass sees most of what matters. That is the argument for running the comparison, and it is an empirical claim, not a logical one.
 
-An earlier cross-arm *flag* pass — an LLM judging whether the arms disagree — was built and removed, and the reason it went is now largely obsolete. It lost to `alignment.ts`, which answered the same question for free and more precisely, finding both displaced runs exactly with no model call and no false positives. But that question was displacement, and one icon per request retired it. The check that beat it no longer has the job it won with. What survives is the cost lesson, and the pass in step 9 is cheaper by an order of magnitude: ~$2–3 for the whole corpus against $4.45 for an extrapolation over ~1,000 icons, because the pairs are text-only, the prompt is short, and every request goes through the Batch API at half rate.
+An earlier cross-arm _flag_ pass — an LLM judging whether the arms disagree — was built and removed, and the reason it went is now largely obsolete. It lost to `alignment.ts`, which answered the same question for free and more precisely, finding both displaced runs exactly with no model call and no false positives. But that question was displacement, and one icon per request retired it. The check that beat it no longer has the job it won with. What survives is the cost lesson, and the pass in step 9 is cheaper by an order of magnitude: ~$2–3 for the whole corpus against $4.45 for an extrapolation over ~1,000 icons, because the pairs are text-only, the prompt is short, and every request goes through the Batch API at half rate.
 
 The removed pass's own numbers were an out-of-band measurement: a seeded 50-icon sample flagged 13 icons at ~$0.054, corroborating the n=100 audit's 23% error rate by a different method. Its verdict files were never committed, so that figure is an indication, not something this repo can re-derive.
 
@@ -489,25 +489,25 @@ The regex counters above are the exception — deterministic, zero grading noise
 
 The cheapest useful measurement in this pipeline: draw a random sample of icons, open the PNGs under `.icon-cache/png/`, and read each description against its artwork. It costs no tokens. Unlike any cross-arm check it is unconditioned on the two arms disagreeing, so it is the only method here that can catch both models being wrong the same way.
 
-It is not, however, without a blind spot — it has a *statistical* one. Read the power calculation below before quoting a clean sample as evidence of a clean corpus.
+It is not, however, without a blind spot — it has a _statistical_ one. Read the power calculation below before quoting a clean sample as evidence of a clean corpus.
 
-Grade against what the corpus is *for*. It backs fuzzy search in the icon picker, so the failure that matters is **naming the wrong object** — that is what makes an icon unfindable or surfaces the wrong one. A miscount or a wrong orientation on a correctly identified subject costs nothing on either axis, and should be recorded as a detail error rather than inflating the headline rate.
+Grade against what the corpus is _for_. It backs fuzzy search in the icon picker, so the failure that matters is **naming the wrong object** — that is what makes an icon unfindable or surfaces the wrong one. A miscount or a wrong orientation on a correctly identified subject costs nothing on either axis, and should be recorded as a detail error rather than inflating the headline rate.
 
-**2026-07-29, n=20, seeded random draw over the shipped corpus.** 20 of 20 substantively correct; **zero wrong-object errors**; one cosmetic blemish (`medal-skull` reads "a horned-less skull"). With no errors observed the true rate is under roughly 15% at 95% confidence — this rules out a bad corpus, not a flawless one. A second, deliberately adversarial sample of 9 icons drawn from the cross-arm pass's *conflicts* found exactly one shipped error, `kitchen-knives` ("two broad chef's knives and two slender blades … all pointing to the upper right" — there are three knives, and one points down-left). Both samples were graded by a single reader, which the 67% finding above says to discount accordingly.
+**2026-07-29, n=20, seeded random draw over the shipped corpus.** 20 of 20 substantively correct; **zero wrong-object errors**; one cosmetic blemish (`medal-skull` reads "a horned-less skull"). With no errors observed the true rate is under roughly 15% at 95% confidence — this rules out a bad corpus, not a flawless one. A second, deliberately adversarial sample of 9 icons drawn from the cross-arm pass's _conflicts_ found exactly one shipped error, `kitchen-knives` ("two broad chef's knives and two slender blades … all pointing to the upper right" — there are three knives, and one points down-left). Both samples were graded by a single reader, which the 67% finding above says to discount accordingly.
 
 **Those 29 icons contained no wrong-object error, and the corpus contained at least 36.** The alignment gate later found two runs of displaced descriptions the sampling had simply missed. This is the lesson worth keeping from the whole exercise: at a 0.9% defect rate a 20-icon sample expects 0.18 errors, so observing zero was never evidence of a clean corpus — it was the expected result either way. "Rules out a bad corpus, not a flawless one" was the right caveat and still understated how little the sample could see.
 
-A random audit measures whether the *model* understands the artwork. It is close to useless for finding a *mechanical* defect that touches under 1% of entries. Use the alignment gate for that, and do not let a clean sample stand in for a check that would actually have found the problem.
+A random audit measures whether the _model_ understands the artwork. It is close to useless for finding a _mechanical_ defect that touches under 1% of entries. Use the alignment gate for that, and do not let a clean sample stand in for a check that would actually have found the problem.
 
 ## Cost
 
 A full run of both arms on `batch` at the default `5m`, before Sonnet's introductory rate lapses. Each arm is priced at the hit rate it actually measured — 83.1% for Sonnet, 64.1% for Opus:
 
-| arm | `--dry-run` prints | at its measured rate | what `1h` modelled | with `--cache-ttl off` |
-|---|---|---|---|---|
-| Sonnet | $2.93–$8.77 | $3.92 | $4.56 | $7.50 |
-| Opus | $7.33–$21.92 | $12.57 | $15.99 | $18.75 |
-| both | $10.26–$30.69 | $16.49 | $20.55 | $26.25 |
+| arm    | `--dry-run` prints | at its measured rate | what `1h` modelled | with `--cache-ttl off` |
+| ------ | ------------------ | -------------------- | ------------------ | ---------------------- |
+| Sonnet | $2.93–$8.77        | $3.92                | $4.56              | $7.50                  |
+| Opus   | $7.33–$21.92       | $12.57               | $15.99             | $18.75                 |
+| both   | $10.26–$30.69      | $16.49               | $20.55             | $26.25                 |
 
 Every figure counts image and text tokens only, and nothing for thinking tokens, so even the ceiling is not a hard ceiling. Budget **~25 output tokens per request on Sonnet and ~30 on Opus** for thinking on top — 23.6 measured on the Sonnet arm, 29.5 on the Opus arm. All the token figures come from `estimateCost`, so `--dry-run` is the authority and this table is a copy; if the two disagree, the code is right.
 
@@ -523,8 +523,8 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 
 ## Known gaps
 
-- **Opus displaced 36 descriptions by one, in two of its 138 requests.** Partway through a request it stopped tracking which image went with which name and labelled every remaining description with the *following* icon's name — `xylophone` got the necktie, `yin-yang` got the xylophone, `amphora` got the yin-yang. Both runs began mid-request and continued to its end: 26 icons from index 3304 and 10 from 3950. Sonnet received byte-identical requests in the same order and was unaffected, and `invoke-api.ts` pairs each image with its own filename from one array, so this is the model losing the thread rather than a pipeline defect. Nothing in the pipeline could see it — the names were all present and the prose was all valid — which is why the alignment gate in step 10 exists. Re-describing the affected icons with `--only` was the fix; `choices.json` was not, because it would pin good-but-displaced Opus text to Sonnet permanently. **One icon per request is what closes this for good**; the gate found it, the transport now prevents it. Both arms have since been regenerated under that transport and promotion's alignment check comes back clean, so this is history rather than an open gap. It is kept because it is the reason the gate exists, and the reason removing the gate would be a mistake.
-- **`metal-hand` and `stone-bust` came back holding each other's descriptions**, at adjacent request indices in the same Opus request. A mutual swap is invisible to the shift detector by construction: it asks whether description *k* resembles reference *k−1*, and a swap presents as a run of length 1, below the run-length floor. A detector for it was designed and measured — 1 hit across 4,134 at margin 0.05, zero false positives — and deliberately not built, because one icon per request retires the whole class. The two icons are pinned in `choices.json` instead. Anyone reintroducing grouping needs that detector as well as the gate.
+- **Opus displaced 36 descriptions by one, in two of its 138 requests.** Partway through a request it stopped tracking which image went with which name and labelled every remaining description with the _following_ icon's name — `xylophone` got the necktie, `yin-yang` got the xylophone, `amphora` got the yin-yang. Both runs began mid-request and continued to its end: 26 icons from index 3304 and 10 from 3950. Sonnet received byte-identical requests in the same order and was unaffected, and `invoke-api.ts` pairs each image with its own filename from one array, so this is the model losing the thread rather than a pipeline defect. Nothing in the pipeline could see it — the names were all present and the prose was all valid — which is why the alignment gate in step 10 exists. Re-describing the affected icons with `--only` was the fix; `choices.json` was not, because it would pin good-but-displaced Opus text to Sonnet permanently. **One icon per request is what closes this for good**; the gate found it, the transport now prevents it. Both arms have since been regenerated under that transport and promotion's alignment check comes back clean, so this is history rather than an open gap. It is kept because it is the reason the gate exists, and the reason removing the gate would be a mistake.
+- **`metal-hand` and `stone-bust` came back holding each other's descriptions**, at adjacent request indices in the same Opus request. A mutual swap is invisible to the shift detector by construction: it asks whether description _k_ resembles reference _k−1_, and a swap presents as a run of length 1, below the run-length floor. A detector for it was designed and measured — 1 hit across 4,134 at margin 0.05, zero false positives — and deliberately not built, because one icon per request retires the whole class. The two icons are pinned in `choices.json` instead. Anyone reintroducing grouping needs that detector as well as the gate.
 - **The n=100 paired audit was measured out of band.** The claim that no icon had both models wrong (23 had at least one error; in 21 of those the other model was accurate) has no artifact in this repo and cannot be re-derived from it. Given the 67% self-agreement finding, treat it as an indication, not a result. It is no longer the only evidence for the Opus pick — see "Auditing the shipped corpus".
 - **`choices.json` defaults to the Opus arm, with eight exceptions, and every exception was found the same way.** The grounds for the default: 9 adjudicated cross-arm conflicts going 7–1 to Opus with one wash, and Opus naming the place in all four place-outline icons where Sonnet manages one. The 20-icon random audit is weaker evidence than it looked — see "Auditing the shipped corpus". Six of the exceptions came out of the step-9 comparison, read against the artwork in the gallery; the other two are the transposed pair above. So the exception list inherits that pass's blind spot wholesale: it is drawn entirely from the 29 pairs the judge called substantial, and no unconditioned pass over all 4,134 has been run.
 - **The comparison pass has run, but only its top ranks have been checked.** A full run over all 4,134 pairs returned 29 `substantial`, 1,776 `trivial` and 2,329 `agree`; the report is committed as `corpus/comparison.md`. Ten of the 29 substantial rows became curation decisions, so the head of the ranking earns its place. Nothing below it has been sampled — no one has read a `trivial` row or an `agree` row against artwork to find out what the judge buried there, and `trivial` alone is 1,776 icons. How well the three verdicts track human judgement is therefore still unmeasured, which is the same gap the pass had before it was run, moved down one rank.
@@ -532,33 +532,33 @@ Prices live in `invoke-api.ts` and only models whose rates were confirmed agains
 - **The judge shared a model with one of the arms it judged.** `--judge` defaults to `sonnet` and `--a` to `claude-sonnet-5`, and the committed run took both defaults: the batch record for `corpus/comparison.md` names `claude-sonnet-5`. Blinding the arms removes the ability to prefer by label, not the ability to prefer by style — a model asked whether two texts agree, where one is its own phrasing, may read its own as the baseline and the other as the deviation. Every curation decision in `choices.json` came out of the 29 `substantial` rows, so a bias that moves that set moves what ships. Re-judging the 29 plus a sample of `trivial` under Opus would cost pennies and would say whether the set is judge-stable; nobody has. The report now records its judge, so at least the confound is visible from the artifact.
 - **Correlated error is measured only on prose defects, never on wrong-object error.** The 7.8× and 3.7× figures come from regex detectors over the text, so they say the arms share prompt-induced habits — not that they misidentify the same subjects. The failure that breaks search cannot be seen without the artwork, and the only evidence about it is the discounted n=100 audit. A paired re-audit drawn from `agree` rows specifically would answer it, and nobody has run one.
 - **`count_tokens` underreported the prefix by 280 tokens and nobody knows why.** It said 948; the batch billed 1,228. The gap is not a rounding artifact — it is 23% of the number, it flipped the Sonnet caching conclusion, and it means the token-counting endpoint is not a substitute for a billed measurement when the answer has to be right. Anything here that turns on prefix size should be re-derived from a real run's `written ÷ writes`, not re-measured.
-- **Why writes scale the way they do is unexplained, and it varies more between arms than the scaling story suggests.** 15 writes at 30 requests, then 698 and 1,486 at 4,134 — sublinear, but far from the fixed count a simple pool of cache nodes would give, and the two full arms differ by a factor of 2.1 at identical size, window, and time of night. Plan against 60–85%, read the cache line, and update the table rather than the model. Whether `5m` changes any of this is unmeasured: it is now the default on the strength of the *cause* of those writes not being expiry, which is an argument rather than an observation.
-- **The reply's `name` field is a vestige carrying a smaller job than it was built for.** At 30 icons per request it was the key. Now `custom_id` is, and the echo only audits *that* — it cannot catch a wrong image, since the PNG and its label come from one variable. Designed fresh, the schema would probably carry no name at all: one less thing to get wrong, and a shorter prefix. Removing it means editing the prompt, which means regenerating both arms, so it stays.
+- **Why writes scale the way they do is unexplained, and it varies more between arms than the scaling story suggests.** 15 writes at 30 requests, then 698 and 1,486 at 4,134 — sublinear, but far from the fixed count a simple pool of cache nodes would give, and the two full arms differ by a factor of 2.1 at identical size, window, and time of night. Plan against 60–85%, read the cache line, and update the table rather than the model. Whether `5m` changes any of this is unmeasured: it is now the default on the strength of the _cause_ of those writes not being expiry, which is an argument rather than an observation.
+- **The reply's `name` field is a vestige carrying a smaller job than it was built for.** At 30 icons per request it was the key. Now `custom_id` is, and the echo only audits _that_ — it cannot catch a wrong image, since the PNG and its label come from one variable. Designed fresh, the schema would probably carry no name at all: one less thing to get wrong, and a shorter prefix. Removing it means editing the prompt, which means regenerating both arms, so it stays.
 - **Rail 5 does not apply to the shipped corpus, by design.** It refuses a run that would mix two models in one file — which is exactly what promotion does on purpose. The shipped corpus carries no `.model` sidecar and should not: it is not a run target, and a run that wrote to it would be overwritten wholesale by the next `promote` anyway.
 - **`IconDebugView` shows only the rule icons it happens to have descriptions for, silently, in one column.** It reads the shipped corpus, which records one description per icon and nothing about who wrote it, so it cannot compare arms at all — `gallery.ts` exists for that and is a generated file rather than app UI, since the arms are experiment data that nothing shipping should import. What `IconDebugView` still needs is a row per rule icon with an explicit empty state.
 - **The rails' wiring has no tests.** Their mechanisms do: rail 1's fail-closed in `confirm.test.ts`, rail 2's ceiling in `run.test.ts`, rail 4's outstanding-batch check in `batch.test.ts`, rail 5's model guard in `store.test.ts`. What is untested is the top-level code in `gen-icon-descriptions.ts` that decides when each fires, because it only runs as a script. Extracting an args→plan function would reach it.
 
 ## Files
 
-| | |
-|---|---|
-| `../gen-icon-descriptions.ts` | entry point: rails, mode dispatch |
-| `../promote-icon-descriptions.ts` | entry point: arms + choices → the shipped corpus |
-| `../icon-gallery.ts` | entry point: arms → a standalone HTML review page |
-| `../compare-arms.ts` | entry point: two arms → a batch of pairwise verdicts → the disagreement report |
-| `gallery.ts` | icons + arms + choices → the page's markup |
-| `compare.ts` | the comparison prompt and schema, pairing, verdict extraction, report markup |
-| `cli.ts` | flag definitions, coercion, mode exclusivity, corpus path defaults |
-| `confirm.ts` | y/N prompt; false when there is no TTY |
-| `prompt.ts` | the prompt. See above before editing |
-| `selection.ts` | corpus → which icons to describe |
-| `rasterize.ts` | icon → cached PNG |
-| `invoke.ts` | `cli` transport |
-| `invoke-api.ts` | `api` transport, model pricing, cost estimates |
-| `batch.ts` | `batch` transport: submit, record, collect. Generic over the payload, so descriptions and verdicts share it |
-| `run.ts` | per-icon request loop, retries, running cost, cache totals, `--max-cost` abort |
-| `store.ts` | corpus read/merge/write, model sidecar |
-| `promote.ts` | `choices.json` → which model's description each icon ships |
-| `alignment.ts` | cross-arm displacement gate: is a description on the right icon at all |
-| `transport.ts` | shared types, `requestFailure`, response schema, cache-usage reporting |
-| `../../src/data/iconDescriptions/entries.ts` | validators + override merge — shared with the app |
+|                                              |                                                                                                             |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `../gen-icon-descriptions.ts`                | entry point: rails, mode dispatch                                                                           |
+| `../promote-icon-descriptions.ts`            | entry point: arms + choices → the shipped corpus                                                            |
+| `../icon-gallery.ts`                         | entry point: arms → a standalone HTML review page                                                           |
+| `../compare-arms.ts`                         | entry point: two arms → a batch of pairwise verdicts → the disagreement report                              |
+| `gallery.ts`                                 | icons + arms + choices → the page's markup                                                                  |
+| `compare.ts`                                 | the comparison prompt and schema, pairing, verdict extraction, report markup                                |
+| `cli.ts`                                     | flag definitions, coercion, mode exclusivity, corpus path defaults                                          |
+| `confirm.ts`                                 | y/N prompt; false when there is no TTY                                                                      |
+| `prompt.ts`                                  | the prompt. See above before editing                                                                        |
+| `selection.ts`                               | corpus → which icons to describe                                                                            |
+| `rasterize.ts`                               | icon → cached PNG                                                                                           |
+| `invoke.ts`                                  | `cli` transport                                                                                             |
+| `invoke-api.ts`                              | `api` transport, model pricing, cost estimates                                                              |
+| `batch.ts`                                   | `batch` transport: submit, record, collect. Generic over the payload, so descriptions and verdicts share it |
+| `run.ts`                                     | per-icon request loop, retries, running cost, cache totals, `--max-cost` abort                              |
+| `store.ts`                                   | corpus read/merge/write, model sidecar                                                                      |
+| `promote.ts`                                 | `choices.json` → which model's description each icon ships                                                  |
+| `alignment.ts`                               | cross-arm displacement gate: is a description on the right icon at all                                      |
+| `transport.ts`                               | shared types, `requestFailure`, response schema, cache-usage reporting                                      |
+| `../../src/data/iconDescriptions/entries.ts` | validators + override merge — shared with the app                                                           |
